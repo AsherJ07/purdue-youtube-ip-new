@@ -1,3 +1,4 @@
+import math
 import os
 import re
 import time
@@ -30,6 +31,11 @@ from dashboard.components.visualizations import (
     styled_keyword_chips,
 )
 from src.llm_integration.thumbnail_generator import ThumbnailGenerator
+from src.services.outliers_finder import (
+    SUBSCRIBER_BUCKETS,
+    OutlierSearchRequest,
+    search_outlier_videos,
+)
 from src.utils.api_keys import get_provider_key_count, run_with_provider_keys
 
 
@@ -49,6 +55,7 @@ WORKSPACE_MODULES = [
     "Overview",
     "Channel Audit",
     "Keyword Intel",
+    "Outliers Finder",
     "Title & SEO Lab",
     "Competitor Benchmark",
     "Content Planner",
@@ -183,6 +190,16 @@ STRATEGY_FILTERS = [
     "High CTR",
     "Sponsor-safe",
 ]
+OUTLIER_TIMEFRAME_OPTIONS = ["Last 7 Days", "Last 30 Days", "Last 90 Days", "Custom"]
+OUTLIER_REGION_OPTIONS = ["Any", "US", "IN", "GB", "CA", "AU", "DE", "FR", "BR", "JP"]
+OUTLIER_LANGUAGE_OPTIONS = ["Any", "en", "es", "hi", "pt", "de", "fr", "ja"]
+OUTLIER_SORT_OPTIONS = {
+    "Outlier Score": "outlier_score",
+    "Views / Day": "views_per_day",
+    "Views": "views",
+    "Engagement": "engagement_rate",
+    "Views / Subscriber": "views_per_subscriber",
+}
 
 
 def _safe_get(d: Dict[str, Any], path: List[str], default=None):
@@ -353,6 +370,96 @@ def _inject_ytuber_css() -> None:
             font-size: 11px;
             color: #B4BED9;
             margin-top: 0.08rem;
+        }
+        .outlier-card {
+            border-radius: 20px;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(40, 50, 70, 0.96) 0%, rgba(28, 37, 56, 0.99) 100%);
+            border: 1px solid rgba(255,255,255,0.09);
+            box-shadow: 0 14px 30px rgba(8, 12, 20, 0.24);
+            margin-bottom: 1rem;
+        }
+        .outlier-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+            background: rgba(255,255,255,0.04);
+        }
+        .outlier-card-body {
+            padding: 0.9rem 1rem 1rem;
+        }
+        .outlier-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.9rem;
+            margin-bottom: 0.55rem;
+        }
+        .outlier-card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.35;
+            margin-bottom: 0.2rem;
+        }
+        .outlier-card-channel {
+            font-size: 12px;
+            color: #AFBAD8;
+        }
+        .outlier-score-badge {
+            flex-shrink: 0;
+            min-width: 70px;
+            text-align: center;
+            padding: 0.4rem 0.6rem;
+            border-radius: 16px;
+            background: rgba(255, 59, 48, 0.14);
+            border: 1px solid rgba(255, 59, 48, 0.28);
+            color: #FFFFFF;
+        }
+        .outlier-score-value {
+            font-size: 20px;
+            line-height: 1;
+            font-weight: 800;
+        }
+        .outlier-score-label {
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #FFD7D4;
+            margin-top: 0.15rem;
+        }
+        .outlier-metrics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin: 0.55rem 0 0.7rem;
+        }
+        .outlier-metric-pill {
+            padding: 0.28rem 0.55rem;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #D3DBEF;
+        }
+        .outlier-reasons {
+            margin: 0;
+            padding-left: 1rem;
+            color: #E6ECFA;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .outlier-reasons li {
+            margin-bottom: 0.15rem;
+        }
+        .outlier-link {
+            margin-top: 0.7rem;
+            display: inline-block;
+            color: #FF9C94 !important;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
         }
         .ytuber-score-card {
             padding: 1rem 1.05rem;
@@ -1665,6 +1772,457 @@ def _render_keyword_intel(channel_df: pd.DataFrame) -> List[str]:
     return intel["keyword"].tolist()
 
 
+def _timeframe_to_window(
+    timeframe_label: str,
+    custom_dates: Optional[Tuple[datetime, datetime]] = None,
+) -> Tuple[datetime, datetime]:
+    now = datetime.now(timezone.utc)
+    if timeframe_label == "Last 7 Days":
+        return now - timedelta(days=7), now
+    if timeframe_label == "Last 30 Days":
+        return now - timedelta(days=30), now
+    if timeframe_label == "Last 90 Days":
+        return now - timedelta(days=90), now
+    if not custom_dates or len(custom_dates) != 2:
+        raise ValueError("Choose both start and end dates for a custom timeframe.")
+    start_date, end_date = custom_dates
+    start_dt = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+    end_dt = datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc)
+    return start_dt, end_dt
+
+
+def _format_int_label(value: Optional[float]) -> str:
+    if value is None or pd.isna(value):
+        return "N/A"
+    return f"{int(round(float(value))):,}"
+
+
+def _format_subscriber_label(
+    subscriber_count: Optional[float],
+    hidden_subscriber_count: bool,
+) -> str:
+    if hidden_subscriber_count or subscriber_count is None or pd.isna(subscriber_count):
+        return "Hidden"
+    value = int(float(subscriber_count))
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}M"
+    if value >= 1_000:
+        return f"{value / 1_000:.1f}K"
+    return f"{value}"
+
+
+def _render_outlier_cards(result_frame: pd.DataFrame) -> None:
+    if result_frame.empty:
+        return
+
+    cols = st.columns(3)
+    for idx, row in result_frame.head(6).iterrows():
+        reasons = [
+            escape(str(row.get("explanation_1", ""))),
+            escape(str(row.get("explanation_2", ""))),
+            escape(str(row.get("explanation_3", ""))),
+        ]
+        reasons_html = "".join(
+            f"<li>{reason}</li>" for reason in reasons if reason.strip()
+        )
+        thumb_html = (
+            f'<img src="{escape(str(row.get("thumbnail_url", "")))}" alt="{escape(str(row.get("video_title", "")))}" />'
+            if str(row.get("thumbnail_url", "")).strip()
+            else ""
+        )
+        with cols[idx % 3]:
+            st.markdown(
+                f"""
+                <div class="outlier-card">
+                    {thumb_html}
+                    <div class="outlier-card-body">
+                        <div class="outlier-card-top">
+                            <div>
+                                <div class="outlier-card-title">{escape(str(row.get("video_title", "")))}</div>
+                                <div class="outlier-card-channel">{escape(str(row.get("channel_title", "")))}</div>
+                            </div>
+                            <div class="outlier-score-badge">
+                                <div class="outlier-score-value">{float(row.get("outlier_score", 0)):.1f}</div>
+                                <div class="outlier-score-label">Score</div>
+                            </div>
+                        </div>
+                        <div class="outlier-metrics">
+                            <span class="outlier-metric-pill">{_format_int_label(row.get("views"))} views</span>
+                            <span class="outlier-metric-pill">{_format_int_label(row.get("views_per_day"))} / day</span>
+                            <span class="outlier-metric-pill">{float(row.get("engagement_rate", 0)) * 100:.2f}% engagement</span>
+                            <span class="outlier-metric-pill">{_format_subscriber_label(row.get("channel_subscriber_count"), bool(row.get("hidden_subscriber_count")))} subs</span>
+                            <span class="outlier-metric-pill">{float(row.get("age_days", 0)):.1f} days old</span>
+                        </div>
+                        <ul class="outlier-reasons">{reasons_html}</ul>
+                        <a class="outlier-link" href="{escape(str(row.get("video_url", "")))}" target="_blank">Open on YouTube</a>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def _build_outlier_prompt_rows(result_frame: pd.DataFrame) -> List[Dict[str, Any]]:
+    columns = [
+        "video_title",
+        "channel_title",
+        "outlier_score",
+        "views",
+        "views_per_day",
+        "engagement_rate",
+        "size_bucket",
+        "age_days",
+        "explanation_text",
+    ]
+    return result_frame.head(12)[columns].to_dict(orient="records")
+
+
+def _render_outliers_ai_panel(result_frame: pd.DataFrame, current_channel_title: str) -> None:
+    available_text_providers = [
+        provider for provider in ["gemini", "openai"] if get_provider_key_count(provider) > 0
+    ]
+    if result_frame.empty:
+        return
+    if not available_text_providers:
+        st.caption("Add `GEMINI_API_KEYS` and/or `OPENAI_API_KEYS` to unlock AI summaries for Outliers Finder.")
+        return
+
+    if (
+        "ytuber_outliers_ai_provider" not in st.session_state
+        or st.session_state["ytuber_outliers_ai_provider"] not in available_text_providers
+    ):
+        st.session_state["ytuber_outliers_ai_provider"] = (
+            "gemini" if "gemini" in available_text_providers else available_text_providers[0]
+        )
+
+    provider = st.selectbox(
+        "AI provider",
+        available_text_providers,
+        key="ytuber_outliers_ai_provider",
+        format_func=lambda value: PROVIDER_LABELS.get(value, value.title()),
+    )
+    model_options = [item["id"] for item in TEXT_MODEL_CATALOG[provider]]
+    model_key = "ytuber_outliers_ai_model"
+    if model_key not in st.session_state or st.session_state[model_key] not in model_options:
+        st.session_state[model_key] = model_options[0]
+    model = st.selectbox(
+        "Summary model",
+        model_options,
+        key=model_key,
+        format_func=lambda value: _format_text_model_option(provider, value),
+    )
+
+    source_rows = _build_outlier_prompt_rows(result_frame)
+    button_cols = st.columns(2)
+    if button_cols[0].button("Summarize Outlier Patterns", use_container_width=True):
+        prompt = (
+            "You are a YouTube strategist analyzing a scanned cohort of public outlier videos.\n\n"
+            f"Creator context: {current_channel_title or 'General creator'}\n"
+            f"Outlier rows: {source_rows}\n\n"
+            "Return:\n"
+            "1. What patterns repeat across the strongest outliers\n"
+            "2. Which hooks, formats, or packaging choices appear most often\n"
+            "3. What the creator should pay attention to next"
+        )
+        with st.spinner("Generating outlier summary..."):
+            try:
+                st.session_state["ytuber_outliers_summary_output"] = _generate_text_with_provider_pool(
+                    provider,
+                    model,
+                    prompt,
+                )
+            except Exception as exc:
+                st.error(f"AI summary failed: {exc}")
+
+    if button_cols[1].button("Generate Content Angles", use_container_width=True):
+        prompt = (
+            "You are a YouTube strategist turning public outlier findings into actionable content ideas.\n\n"
+            f"Creator context: {current_channel_title or 'General creator'}\n"
+            f"Outlier rows: {source_rows}\n\n"
+            "Return:\n"
+            "1. 8 content angles inspired by the outliers but not copied\n"
+            "2. 10 title seeds\n"
+            "3. A short note on how to differentiate from the observed winners"
+        )
+        with st.spinner("Generating content angles..."):
+            try:
+                st.session_state["ytuber_outliers_angles_output"] = _generate_text_with_provider_pool(
+                    provider,
+                    model,
+                    prompt,
+                )
+            except Exception as exc:
+                st.error(f"AI angle generation failed: {exc}")
+
+    summary_output = st.session_state.get("ytuber_outliers_summary_output", "")
+    if summary_output:
+        st.markdown("**AI Pattern Summary**")
+        st.markdown(summary_output)
+
+    angle_output = st.session_state.get("ytuber_outliers_angles_output", "")
+    if angle_output:
+        st.markdown("**AI Content Angles**")
+        st.markdown(angle_output)
+
+
+def _render_outliers_finder(current_channel_title: str) -> None:
+    section_header("Outliers Finder", icon="🚀")
+    st.caption(
+        "Search a niche cohort with the official YouTube API and rank videos by public overperformance versus channel baseline and peer context."
+    )
+
+    with st.form("ytuber_outliers_form"):
+        niche_query = st.text_input(
+            "Niche or keyword",
+            key="ytuber_outliers_query",
+            placeholder="AI automation, fitness for busy professionals, tech explainer, science shorts...",
+        )
+        primary_cols = st.columns(4)
+        with primary_cols[0]:
+            timeframe = st.selectbox(
+                "Timeframe",
+                OUTLIER_TIMEFRAME_OPTIONS,
+                index=1,
+                key="ytuber_outliers_timeframe",
+            )
+        with primary_cols[1]:
+            region_code = st.selectbox(
+                "Geography",
+                OUTLIER_REGION_OPTIONS,
+                index=0,
+                key="ytuber_outliers_region",
+            )
+        with primary_cols[2]:
+            language_code = st.selectbox(
+                "Language",
+                OUTLIER_LANGUAGE_OPTIONS,
+                index=0,
+                key="ytuber_outliers_language",
+            )
+        with primary_cols[3]:
+            subscriber_bucket = st.selectbox(
+                "Channel size",
+                list(SUBSCRIBER_BUCKETS.keys()),
+                index=0,
+                key="ytuber_outliers_subscriber_bucket",
+            )
+
+        custom_dates = None
+        if timeframe == "Custom":
+            default_end = datetime.now(timezone.utc).date()
+            default_start = default_end - timedelta(days=30)
+            custom_dates = st.date_input(
+                "Custom range",
+                value=(default_start, default_end),
+                max_value=default_end,
+                key="ytuber_outliers_custom_dates",
+            )
+
+        secondary_cols = st.columns([1.1, 1.4, 1.1])
+        with secondary_cols[0]:
+            include_hidden_subscribers = st.toggle(
+                "Include hidden subscriber counts",
+                value=True,
+                key="ytuber_outliers_include_hidden",
+            )
+        with secondary_cols[1]:
+            st.markdown(
+                "<div class='ytuber-toolbar-note'>Results are outliers inside the scanned cohort returned by the YouTube API, not exhaustive rankings across all of YouTube.</div>",
+                unsafe_allow_html=True,
+            )
+        with secondary_cols[2]:
+            submitted = st.form_submit_button(
+                "Run Outlier Scan",
+                type="primary",
+                use_container_width=True,
+                disabled=get_provider_key_count("youtube") <= 0,
+            )
+
+        with st.expander("Advanced Search Settings", expanded=False):
+            advanced_cols = st.columns(3)
+            with advanced_cols[0]:
+                search_pages = st.slider(
+                    "Search pages",
+                    min_value=2,
+                    max_value=4,
+                    value=2,
+                    step=1,
+                    key="ytuber_outliers_search_pages",
+                    help="Each extra page can add about 100 YouTube quota units.",
+                )
+            with advanced_cols[1]:
+                baseline_channel_limit = st.slider(
+                    "Baseline channels",
+                    min_value=10,
+                    max_value=20,
+                    value=15,
+                    step=5,
+                    key="ytuber_outliers_baseline_channels",
+                )
+            with advanced_cols[2]:
+                baseline_video_cap = st.slider(
+                    "Baseline uploads per channel",
+                    min_value=10,
+                    max_value=30,
+                    value=20,
+                    step=5,
+                    key="ytuber_outliers_baseline_videos",
+                )
+
+    if submitted:
+        if not niche_query.strip():
+            st.session_state["ytuber_outliers_error"] = "Enter a niche, topic, or keyword before running the scan."
+            st.session_state.pop("ytuber_outliers_result", None)
+        else:
+            try:
+                published_after, published_before = _timeframe_to_window(
+                    timeframe,
+                    custom_dates=tuple(custom_dates) if timeframe == "Custom" and custom_dates else None,
+                )
+                if (published_before - published_after).days > 180:
+                    raise ValueError("Custom timeframe cannot exceed 180 days in V1.")
+                request = OutlierSearchRequest(
+                    niche_query=niche_query.strip(),
+                    published_after_iso=published_after.isoformat(),
+                    published_before_iso=published_before.isoformat(),
+                    region_code="" if region_code == "Any" else region_code,
+                    relevance_language="" if language_code == "Any" else language_code,
+                    subscriber_bucket=subscriber_bucket,
+                    include_hidden_subscribers=include_hidden_subscribers,
+                    max_results=int(search_pages * 50),
+                    baseline_channel_limit=baseline_channel_limit,
+                    baseline_video_cap=baseline_video_cap,
+                )
+                with st.spinner("Scanning the niche cohort and scoring outliers..."):
+                    result = search_outlier_videos(request)
+                st.session_state["ytuber_outliers_result"] = result
+                st.session_state.pop("ytuber_outliers_error", None)
+                st.session_state.pop("ytuber_outliers_summary_output", None)
+                st.session_state.pop("ytuber_outliers_angles_output", None)
+            except Exception as exc:
+                st.session_state["ytuber_outliers_error"] = str(exc)
+                st.session_state.pop("ytuber_outliers_result", None)
+
+    error_message = st.session_state.get("ytuber_outliers_error", "")
+    if error_message:
+        st.error(error_message)
+
+    result = st.session_state.get("ytuber_outliers_result")
+    if not result:
+        st.info("Run a niche scan to surface overperforming videos in the selected cohort.")
+        return
+
+    for warning in result.warnings:
+        st.warning(warning)
+
+    result_frame = result.to_frame()
+    if result_frame.empty:
+        st.info("No strong matches were found in the scanned cohort. Broaden the timeframe or loosen the filters.")
+        return
+
+    result_frame["published_at"] = pd.to_datetime(result_frame["published_at_iso"], errors="coerce", utc=True)
+    result_frame["engagement_pct"] = result_frame["engagement_rate"] * 100
+    result_frame["log10_subscribers"] = result_frame["channel_subscriber_count"].fillna(0).apply(
+        lambda value: math.log10(float(value) + 1)
+    )
+
+    kpi_row(
+        [
+            {"label": "Videos Scanned", "value": f"{result.scanned_videos:,}", "icon": "🎬"},
+            {"label": "Channels Scanned", "value": f"{result.scanned_channels:,}", "icon": "📺"},
+            {"label": "Channel Baselines", "value": f"{result.baseline_channels:,}", "icon": "📉"},
+            {"label": "Cache Policy", "value": result.cache_policy, "icon": "🧠"},
+            {"label": "Quota Mode", "value": result.quota_profile, "icon": "⚡"},
+        ]
+    )
+
+    sort_label = st.selectbox(
+        "Sort results by",
+        list(OUTLIER_SORT_OPTIONS.keys()),
+        index=0,
+        key="ytuber_outliers_sort",
+    )
+    sort_column = OUTLIER_SORT_OPTIONS[sort_label]
+    sorted_frame = result_frame.sort_values(sort_column, ascending=False).reset_index(drop=True)
+
+    st.markdown("**Top Outlier Videos**")
+    _render_outlier_cards(sorted_frame)
+
+    chart_cols = st.columns(2)
+    with chart_cols[0]:
+        scatter_fig = plotly_scatter(
+            sorted_frame,
+            x="log10_subscribers",
+            y="outlier_score",
+            size="views",
+            color="age_bucket",
+            title="Outlier Score vs Channel Size (log10 subscribers + 1)",
+        )
+        st.plotly_chart(scatter_fig, use_container_width=True)
+    with chart_cols[1]:
+        channel_breakout = (
+            sorted_frame.groupby("channel_title", dropna=False)
+            .agg(outliers=("video_id", "count"))
+            .reset_index()
+            .sort_values("outliers", ascending=False)
+            .head(12)
+        )
+        channel_fig = plotly_bar_chart(
+            channel_breakout.sort_values("outliers", ascending=True),
+            x="channel_title",
+            y="outliers",
+            title="Channels Producing the Most Outliers",
+            horizontal=True,
+        )
+        st.plotly_chart(channel_fig, use_container_width=True)
+
+    keyword_counter: Counter = Counter()
+    for title in sorted_frame.head(20)["video_title"].tolist():
+        keyword_counter.update(_tokenize(title))
+    if keyword_counter:
+        st.markdown("**Repeated Title Keywords Across The Outliers**")
+        styled_keyword_chips([keyword for keyword, _ in keyword_counter.most_common(10)])
+
+    table_df = sorted_frame[
+        [
+            "thumbnail_url",
+            "video_title",
+            "channel_title",
+            "outlier_score",
+            "views",
+            "views_per_day",
+            "engagement_pct",
+            "channel_subscriber_count",
+            "age_days",
+            "explanation_text",
+        ]
+    ].copy()
+    table_df.rename(
+        columns={
+            "thumbnail_url": "Thumbnail",
+            "video_title": "Title",
+            "channel_title": "Channel",
+            "outlier_score": "Outlier Score",
+            "views": "Views",
+            "views_per_day": "Views / Day",
+            "engagement_pct": "Engagement %",
+            "channel_subscriber_count": "Subscribers",
+            "age_days": "Age (Days)",
+            "explanation_text": "Why It Is An Outlier",
+        },
+        inplace=True,
+    )
+    styled_dataframe(
+        table_df,
+        title="Scanned Cohort Results",
+        precision=2,
+        image_columns=["Thumbnail"],
+    )
+
+    st.markdown("**AI Layer**")
+    _render_outliers_ai_panel(sorted_frame, current_channel_title)
+
+
 def _render_title_seo_lab(keyword_hints: List[str]) -> None:
     section_header("Title & SEO Lab", icon="🧪")
     st.caption("Scores update as the title or description changes. Use this editor to pressure-test hooks before you generate more ideas.")
@@ -2584,6 +3142,10 @@ def render() -> None:
         st.session_state.pop("ytuber_creative_brief", None)
         st.session_state.pop("ytuber_ai_task_pending", None)
         st.session_state.pop("ytuber_ai_brief_pending", None)
+        st.session_state.pop("ytuber_outliers_result", None)
+        st.session_state.pop("ytuber_outliers_error", None)
+        st.session_state.pop("ytuber_outliers_summary_output", None)
+        st.session_state.pop("ytuber_outliers_angles_output", None)
         st.session_state["ytuber_active_module"] = "AI Studio"
         st.session_state.pop("ytuber_active_module_pending", None)
         st.session_state.pop("ytuber_ai_notice", None)
@@ -2644,6 +3206,8 @@ def render() -> None:
     elif active_module == "Keyword Intel":
         keyword_hints = _render_keyword_intel(channel_df)
         st.session_state["ytuber_keyword_hints"] = keyword_hints
+    elif active_module == "Outliers Finder":
+        _render_outliers_finder(channel_title)
     elif active_module == "Title & SEO Lab":
         hints = st.session_state.get("ytuber_keyword_hints") or _top_keywords(channel_df, 20)
         _render_title_seo_lab(hints)

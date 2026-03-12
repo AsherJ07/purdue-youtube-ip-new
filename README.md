@@ -6,7 +6,7 @@ YouTube IP V3 is a Streamlit application for channel benchmarking, content analy
 
 - Channel Analysis for portfolio-level trends across the bundled datasets
 - Recommendations for publish timing, title patterns, and keyword angles
-- Ytuber Creator Suite for live channel audits, competitor benchmarking, SEO scoring, trend radar, content planning, and AI generation
+- Ytuber Creator Suite for live channel audits, outlier discovery, competitor benchmarking, SEO scoring, content planning, and AI generation
 - Gemini and OpenAI integrations for text and thumbnail workflows
 
 ## Repository Layout
@@ -98,10 +98,12 @@ Uses live YouTube API pulls for a single channel, rotates across the configured 
 - Overview
 - Channel Audit
 - Keyword Intel
+- Outliers Finder
 - Title and SEO Lab
 - Competitor Benchmark
 - Content Planner
-- AI Studio
+
+Outliers Finder scans the public cohort returned by the official YouTube Data API for a niche query and ranks videos by age-adjusted overperformance. It is designed for practical research, not exhaustive YouTube-wide ranking. Results are limited by official API search coverage, public metrics, and your configured API quota.
 
 ## Streamlit Deployment
 
@@ -132,6 +134,7 @@ You can copy `.streamlit/secrets.toml.example` for local reference.
 - `dashboard/app.py` remains the main application module.
 - Channel Analysis and Recommendations work from the committed datasets.
 - The Ytuber page uses the configured key pools to serve live channel data without exposing raw keys in the UI.
+- Outliers Finder uses the same YouTube key pool, caches niche scans for one hour, and caches channel baselines for six hours to control quota burn.
 - Thumbnail and text generation features use the configured Gemini and/or OpenAI key pools.
 - OpenAI thumbnail generation uses the official Images API flow and now exposes model, size, quality, background, and output-format controls in AI Studio.
 
