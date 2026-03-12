@@ -40,6 +40,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+If you want to rebuild the standalone Outlier Finder search component locally, you also need Node.js 20+.
+
 ### Configure Secrets For Local Development
 
 ```bash
@@ -72,6 +74,16 @@ The original module entrypoint also works:
 
 ```bash
 streamlit run dashboard/app.py
+```
+
+### Rebuild The Outlier Finder Search Component
+
+The Outlier Finder search/filter surface is packaged as a Streamlit Components v2 React app. The built assets are committed in the repo so deployment does not require Node at runtime. To rebuild those assets locally:
+
+```bash
+cd frontend/outlier-search-form
+npm install
+npm run build
 ```
 
 ## Dashboard Pages

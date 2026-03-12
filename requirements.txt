@@ -1,3 +1,4 @@
+-e .
 bertopic
 google-api-python-client>=2.190.0
 matplotlib

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "youtube_ip_v3"
+version = "0.1.0"
+description = "Streamlit package for the YouTube IP V3 application"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["dashboard*", "src*", "tests*", "youtube_ip_v3*"]
+
+[tool.streamlit.component]
+components = [
+  { name = "outlier_search_form", asset_dir = "components/outlier_search_form_assets" },
+]

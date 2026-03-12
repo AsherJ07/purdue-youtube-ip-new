@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from html import escape
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -23,6 +23,12 @@ from src.services.outliers_finder import (
     search_outlier_videos,
 )
 from src.utils.api_keys import get_provider_key_count
+from youtube_ip_v3.components.outlier_search_form import (
+    DEFAULT_FORM_KEY,
+    apply_form_values_to_session_state,
+    render_outlier_search_form,
+    session_state_to_form_values,
+)
 
 
 TIMEFRAME_OPTIONS = ["Last 7 Days", "Last 30 Days", "Last 90 Days", "Custom"]
@@ -69,6 +75,7 @@ SEARCH_STATE_KEYS = (
     "outlier_page_search_pages",
     "outlier_page_baseline_channels",
     "outlier_page_baseline_videos",
+    DEFAULT_FORM_KEY,
     "outlier_page_result",
     "outlier_page_error",
     "outlier_page_sort",
@@ -692,6 +699,24 @@ def _render_search_footer_note() -> None:
     )
 
 
+def _build_search_form_options() -> Dict[str, Any]:
+    return {
+        "timeframes": TIMEFRAME_OPTIONS,
+        "matchModes": ["Broad", "Exact Phrase"],
+        "regions": REGION_OPTIONS,
+        "languages": LANGUAGE_OPTIONS,
+        "freshness": list(FRESHNESS_OPTIONS.keys()),
+        "durations": DURATION_OPTIONS,
+        "strictness": STRICTNESS_OPTIONS,
+        "minViews": [0, 1_000, 5_000, 10_000, 50_000, 100_000],
+        "advanced": {
+            "searchPages": [2, 3, 4],
+            "baselineChannels": [10, 15, 20],
+            "baselineVideos": [10, 15, 20, 25, 30],
+        },
+    }
+
+
 def _render_prefill_note(note: str) -> None:
     st.markdown(
         f'<div class="outlier-prefill-note">Suggested Query Loaded • {escape(note)}</div>',
@@ -1202,167 +1227,19 @@ def render() -> None:
     )
 
     prefill_note = st.session_state.pop("outlier_page_prefill_note", None)
-    if prefill_note:
-        _render_prefill_note(prefill_note)
+    initial_values = session_state_to_form_values(st.session_state)
+    draft_values = st.session_state.get(DEFAULT_FORM_KEY)
+    if isinstance(draft_values, dict):
+        initial_values = {**initial_values, **draft_values}
 
-    with st.form("outlier_finder_search_form"):
-        _render_search_header()
+    form_action = render_outlier_search_form(
+        values=initial_values,
+        options=_build_search_form_options(),
+        disabled_submit=provider_counts["youtube"] <= 0,
+        prefill_note=prefill_note,
+    )
 
-        query_cols = st.columns([1.8, 1], gap="medium")
-        with query_cols[0]:
-            niche_query = st.text_input(
-                "Niche Or Keyword",
-                key="outlier_page_query",
-                placeholder="AI automation, documentary storytelling, science shorts, luxury fitness...",
-            )
-        with query_cols[1]:
-            st.markdown('<div class="outlier-inline-field-label">Actions</div>', unsafe_allow_html=True)
-            action_cols = st.columns(2, gap="small")
-            with action_cols[0]:
-                submitted = st.form_submit_button(
-                    "Find Outliers",
-                    type="primary",
-                    use_container_width=True,
-                    disabled=provider_counts["youtube"] <= 0,
-                )
-            with action_cols[1]:
-                reset_clicked = st.form_submit_button("Reset Filters", use_container_width=True)
-
-        filter_row_one = st.columns(4, gap="medium")
-        with filter_row_one[0]:
-            timeframe = st.selectbox("Timeframe", TIMEFRAME_OPTIONS, index=1, key="outlier_page_timeframe")
-        with filter_row_one[1]:
-            match_mode = st.segmented_control(
-                "Match Mode",
-                ["Broad", "Exact Phrase"],
-                key="outlier_page_match_mode",
-                selection_mode="single",
-                default="Broad",
-            )
-        with filter_row_one[2]:
-            region_code = st.selectbox("Region", REGION_OPTIONS, index=0, key="outlier_page_region")
-        with filter_row_one[3]:
-            language_code = st.selectbox("Language", LANGUAGE_OPTIONS, index=0, key="outlier_page_language")
-
-        if timeframe == "Custom":
-            default_end = datetime.now(timezone.utc).date()
-            default_start = default_end - timedelta(days=30)
-            custom_dates = st.date_input(
-                "Custom Date Range",
-                value=(default_start, default_end),
-                max_value=default_end,
-                key="outlier_page_custom_dates",
-            )
-        else:
-            custom_dates = None
-
-        filter_row_two = st.columns(4, gap="medium")
-        with filter_row_two[0]:
-            freshness_focus = st.selectbox(
-                "Freshness Focus",
-                list(FRESHNESS_OPTIONS.keys()),
-                index=0,
-                key="outlier_page_freshness",
-            )
-        with filter_row_two[1]:
-            duration_preference = st.selectbox(
-                "Duration Preference",
-                DURATION_OPTIONS,
-                index=0,
-                key="outlier_page_duration",
-            )
-        with filter_row_two[2]:
-            strictness = st.segmented_control(
-                "Language Strictness",
-                STRICTNESS_OPTIONS,
-                key="outlier_page_language_strictness",
-                selection_mode="single",
-                default="Strict",
-            )
-        with filter_row_two[3]:
-            min_views = st.selectbox(
-                "Minimum Views",
-                [0, 1_000, 5_000, 10_000, 50_000, 100_000],
-                index=0,
-                key="outlier_page_min_views",
-                format_func=lambda value: "No Minimum" if value == 0 else f"{value:,}+",
-            )
-
-        channel_cols = st.columns([1.85, 1], gap="medium")
-        with channel_cols[0]:
-            st.markdown('<div class="outlier-row-label">Channel Size</div>', unsafe_allow_html=True)
-            subscriber_cols = st.columns(2, gap="small")
-            with subscriber_cols[0]:
-                min_subscribers = st.number_input(
-                    "Minimum Subscribers",
-                    min_value=0,
-                    value=0,
-                    step=1_000,
-                    key="outlier_page_min_subscribers",
-                )
-            with subscriber_cols[1]:
-                max_subscribers = st.number_input(
-                    "Maximum Subscribers",
-                    min_value=0,
-                    value=0,
-                    step=1_000,
-                    key="outlier_page_max_subscribers",
-                    help="Leave at 0 to keep the upper bound open.",
-                )
-        with channel_cols[1]:
-            st.markdown('<div class="outlier-row-label">Subscriber Visibility</div>', unsafe_allow_html=True)
-            with st.container(border=True):
-                include_hidden = st.toggle(
-                    "Include Hidden Subscriber Counts",
-                    value=True,
-                    key="outlier_page_include_hidden",
-                )
-                st.markdown(
-                    '<div class="outlier-visibility-copy">Keep channels with hidden subscriber counts in the scan when subscriber size is not publicly visible.</div>',
-                    unsafe_allow_html=True,
-                )
-
-        exclude_keywords_text = st.text_input(
-            "Exclude Keywords",
-            key="outlier_page_exclude_keywords",
-            placeholder="news, reaction, podcast clips",
-        )
-
-        st.markdown('<div class="outlier-form-gap"></div>', unsafe_allow_html=True)
-        with st.expander("More Filters", expanded=False):
-            advanced_cols = st.columns(3, gap="medium")
-            with advanced_cols[0]:
-                search_pages = st.slider(
-                    "Search Depth",
-                    min_value=2,
-                    max_value=4,
-                    value=2,
-                    step=1,
-                    key="outlier_page_search_pages",
-                    help="Each extra page adds about 100 search quota units.",
-                )
-            with advanced_cols[1]:
-                baseline_channel_limit = st.slider(
-                    "Baseline Channels",
-                    min_value=10,
-                    max_value=20,
-                    value=15,
-                    step=5,
-                    key="outlier_page_baseline_channels",
-                )
-            with advanced_cols[2]:
-                baseline_video_cap = st.slider(
-                    "Baseline Uploads Per Channel",
-                    min_value=10,
-                    max_value=30,
-                    value=20,
-                    step=5,
-                    key="outlier_page_baseline_videos",
-                )
-
-        _render_search_footer_note()
-
-    if reset_clicked:
+    if form_action and form_action["action"] == "reset":
         _reset_search_state()
         st.rerun()
 
@@ -1371,7 +1248,32 @@ def render() -> None:
             "No YouTube API keys are configured. Add `YOUTUBE_API_KEYS` or `YOUTUBE_API_KEY` in Streamlit secrets to enable live outlier scans."
         )
 
-    if submitted:
+    if form_action and form_action["action"] == "submit":
+        form_values = form_action["values"]
+        apply_form_values_to_session_state(st.session_state, form_values)
+        niche_query = form_values["query"]
+        timeframe = form_values["timeframe"]
+        region_code = form_values["region"]
+        language_code = form_values["language"]
+        match_mode = form_values["match_mode"]
+        freshness_focus = form_values["freshness_focus"]
+        duration_preference = form_values["duration_preference"]
+        strictness = form_values["language_strictness"]
+        min_views = int(form_values["min_views"])
+        min_subscribers = int(form_values["min_subscribers"])
+        max_subscribers = int(form_values["max_subscribers"])
+        include_hidden = bool(form_values["include_hidden"])
+        exclude_keywords_text = form_values["exclude_keywords"]
+        search_pages = int(form_values["search_pages"])
+        baseline_channel_limit = int(form_values["baseline_channels"])
+        baseline_video_cap = int(form_values["baseline_videos"])
+        custom_dates = None
+        if timeframe == "Custom" and form_values["custom_start"] and form_values["custom_end"]:
+            custom_dates = (
+                date.fromisoformat(form_values["custom_start"]),
+                date.fromisoformat(form_values["custom_end"]),
+            )
+
         if not niche_query.strip():
             st.session_state["outlier_page_error"] = "Enter a niche, topic, or keyword before running the scan."
             st.session_state.pop("outlier_page_result", None)
