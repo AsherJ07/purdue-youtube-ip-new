@@ -690,25 +690,94 @@ streamlit run dashboard/app.py
 
 This repo is structured to deploy directly from GitHub to Streamlit Community Cloud.
 
-Current deployed app:
-
-- https://youtube-ip-v3.streamlit.app/
-
 ### Streamlit app settings
 
-- Repo: `royayushkr/Youtube-IP-V3`
+- Repo: `royayushkr/Youtube-IP-V4`
 - Branch: `main`
 - Main file path: `streamlit_app.py`
 
-### Required secrets
+### Where To Add Secrets In Streamlit Cloud
+
+You can add secrets in either place:
+
+1. During first deploy:
+   - `New App` -> `Advanced Settings` -> `Secrets`
+2. After the app already exists:
+   - open the app in Streamlit Community Cloud
+   - `Manage App` -> `Settings` -> `Secrets`
+
+If you are deploying locally, use `.streamlit/secrets.toml` instead.
+
+### Recommended Streamlit Secrets Block
+
+Paste this into the Streamlit `Secrets` editor and replace the placeholder values:
 
 ```toml
 YOUTUBE_API_KEYS = ["your_youtube_key_1", "your_youtube_key_2"]
 GEMINI_API_KEYS = ["your_gemini_key_1", "your_gemini_key_2"]
 OPENAI_API_KEYS = ["your_openai_key_1", "your_openai_key_2"]
+
+GOOGLE_OAUTH_CLIENT_ID = "your-google-oauth-client-id"
+GOOGLE_OAUTH_CLIENT_SECRET = "your-google-oauth-client-secret"
+GOOGLE_OAUTH_REDIRECT_URI = "https://your-app-name.streamlit.app/"
 ```
 
 Single-key fallbacks still work if needed.
+
+### Google OAuth Setup For Channel Insights
+
+`Channel Insights` can optionally connect a Google account and use owner-only YouTube Analytics metrics during the session.
+
+That flow needs all three of these secrets:
+
+- `GOOGLE_OAUTH_CLIENT_ID`
+- `GOOGLE_OAUTH_CLIENT_SECRET`
+- `GOOGLE_OAUTH_REDIRECT_URI`
+
+Important setup rules:
+
+- the redirect URI must exactly match one of the authorized redirect URIs in your Google Cloud OAuth client
+- for Streamlit Community Cloud, the safest V1 redirect URI is usually your deployed app root URL, for example:
+  - `https://your-app-name.streamlit.app/`
+- if you test locally, also add your local URL to Google Cloud, for example:
+  - `http://localhost:8501/`
+
+Suggested Google Cloud setup:
+
+1. Open Google Cloud Console
+2. Create or select a project
+3. Enable:
+   - `YouTube Data API v3`
+   - `YouTube Analytics API`
+4. Create an OAuth client for a web application
+5. Add the authorized redirect URIs you will use
+6. Copy the client ID and client secret into Streamlit secrets
+
+What the current V4 app requests:
+
+- Google Sign-In
+- YouTube Read-Only
+- YouTube Analytics Read-Only
+
+What V4 does not request:
+
+- upload permissions
+- channel management permissions
+- destructive account scopes
+
+### Local Secrets Example
+
+If you are running locally, create `.streamlit/secrets.toml` and use:
+
+```toml
+YOUTUBE_API_KEYS = ["your_youtube_key_1", "your_youtube_key_2"]
+GEMINI_API_KEYS = ["your_gemini_key_1", "your_gemini_key_2"]
+OPENAI_API_KEYS = ["your_openai_key_1", "your_openai_key_2"]
+
+GOOGLE_OAUTH_CLIENT_ID = "your-google-oauth-client-id"
+GOOGLE_OAUTH_CLIENT_SECRET = "your-google-oauth-client-secret"
+GOOGLE_OAUTH_REDIRECT_URI = "http://localhost:8501/"
+```
 
 ### Theme
 
