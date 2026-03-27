@@ -35,21 +35,30 @@ def _render_hero() -> None:
 
 inject_shared_theme()
 
+def _cleanup_retired_session_state() -> None:
+    retired_prefixes = ("assistant_", "google_oauth_")
+    retired_exact_keys = {"channel_insights_owned_channel"}
+    for key in list(st.session_state.keys()):
+        if key in retired_exact_keys or key.startswith(retired_prefixes):
+            st.session_state.pop(key, None)
+
+
+_cleanup_retired_session_state()
 page = render_sidebar()
 
-if page in {"Channel Analysis", "Recommendations"}:
+if page in {"Channel Analysis", "Thumbnails"}:
     _render_hero()
 
 if page == "Channel Analysis":
     channel_analysis.render()
-elif page == "Recommendations":
+elif page == "Thumbnails":
     recommendations.render()
-elif page == "Ytuber":
-    ytuber.render()
 elif page == "Channel Insights":
     channel_insights.render()
 elif page == "Outlier Finder":
     outlier_finder.render()
+elif page == "Ytuber":
+    ytuber.render()
 elif page == "Tools":
     tools.render()
 else:
@@ -67,7 +76,7 @@ else:
         ```
 
         ### Streamlit Cloud Settings
-        - Repo: `royayushkr/Youtube-IP-V4`
+        - Repo: `royayushkr/Youtube-IP-V5`
         - Branch: `main`
         - Main file path: `streamlit_app.py`
 
@@ -83,19 +92,11 @@ else:
         ### Notes
         - `dashboard/app.py` remains the main application module.
         - `streamlit_app.py` is the root-level deployment entrypoint for Streamlit Cloud.
-        - Channel Analysis and Recommendations use the committed CSV datasets under `data/youtube api data/`.
-        - The Ytuber suite uses live API calls and rotates across the configured key pools.
-        - Channel Insights stores dated SQLite snapshots on manual refresh and can optionally blend in owner-only YouTube Analytics metrics when Google OAuth is configured for the current session.
-        - Outlier Finder is a standalone sidebar feature with a results-first flow, breakout snapshot, structured AI research, heuristic language filtering, and one-hour query caching.
-        - Tools is a standalone sidebar utility page for metadata preview, thumbnails, transcripts, audio, and video downloads.
-        - `packages.txt` installs `ffmpeg` for merged video downloads and MP3 conversion in the Tools page.
-
-        ### Outlier Finder Methodology Summary
-        - **Outlier Score:** weighted mix of baseline lift, peer percentile, engagement percentile, and recency boost.
-        - **Views Per Day:** views divided by video age in days.
-        - **Language Confidence:** metadata plus title-script heuristic, not a guaranteed classifier.
-        - **Important Caveat:** YouTube search is ranked and sampled, so Outlier Finder is not an exhaustive index of every relevant video on YouTube.
-        - For the full explanation of filters, metrics, and caveats, open **Outlier Finder -> Methodology** in the sidebar.
+        - `Channel Analysis` and `Thumbnails` use the committed assets and configured AI providers already in the repo.
+        - `Channel Insights` is public-only in this build and stores dated SQLite snapshots on manual refresh.
+        - `Ytuber` and `Tools` remain available as part of the AI suite.
+        - `Outlier Finder` remains a standalone research workflow.
+        - `packages.txt` installs `ffmpeg` for the Tools page media flows.
 
         ### Alternate Entrypoint
         ```bash

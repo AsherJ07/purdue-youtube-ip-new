@@ -313,10 +313,6 @@ def list_channel_snapshot_history(channel_id: str, db_path: Path = DEFAULT_CHANN
                 "strongest_theme": summary.get("strongest_theme", ""),
                 "weakest_theme": summary.get("weakest_theme", ""),
                 "upload_gap_days": summary.get("avg_upload_gap_days", 0),
-                "owner_watch_hours": summary.get("owner_watch_hours", 0),
-                "owner_average_view_percentage": summary.get("owner_average_view_percentage", 0),
-                "owner_thumbnail_ctr": summary.get("owner_thumbnail_ctr", 0),
-                "owner_metrics_available": summary.get("owner_metrics_available", False),
             }
         )
     return pd.DataFrame(records)
