@@ -6,6 +6,29 @@ Live app:
 
 - [youtube-ip-v4.streamlit.app](https://youtube-ip-v4.streamlit.app/)
 
+## Branch Tag And Deploy Targets
+
+- Original repo branch tag: `youtube-ip-v4`
+- Original repo: `matt-foor/purdue-youtube-ip`
+- Deploy repo: `royayushkr/Youtube-IP-V4`
+- Deploy branch: `main`
+- PR branch reference: [youtube-ip-v4](https://github.com/matt-foor/purdue-youtube-ip/tree/youtube-ip-v4)
+
+## V4 Vs V5 At A Glance
+
+`youtube-ip-v4` is the fuller branch. It keeps:
+
+- the sidebar Assistant
+- Google OAuth for owner-only Channel Insights overlays
+- `Recommendations`, `Ytuber`, `Tools`, and `Deployment`
+
+If you want the lighter branch that removes Assistant and Google OAuth while keeping the AI suite pages, use `youtube-ip-v5`.
+
+For the full version matrix and model-deployment notes, see:
+
+- [Deployment And Versions](docs/DEPLOYMENT_AND_VERSIONS.md)
+- [Architecture](docs/ARCHITECTURE.md)
+
 Deployment target depends on the repo and branch you choose. Use the deployment section below for the current Streamlit setup.
 
 This README documents the current deployed app as it exists in this repository, including:
@@ -849,6 +872,10 @@ The beta mode is deployment-safe by design:
 
 - `MODEL_ARTIFACTS_ENABLED=true`
 - `MODEL_ARTIFACTS_MANIFEST_URL=https://.../bertopic_manifest_<version>.json`
+
+Current V4 deploy-repo manifest URL:
+
+- `https://raw.githubusercontent.com/royayushkr/Youtube-IP-V4/main/data/model_manifests/bertopic_manifest_2026.03.27.json`
 
 #### Optional advanced settings
 

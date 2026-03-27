@@ -27,6 +27,21 @@ flowchart LR
     F --> G["Creator Insights, Tools, Outlier Research, Channel Diagnostics"]
 ```
 
+## Model-Backed Topic Flow
+```mermaid
+flowchart LR
+    A["Streamlit secrets"] --> B["MODEL_ARTIFACTS_MANIFEST_URL"]
+    B --> C["src/services/model_artifact_service.py"]
+    C --> D["Manifest JSON"]
+    D --> E["Artifact URL + checksum"]
+    E --> F["outputs/models/runtime/<bundle_version>/"]
+    F --> G["src/services/topic_model_runtime.py"]
+    G --> H["src/services/channel_insights_service.py"]
+    H --> I["dashboard/views/channel_insights.py"]
+```
+
+The BERTopic path is optional. If the secret is missing, invalid, or the download fails, Channel Insights stays on the heuristic topic flow.
+
 ## Runtime Modules
 ```mermaid
 flowchart TB
