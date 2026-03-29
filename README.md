@@ -1,38 +1,34 @@
-# YouTube IP V4
+# YouTube IP V5
 
-YouTube IP V4 is the fuller Streamlit branch for YouTube benchmarking, live creator workflows, tracked channel analysis, thumbnail generation, asset tools, and retrieval-first product help.
-
-Live app:
-
-- [youtube-ip-v4.streamlit.app](https://youtube-ip-v4.streamlit.app/)
+YouTube IP V5 is the lighter Streamlit branch for YouTube benchmarking, public channel intelligence, thumbnail work, outlier research, and the retained AI suite pages.
 
 ## Branch And Deploy Targets
 
-- Original repo branch tag: `youtube-ip-v4`
+- Original repo branch tag: `youtube-ip-v5`
 - Original repo: `matt-foor/purdue-youtube-ip`
-- Deploy repo: `royayushkr/Youtube-IP-V4`
+- Deploy repo: `royayushkr/Youtube-IP-V5`
 - Deploy branch: `main`
-- PR branch reference: [youtube-ip-v4](https://github.com/matt-foor/purdue-youtube-ip/tree/youtube-ip-v4)
+- PR branch reference: [youtube-ip-v5](https://github.com/matt-foor/purdue-youtube-ip/tree/youtube-ip-v5)
 
 ## Sidebar Navigation
 
 1. `Channel Analysis`
 2. `Channel Insights`
-3. `Recommendations`
+3. `Thumbnails`
 4. `Outlier Finder`
 5. `Ytuber`
 6. `Tools`
 7. `Deployment`
 
-This branch also includes a global sidebar `Assistant`.
+V5 removes the global `Assistant` and removes Google OAuth from `Channel Insights`, but it keeps `Ytuber`, `Tools`, and `Deployment`.
 
 ## What Each Page Solves
 
 | Page | Problem Solved | Main Inputs And Services | Main Outputs |
 | --- | --- | --- | --- |
 | `Channel Analysis` | Benchmark bundled YouTube datasets by category, channel, and time range | CSV files in `data/youtube api data/`, pandas, visualization helpers | KPI cards, trend charts, top channels, top videos |
-| `Channel Insights` | Track a real channel over time and understand what is working now | `public_channel_service`, `channel_snapshot_store`, `channel_insights_service`, optional Google OAuth, optional BERTopic | Snapshot history, topic trends, format patterns, outliers, next-topic ideas |
-| `Recommendations` | Turn benchmark patterns into lighter strategy guidance and thumbnail prompts | Bundled datasets plus `thumbnail_generator.py` | dataset guidance, example videos, thumbnail concepts |
+| `Channel Insights` | Track a public channel over time and understand what is working now | `public_channel_service`, `channel_snapshot_store`, `channel_insights_service`, optional BERTopic | snapshot history, topic trends, format patterns, outliers, next-topic ideas |
+| `Thumbnails` | Generate or export thumbnails without mixing in broader strategy UI | `thumbnail_generator.py`, `thumbnail_hub_service.py`, public YouTube thumbnail URLs | generated thumbnails, preview cards, downloadable images |
 | `Outlier Finder` | Discover overperforming videos in a niche | `outliers_finder.py`, `outlier_ai.py`, YouTube Data API | scored outlier tables, breakout charts, AI research cards |
 | `Ytuber` | Work on one live channel with creator-focused AI tooling | YouTube Data API, pooled API keys, thumbnail generator, outlier handoff | AI Studio outputs, audit views, keyword insights, planner views |
 | `Tools` | Export or inspect public YouTube assets | `youtube_tools.py`, `transcript_service.py`, `yt-dlp`, `ffmpeg` | metadata previews, transcript exports, audio/video downloads, thumbnail downloads |
@@ -46,16 +42,15 @@ flowchart TD
     U["User actions in Streamlit"] --> B
     B --> C["dashboard/app.py router"]
     C --> D["dashboard/components/sidebar.py"]
-    D --> E["Channel Analysis / Channel Insights / Recommendations / Outlier Finder / Ytuber / Tools / Deployment"]
+    D --> E["Page views"]
 
     S["Streamlit secrets / env vars"] --> F["src/utils/api_keys.py"]
     F --> G["YouTube Data API v3"]
     F --> H["Gemini / OpenAI"]
-    O["Google OAuth + YouTube Analytics"] --> I["Owner analytics services"]
 
-    A --> J["Channel Analysis + Recommendations dataset flows"]
+    A --> J["Channel Analysis + Thumbnails dataset flows"]
     G --> K["Ytuber / Channel Insights / Outlier Finder / Tools live API flows"]
-    H --> L["Thumbnail generation, AI reports, AI Studio, Assistant"]
+    H --> L["Thumbnail generation, AI reports, AI Studio"]
 
     J --> M["pandas transforms + visualization helpers"]
     K --> M
@@ -71,13 +66,10 @@ flowchart TD
     N6 -->|failure| N5
     N5 --> N7["primary_topic + topic_labels + topic_source"]
     N6 --> N7
-    O --> N8["fetch_owner_channel_analytics(...) + _merge_owner_video_metrics(...)"]
-    N7 --> N8
-    N7 --> N9["_score_videos(...)"]
-    N8 --> N9
-    N9 --> N10["topic / duration / title / timing metrics"]
-    N10 --> N11["outliers + recommendations + snapshot payload"]
-    N11 --> Q["Rendered Streamlit UI"]
+    N7 --> N8["_score_videos(...)"]
+    N8 --> N9["topic / duration / title / timing metrics"]
+    N9 --> N10["outliers + recommendations + snapshot payload"]
+    N10 --> Q["Rendered Streamlit UI"]
 
     M --> P["Tables, charts, cards, downloads, prompts"]
     P --> Q
@@ -95,12 +87,9 @@ flowchart LR
     F --> G["pandas dataframes + scored payloads"]
     G --> H["dashboard/components/visualizations.py"]
     H --> I["Charts, tables, cards, and actions"]
-
-    J["Optional Google OAuth session"] --> K["YouTube Analytics overlay"]
-    K --> F
 ```
 
-In V4, `Channel Insights` can optionally merge owner-only analytics when Google OAuth is configured and the signed-in Google account actually owns the tracked channel.
+In V5, `Channel Insights` is public-only. It does not use Google OAuth and it does not request owner-only YouTube Analytics overlays.
 
 ## How Channel Insights Topic Modes Are Integrated
 
@@ -119,22 +108,20 @@ flowchart TD
     G --> I["primary_topic + topic_labels + topic_source='heuristic'"]
     H --> J["model_topic_id + model_topic_label_raw + model_topic_label"]
     J --> K["primary_topic + topic_labels + topic_source='bertopic_global'"]
-    I --> L["optional owner overlay in V4"]
+    I --> L["_score_videos(...)"]
     K --> L
-    I --> M["_score_videos(...)"]
-    L --> M
-    M --> N["build_topic_metrics(...)"]
-    M --> O["build_duration_metrics(...)"]
-    M --> P["build_title_pattern_metrics(...)"]
-    M --> Q["build_publish_day_metrics(...) + build_publish_hour_metrics(...)"]
-    N --> R["_outlier_and_underperformer_tables(...)"]
-    O --> S["_build_summary(...)"]
-    P --> S
-    Q --> S
-    R --> T["build_grounded_idea_bundle(...) + maybe_generate_ai_overlay(...)"]
-    S --> U["store_channel_snapshot(...)"]
-    T --> U
-    U --> V["Overview / Topic Trends / Formats / Outliers / Next Topics / History tabs"]
+    L --> M["build_topic_metrics(...)"]
+    L --> N["build_duration_metrics(...)"]
+    L --> O["build_title_pattern_metrics(...)"]
+    L --> P["build_publish_day_metrics(...) + build_publish_hour_metrics(...)"]
+    M --> Q["_outlier_and_underperformer_tables(...)"]
+    N --> R["_build_summary(...)"]
+    O --> R
+    P --> R
+    Q --> S["build_grounded_idea_bundle(...) + maybe_generate_ai_overlay(...)"]
+    R --> T["store_channel_snapshot(...)"]
+    S --> T
+    T --> U["Overview / Topic Trends / Formats / Outliers / Next Topics / History tabs"]
 ```
 
 The important piece is that heuristic and beta are not two separate products. They are two topic-assignment modes inside the same refresh path. Once the dataframe has `primary_topic`, `topic_labels`, and `topic_source`, the downstream metrics, summaries, recommendations, and tabs are shared.
@@ -214,9 +201,9 @@ flowchart LR
     M --> J
 ```
 
-Current V4 manifest URL:
+Current V5 manifest URL:
 
-- `https://raw.githubusercontent.com/royayushkr/Youtube-IP-V4/main/data/model_manifests/bertopic_manifest_2026.03.27.json`
+- `https://raw.githubusercontent.com/royayushkr/Youtube-IP-V5/main/data/model_manifests/bertopic_manifest_2026.03.27.json`
 
 ## Streamlit Secrets
 
@@ -225,18 +212,14 @@ YOUTUBE_API_KEYS = ["your_youtube_key_1", "your_youtube_key_2"]
 GEMINI_API_KEYS = ["your_gemini_key_1", "your_gemini_key_2"]
 OPENAI_API_KEYS = ["your_openai_key_1", "your_openai_key_2"]
 
-GOOGLE_OAUTH_CLIENT_ID = "your-google-oauth-client-id"
-GOOGLE_OAUTH_CLIENT_SECRET = "your-google-oauth-client-secret"
-GOOGLE_OAUTH_REDIRECT_URI = "https://your-app-name.streamlit.app/"
-
 MODEL_ARTIFACTS_ENABLED = true
-MODEL_ARTIFACTS_MANIFEST_URL = "https://raw.githubusercontent.com/royayushkr/Youtube-IP-V4/main/data/model_manifests/bertopic_manifest_2026.03.27.json"
+MODEL_ARTIFACTS_MANIFEST_URL = "https://raw.githubusercontent.com/royayushkr/Youtube-IP-V5/main/data/model_manifests/bertopic_manifest_2026.03.27.json"
 MODEL_ARTIFACTS_CACHE_DIR = "outputs/models/runtime"
 MODEL_ARTIFACTS_DOWNLOAD_TIMEOUT_SECONDS = 300
 MODEL_ARTIFACTS_MAX_SIZE_MB = 512
 ```
 
-## V4 Vs V5
+## Version Comparison
 
 | Area | V4 | V5 |
 | --- | --- | --- |

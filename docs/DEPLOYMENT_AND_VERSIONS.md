@@ -1,32 +1,30 @@
-# V4 Deployment, Versions, And Model Flow
+# V5 Deployment, Versions, And Model Flow
 
 ## Branch And Repo Targets
 
 | Item | Value |
 | --- | --- |
-| Original repo branch tag | `youtube-ip-v4` |
+| Original repo branch tag | `youtube-ip-v5` |
 | Original repo | `matt-foor/purdue-youtube-ip` |
-| Deploy repo | `royayushkr/Youtube-IP-V4` |
+| Deploy repo | `royayushkr/Youtube-IP-V5` |
 | Deploy branch | `main` |
-| PR branch reference | [youtube-ip-v4](https://github.com/matt-foor/purdue-youtube-ip/tree/youtube-ip-v4) |
+| PR branch reference | [youtube-ip-v5](https://github.com/matt-foor/purdue-youtube-ip/tree/youtube-ip-v5) |
 
 ## Navigation Order
 
 1. `Channel Analysis`
 2. `Channel Insights`
-3. `Recommendations`
+3. `Thumbnails`
 4. `Outlier Finder`
 5. `Ytuber`
 6. `Tools`
 7. `Deployment`
 
-This branch also includes the global sidebar `Assistant`.
-
 ## Streamlit Deployment Flow
 
 ```mermaid
 flowchart TD
-    A["GitHub repo branch<br/>youtube-ip-v4"] --> B["Streamlit app config"]
+    A["GitHub repo branch<br/>youtube-ip-v5"] --> B["Streamlit app config"]
     B --> C["streamlit_app.py"]
     C --> D["dashboard/app.py"]
     D --> E["Sidebar navigation"]
@@ -42,17 +40,16 @@ flowchart TD
 flowchart LR
     A["Streamlit secrets"] --> B["YOUTUBE_API_KEYS"]
     A --> C["GEMINI_API_KEYS / OPENAI_API_KEYS"]
-    A --> D["GOOGLE_OAUTH_*"]
-    A --> E["MODEL_ARTIFACTS_*"]
+    A --> D["MODEL_ARTIFACTS_*"]
 
-    B --> F["src/utils/api_keys.py"]
-    C --> F
-    F --> G["YouTube Data API / Gemini / OpenAI"]
-    D --> H["Google OAuth + YouTube Analytics"]
-    G --> I["Service-layer transforms"]
-    H --> I
-    I --> J["Rendered Streamlit UI"]
+    B --> E["src/utils/api_keys.py"]
+    C --> E
+    E --> F["YouTube Data API / Gemini / OpenAI"]
+    F --> G["Service-layer transforms"]
+    G --> H["Rendered Streamlit UI"]
 ```
+
+In V5, `Channel Insights` is public-only and does not use Google OAuth.
 
 ## Model-Backed Topic Deployment
 
@@ -73,14 +70,12 @@ flowchart TD
     G --> I["heuristic primary_topic + topic_labels + topic_source"]
     H --> J["model_topic_id + model_topic_label_raw + model_topic_label"]
     J --> K["model-backed primary_topic + topic_labels + topic_source"]
-    I --> L["optional owner overlay in V4"]
+    I --> L["_score_videos(...)"]
     K --> L
-    I --> M["_score_videos(...)"]
-    L --> M
-    M --> N["topic / duration / title / timing metrics"]
-    N --> O["outliers + recommendations + summary payload"]
-    O --> P["store_channel_snapshot(...)"]
-    P --> Q["Overview / Topic Trends / Formats / Outliers / Next Topics / History"]
+    L --> M["topic / duration / title / timing metrics"]
+    M --> N["outliers + recommendations + summary payload"]
+    N --> O["store_channel_snapshot(...)"]
+    O --> P["Overview / Topic Trends / Formats / Outliers / Next Topics / History"]
 ```
 
 ### Topic Mode Explanation
@@ -131,18 +126,14 @@ YOUTUBE_API_KEYS = ["your_youtube_key_1", "your_youtube_key_2"]
 GEMINI_API_KEYS = ["your_gemini_key_1", "your_gemini_key_2"]
 OPENAI_API_KEYS = ["your_openai_key_1", "your_openai_key_2"]
 
-GOOGLE_OAUTH_CLIENT_ID = "your-google-oauth-client-id"
-GOOGLE_OAUTH_CLIENT_SECRET = "your-google-oauth-client-secret"
-GOOGLE_OAUTH_REDIRECT_URI = "https://your-app-name.streamlit.app/"
-
 MODEL_ARTIFACTS_ENABLED = true
-MODEL_ARTIFACTS_MANIFEST_URL = "https://raw.githubusercontent.com/royayushkr/Youtube-IP-V4/main/data/model_manifests/bertopic_manifest_2026.03.27.json"
+MODEL_ARTIFACTS_MANIFEST_URL = "https://raw.githubusercontent.com/royayushkr/Youtube-IP-V5/main/data/model_manifests/bertopic_manifest_2026.03.27.json"
 MODEL_ARTIFACTS_CACHE_DIR = "outputs/models/runtime"
 MODEL_ARTIFACTS_DOWNLOAD_TIMEOUT_SECONDS = 300
 MODEL_ARTIFACTS_MAX_SIZE_MB = 512
 ```
 
-## V4 Vs V5
+## Version Comparison
 
 | Area | V4 (`youtube-ip-v4`) | V5 (`youtube-ip-v5`) |
 | --- | --- | --- |
