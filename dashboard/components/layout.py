@@ -1,52 +1,95 @@
-"""Shared shell: page heroes and wayfinding copy aligned to the Creator Insights UX."""
+"""Shared shell: per-page feature heroes (badge → headline → description → tags)."""
 
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from html import escape
+from typing import Dict, List, Tuple
 
 import streamlit as st
 
-# (kicker, one-line value prop) — kicker is small caps; shown under the global product subtitle.
-PAGE_CONTEXT: Dict[str, Tuple[str, str]] = {
+
+# Badge (ALL CAPS), headline, description, optional feature tags (glass pills)
+PAGE_HERO: Dict[str, Tuple[str, str, str, Tuple[str, ...]]] = {
     "Channel Analysis": (
-        "Dataset intelligence",
-        "Committed CSV benchmarks — filters, engagement, and chart-backed summaries.",
+        "CHANNEL ANALYSIS",
+        "Benchmark datasets and see which channels and videos actually move the needle.",
+        "Filter committed CSVs, compare engagement across categories, and surface rankings, trends, and scatter insights—without leaving this workspace.",
+        ("CSV benchmarks", "Engagement signals", "Portfolio view"),
     ),
     "Channel Insights": (
-        "Owned-channel depth",
-        "BERTopic-ready topics, momentum views, and refresh-to-disk SQLite snapshots.",
+        "CHANNEL INSIGHTS",
+        "Track public channel snapshots and turn real performance signals into better topic decisions.",
+        "Add a public channel by URL, handle, or channel ID. Channel Insights stores manual snapshots over time, highlights the themes and formats that are working, and turns those signals into grounded next-topic ideas.",
+        ("SQLite snapshots", "Heuristic & optional BERTopic", "Public API only"),
     ),
     "Thumbnails": (
-        "Creative lab",
-        "Score against your dataset or generate/export thumbnails with Gemini or OpenAI.",
+        "THUMBNAILS",
+        "Generate stronger thumbnail concepts or export the best public thumbnail from any video.",
+        "This workspace is intentionally thumbnail-only—use it to create fresh concepts with Gemini or OpenAI, or pull public thumbnail variants from a YouTube URL without dragging in broader strategy, transcript, or media-download tooling.",
+        ("Gemini & OpenAI", "Generate or export", "Scoped workflow"),
     ),
     "Outlier Finder": (
-        "Breakout research",
-        "Quota-aware scans, explainable scores, charts, and structured AI research.",
+        "OUTLIER FINDER",
+        "Discover breakout videos before the niche catches up.",
+        "Scan any topic, filter the noise, and surface overperforming videos with clear research signals. Review the winners first, understand the pattern next, and layer AI interpretation only after the evidence is visible.",
+        (
+            "Public YouTube API data",
+            "Explainable outlier scoring",
+            "Quota-aware query caching",
+            "Structured AI research",
+        ),
     ),
     "Ytuber": (
-        "Command center",
-        "Channel search, audits, AI studio, calendar — jump to Outlier Finder in one click.",
+        "YTUBER",
+        "Your live creator workspace for search, audits, AI studio, and planning.",
+        "Search by handle, name, or channel ID—then move through audits, keyword intel, outliers, title lab, benchmarks, planner, and AI Studio in one continuous flow. Provider pools reflect your configured API keys.",
+        ("YouTube Data API", "Multi-module workspace", "AI Studio"),
     ),
     "Tools": (
-        "Media & utilities",
-        "Transcription, shorts helpers, and other workflows (ffmpeg where noted).",
+        "TOOLS",
+        "Inspect public YouTube assets and prepare export-ready downloads.",
+        "Metadata, thumbnails, transcripts, and batch or playlist workflows—outputs are temporary; see each tool for ffmpeg or API key requirements.",
+        ("Single & batch", "Playlist flows", "Transcripts & media"),
+    ),
+    "Deployment": (
+        "DEPLOYMENT",
+        "Run locally or ship to Streamlit Cloud with the same entrypoint everywhere.",
+        "Use `streamlit_app.py` as the main file, install from `requirements.txt`, add `YOUTUBE` / `GEMINI` / `OPENAI` keys in Secrets, and use `packages.txt` for ffmpeg on Cloud when tools need it.",
+        ("streamlit_app.py", "requirements.txt", "Secrets & packages"),
     ),
 }
 
 
 def render_page_hero(page: str) -> None:
-    """Top-of-page hero: gradient product title + Purdue × Google line + page context."""
-    ctx = PAGE_CONTEXT.get(page)
-    if not ctx:
+    """Top-of-page glass hero: eyebrow → badge → headline → description → optional tags."""
+    row = PAGE_HERO.get(page)
+    if not row:
         return
-    kicker, blurb = ctx
+    badge, headline, desc, tags = row
+    tags_html = ""
+    if tags:
+        parts: List[str] = []
+        for idx, t in enumerate(tags):
+            cls = "feature-hero-tag"
+            if idx % 3 == 0:
+                cls += " feature-hero-tag--accent-r"
+            elif idx % 3 == 1:
+                cls += " feature-hero-tag--accent-b"
+            parts.append(f'<span class="{cls}">{escape(t)}</span>')
+        tags_html = f'<div class="feature-hero-tags">{"".join(parts)}</div>'
+
     st.markdown(
         f"""
-        <div class="fade-in app-hero-block" style="margin-bottom:1.35rem;">
-            <div class="app-hero-kicker">{kicker}</div>
-            <p class="app-hero-blurb">{blurb}</p>
-        </div>
-        """,
+<div class="glass-page-hero fade-in">
+  <p class="product-eyebrow">YouTube Creator Insights <span class="product-eyebrow-sep">·</span> Purdue × Google</p>
+  <div class="feature-badge">
+    <span class="feature-badge-dot" aria-hidden="true"></span>
+    {escape(badge)}
+  </div>
+  <h1 class="feature-headline">{escape(headline)}</h1>
+  <p class="feature-description">{escape(desc)}</p>
+  {tags_html}
+</div>
+""",
         unsafe_allow_html=True,
     )

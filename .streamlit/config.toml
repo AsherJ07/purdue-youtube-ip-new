@@ -4,7 +4,7 @@ toolbarMode = "auto"
 
 [theme]
 primaryColor = "#FF0000"
-backgroundColor = "#0F0F23"
-secondaryBackgroundColor = "#16213E"
-textColor = "#FFFFFF"
+backgroundColor = "#F5F5F7"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#111216"
 font = "sans serif"

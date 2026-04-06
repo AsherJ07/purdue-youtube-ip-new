@@ -272,6 +272,19 @@ def _inject_tools_css() -> None:
             background: rgba(255,255,255,0.08);
             margin: 1rem 0;
         }
+        /* Light glass */
+        .tools-card, .tools-result-card {
+            background: rgba(255, 255, 255, 0.92) !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08) !important;
+        }
+        .tools-card-title, .tools-summary-label { color: #1d1d1f !important; }
+        .tools-card-copy, .tools-summary-value { color: #424245 !important; }
+        .tools-empty {
+            border: 1px dashed rgba(0, 0, 0, 0.15) !important;
+            background: rgba(255, 255, 255, 0.85) !important;
+            color: #6e6e73 !important;
+        }
         @media (max-width: 900px) {
             .tools-meta-grid {
                 grid-template-columns: 1fr;
@@ -304,26 +317,6 @@ def _register_artifacts(artifacts: Iterable[PreparedArtifact]) -> None:
     for artifact in artifacts:
         paths.add(str(Path(artifact.file_path).parent))
     st.session_state["tools_temp_paths"] = sorted(paths)
-
-
-def _render_hero() -> None:
-    st.markdown(
-        (
-            '<div class="tools-page">'
-            '<div class="tools-hero">'
-            '<div class="tools-kicker"><span class="tools-kicker-dot"></span>Utilities</div>'
-            '<div class="tools-subtitle">Metadata, thumbnails, transcripts, and downloads — outputs are temporary; see each tool for ffmpeg or key requirements.</div>'
-            '<div class="tools-pill-row">'
-            '<span class="tools-pill">Single Videos</span>'
-            '<span class="tools-pill">Batch Operations</span>'
-            '<span class="tools-pill">Playlist Workflows</span>'
-            '<span class="tools-pill">Temporary Files Only</span>'
-            '</div>'
-            '</div>'
-            '</div>'
-        ),
-        unsafe_allow_html=True,
-    )
 
 
 def _summary_card(title: str, copy: str, items: list[tuple[str, str]]) -> None:
@@ -919,7 +912,6 @@ def _render_playlist_tab() -> None:
 def render() -> None:
     _inject_tools_css()
     st.markdown('<div class="tools-page">', unsafe_allow_html=True)
-    _render_hero()
     single_tab, batch_tab, playlist_tab = st.tabs(["Single", "Batch", "Playlist"])
     with single_tab:
         _render_single_tab()

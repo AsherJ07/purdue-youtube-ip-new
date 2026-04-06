@@ -141,7 +141,7 @@ def _recommendations_block(filtered: pd.DataFrame) -> str:
 
 
 def render() -> None:
-    section_header("Channel Analysis", icon="📊")
+    section_header("Dataset & filters", icon="📊")
 
     categories = _available_categories()
     selected_category = st.selectbox("Dataset category", categories, index=0)
@@ -290,6 +290,61 @@ def render() -> None:
             title="Videos & Views Over Time",
             secondary_y=["views"],
         )
+        fig.update_layout(
+            hovermode="x unified",
+            legend=dict(
+                orientation="v",
+                yanchor="top",
+                y=0.98,
+                xanchor="left",
+                x=1.01,
+                bgcolor="rgba(255,255,255,0.97)",
+                bordercolor="rgba(0,0,0,0.16)",
+                borderwidth=1,
+                font=dict(size=13, color="#111216"),
+            ),
+            margin=dict(l=72, r=110, t=74, b=70),
+        )
+        fig.update_xaxes(
+            title_text="Publish Month",
+            tickformat="%Y",
+            hoverformat="%b %Y",
+            showline=True,
+            linewidth=1.2,
+            linecolor="rgba(0,0,0,0.28)",
+            gridcolor="rgba(0,0,0,0.08)",
+            tickfont=dict(size=12, color="#1d1d1f"),
+            title_font=dict(size=15, color="#111216"),
+        )
+        fig.update_yaxes(
+            title_text="Videos",
+            secondary_y=False,
+            tickfont=dict(size=12, color="#111216"),
+            title_font=dict(size=15, color="#111216"),
+            gridcolor="rgba(0,0,0,0.11)",
+            rangemode="tozero",
+        )
+        fig.update_yaxes(
+            title_text="Views",
+            secondary_y=True,
+            tickformat="~s",
+            tickfont=dict(size=12, color="#111216"),
+            title_font=dict(size=15, color="#111216"),
+            showgrid=False,
+            rangemode="tozero",
+        )
+        fig.update_traces(
+            selector=dict(name="Videos"),
+            mode="lines",
+            line=dict(color="#FF0033", width=2.6),
+            hovertemplate="Month: %{x|%b %Y}<br>Videos: %{y:~s}<extra></extra>",
+        )
+        fig.update_traces(
+            selector=dict(name="Views"),
+            mode="lines",
+            line=dict(color="#00A6FF", width=2.6),
+            hovertemplate="Month: %{x|%b %Y}<br>Views: %{y:~s}<extra></extra>",
+        )
         show_plotly_chart(fig)
         graph_insight_expander(
             "Uploads & views over time",
@@ -337,6 +392,7 @@ def render() -> None:
         .dropna(how="all")
         .reset_index()
     )
+    day_perf["median_engagement_pct"] = day_perf["median_engagement"].fillna(0) * 100
 
     col_day1, col_day2 = st.columns(2)
     with col_day1:
@@ -356,9 +412,18 @@ def render() -> None:
         fig_eng = plotly_bar_chart(
             day_perf,
             x="publish_day",
-            y="median_engagement",
+            y="median_engagement_pct",
             title="Median Engagement Rate by Day",
         )
+        if not day_perf["median_engagement_pct"].dropna().empty:
+            eng_min = float(day_perf["median_engagement_pct"].min())
+            eng_max = float(day_perf["median_engagement_pct"].max())
+            spread = max(eng_max - eng_min, 0.01)
+            pad = max(spread * 0.3, 0.08)
+            low = max(0.0, eng_min - pad)
+            high = eng_max + pad
+            fig_eng.update_yaxes(range=[low, high], ticksuffix="%", tickformat=".2f")
+        fig_eng.update_traces(texttemplate="%{y:.2f}%", hovertemplate="Publish Day: %{x}<br>Median Engagement: %{y:.2f}%<extra></extra>")
         show_plotly_chart(fig_eng)
         graph_insight_expander(
             "Engagement by weekday",
@@ -385,14 +450,33 @@ def render() -> None:
         height=520,
         legend=dict(
             title="Channel",
+            title_font=dict(size=12, color="#1d1d1f"),
             orientation="v",
             yanchor="top",
             y=1,
             xanchor="left",
             x=1.02,
-            font=dict(size=10),
+            font=dict(size=11, color="#1d1d1f"),
+            bgcolor="rgba(255,255,255,0.98)",
+            bordercolor="rgba(0,0,0,0.12)",
+            borderwidth=1,
         ),
-        margin=dict(r=180),
+        margin=dict(l=96, r=190, t=72, b=92),
+    )
+    fig_scatter.update_xaxes(
+        title_text="Views (log scale)",
+        title_font=dict(size=15, color="#1d1d1f"),
+        tickfont=dict(size=12, color="#424245"),
+        title_standoff=16,
+        automargin=True,
+    )
+    fig_scatter.update_yaxes(
+        title_text="Engagement Rate (%)",
+        title_font=dict(size=15, color="#1d1d1f"),
+        tickfont=dict(size=12, color="#424245"),
+        tickformat=".0%",
+        title_standoff=16,
+        automargin=True,
     )
     show_plotly_chart(fig_scatter)
     graph_insight_expander(

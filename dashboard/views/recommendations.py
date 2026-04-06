@@ -176,6 +176,128 @@ def _inject_page_css() -> None:
             font-size:13px;
             line-height:1.6;
         }
+        /* Light glass */
+        .thumb-card {
+            background: rgba(255, 255, 255, 0.92) !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            box-shadow: 0 16px 44px rgba(0, 0, 0, 0.1) !important;
+        }
+        .thumb-card-title { color: #1d1d1f !important; }
+        .thumb-card-copy { color: #424245 !important; }
+        .thumb-metric {
+            background: rgba(255, 255, 255, 0.95) !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        }
+        .thumb-metric-label { color: #6e6e73 !important; }
+        .thumb-metric-value { color: #1d1d1f !important; }
+        .thumb-empty {
+            border: 1px dashed rgba(0, 0, 0, 0.15) !important;
+            background: rgba(255, 255, 255, 0.85) !important;
+            color: #6e6e73 !important;
+        }
+        /* Thumbnails page controls: force light glass fields (no dark fallbacks) */
+        .thumb-page [data-testid="stWidgetLabel"] p,
+        .thumb-page [data-testid="stWidgetLabel"] label,
+        .thumb-page [data-testid="stWidgetLabel"] span {
+            color: #1d1d1f !important;
+            opacity: 1 !important;
+            font-weight: 600 !important;
+        }
+        .thumb-page .stTextInput > div > div > input,
+        .thumb-page .stTextArea textarea,
+        .thumb-page [data-baseweb="input"] > div,
+        .thumb-page [data-baseweb="textarea"] > div,
+        .thumb-page [data-baseweb="select"] > div,
+        .thumb-page .stSelectbox > div > div {
+            background: linear-gradient(165deg, rgba(255, 255, 255, 1), rgba(240, 244, 250, 0.98)) !important;
+            color: #1d1d1f !important;
+            border: 1px solid rgba(0, 0, 0, 0.16) !important;
+            border-radius: 14px !important;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 1),
+                0 6px 16px rgba(0, 0, 0, 0.08) !important;
+        }
+        .thumb-page [data-baseweb="input"] input,
+        .thumb-page [data-baseweb="textarea"] textarea,
+        .thumb-page .stTextInput input,
+        .thumb-page .stTextArea textarea {
+            color: #1d1d1f !important;
+            caret-color: #1d1d1f !important;
+            background: transparent !important;
+        }
+        .thumb-page .stTextInput input::placeholder,
+        .thumb-page .stTextArea textarea::placeholder {
+            color: #6e6e73 !important;
+            opacity: 1 !important;
+        }
+        .thumb-page [data-baseweb="input"] input:focus,
+        .thumb-page [data-baseweb="textarea"] textarea:focus,
+        .thumb-page .stTextInput input:focus,
+        .thumb-page .stTextArea textarea:focus {
+            border-color: rgba(230, 0, 18, 0.35) !important;
+            box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.14) !important;
+            outline: none !important;
+        }
+        /* Fallback (no .thumb-page wrapper in DOM): force light text areas/inputs */
+        .stTextArea textarea,
+        [data-baseweb="textarea"] textarea,
+        [data-baseweb="textarea"] > div,
+        .stTextInput input,
+        [data-baseweb="input"] input,
+        [data-baseweb="input"] > div,
+        .stSelectbox > div > div,
+        [data-baseweb="select"] > div {
+            background: linear-gradient(165deg, rgba(255, 255, 255, 1), rgba(240, 244, 250, 0.98)) !important;
+            color: #1d1d1f !important;
+            border: 1px solid rgba(0, 0, 0, 0.16) !important;
+            border-radius: 14px !important;
+            -webkit-text-fill-color: #1d1d1f !important;
+        }
+        .stTextArea textarea::placeholder,
+        .stTextInput input::placeholder,
+        [data-baseweb="textarea"] textarea::placeholder,
+        [data-baseweb="input"] input::placeholder {
+            color: #6e6e73 !important;
+            -webkit-text-fill-color: #6e6e73 !important;
+            opacity: 1 !important;
+        }
+        /* Thumbnails page help icon: remove dark dot artifact and show a clean bulb */
+        [data-testid="stWidgetLabel"] [data-testid*="stTooltipHoverTarget"] button,
+        [data-testid="stWidgetLabel"] [data-testid*="stTooltipIcon"],
+        [data-testid="stWidgetLabel"] [data-testid*="stHelpIcon"] {
+            width: 24px !important;
+            height: 24px !important;
+            min-width: 24px !important;
+            min-height: 24px !important;
+            border-radius: 999px !important;
+            background: linear-gradient(165deg, #fffaf0, #fff3d9) !important;
+            border: 1px solid rgba(230, 0, 18, 0.42) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+            color: transparent !important;
+            position: relative !important;
+            overflow: hidden !important;
+        }
+        [data-testid="stWidgetLabel"] [data-testid*="stTooltipHoverTarget"] button *,
+        [data-testid="stWidgetLabel"] [data-testid*="stTooltipIcon"] *,
+        [data-testid="stWidgetLabel"] [data-testid*="stHelpIcon"] * {
+            opacity: 0 !important;
+            color: transparent !important;
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+        }
+        [data-testid="stWidgetLabel"] [data-testid*="stTooltipHoverTarget"] button::before,
+        [data-testid="stWidgetLabel"] [data-testid*="stTooltipIcon"]::before,
+        [data-testid="stWidgetLabel"] [data-testid*="stHelpIcon"]::before {
+            content: "💡";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -54%);
+            font-size: 13px;
+            line-height: 1;
+            opacity: 1 !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -210,22 +332,6 @@ def _register_thumbnail_artifact(artifact: PreparedThumbnailArtifact) -> None:
     paths = set(st.session_state.get("thumbnails_temp_paths", []))
     paths.add(temp_dir)
     st.session_state["thumbnails_temp_paths"] = sorted(paths)
-
-
-def _render_hero() -> None:
-    st.markdown(
-        """
-        <div class="thumb-page">
-            <div class="thumb-hero">
-                <div class="thumb-kicker"><span class="thumb-kicker-dot"></span>Workspace</div>
-                <div class="thumb-subtitle">
-                    Generate concepts with your AI providers or pull public thumbnail variants from a video URL — scoped to thumbnails only.
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 def _render_generate_tab() -> None:
@@ -481,7 +587,6 @@ def _render_download_tab() -> None:
 
 def render() -> None:
     _inject_page_css()
-    _render_hero()
 
     tabs = st.tabs(["Generate", "Download From URL"])
     with tabs[0]:

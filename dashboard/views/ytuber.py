@@ -568,6 +568,74 @@ def _inject_ytuber_css() -> None:
         [data-testid="stToggle"] small {
             color: #d0d0e0 !important;
         }
+        /* Light shell — Ytuber: dark ink on mesh (overrides dark-theme rules above) */
+        .ytuber-title,
+        .ytuber-command-title,
+        .ytuber-banner-title { color: #1d1d1f !important; }
+        .ytuber-subtitle,
+        .ytuber-command-subtitle,
+        .ytuber-toolbar-note,
+        .ytuber-empty-copy,
+        .ytuber-search-meta { color: #424245 !important; }
+        .ytuber-kicker { color: #b3000c !important; }
+        .ytuber-footer-card {
+            background: rgba(255, 255, 255, 0.96) !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        }
+        .ytuber-footer-label { color: #424245 !important; }
+        .ytuber-footer-value { color: #1d1d1f !important; }
+        .ytuber-footer-detail { color: #6e6e73 !important; }
+        div[data-testid="stTextInput"]:has(input[aria-label="Search Channel"]) [data-baseweb="input"] {
+            background: #ffffff !important;
+            border: 1px solid rgba(0, 0, 0, 0.14) !important;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06) !important;
+        }
+        div[data-testid="stTextInput"]:has(input[aria-label="Search Channel"]) input {
+            color: #1d1d1f !important;
+        }
+        [data-testid="stToggle"] label p,
+        [data-testid="stToggle"] small {
+            color: #1d1d1f !important;
+        }
+        .ytuber-section-surface {
+            background: rgba(255, 255, 255, 0.94) !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        }
+        /* Ytuber page: ensure help/info icon uses visible bulb style */
+        [data-testid*="stTooltipHoverTarget"] button,
+        button[aria-label*="help" i],
+        button[aria-label*="info" i],
+        [data-testid*="stTooltipIcon"],
+        [data-testid*="stHelpIcon"] {
+            width: 24px !important;
+            height: 24px !important;
+            min-width: 24px !important;
+            min-height: 24px !important;
+            border-radius: 999px !important;
+            background: linear-gradient(165deg, #fffaf0, #fff3d9) !important;
+            border: 1px solid rgba(230, 0, 18, 0.4) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+            color: transparent !important;
+            position: relative !important;
+        }
+        [data-testid*="stTooltipHoverTarget"] button svg,
+        button[aria-label*="help" i] svg,
+        button[aria-label*="info" i] svg,
+        [data-testid*="stTooltipIcon"] svg,
+        [data-testid*="stHelpIcon"] svg { opacity: 0 !important; }
+        [data-testid*="stTooltipHoverTarget"] button::before,
+        button[aria-label*="help" i]::before,
+        button[aria-label*="info" i]::before,
+        [data-testid*="stTooltipIcon"]::before,
+        [data-testid*="stHelpIcon"]::before {
+            content: "💡";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -54%);
+            font-size: 13px;
+            line-height: 1;
+        }
         @media (max-width: 900px) {
             .ytuber-title {
                 font-size: 34px;
@@ -1417,8 +1485,8 @@ def _render_outliers_shortcut(channel_df: pd.DataFrame, channel_title: str) -> N
     st.markdown(
         """
         <div class="yt-card" style="padding:0.9rem 1rem;">
-            <div style="font-size:13px;color:#FFFFFF;font-weight:700;margin-bottom:0.35rem;">Why the standalone page is better for this job</div>
-            <div style="font-size:13px;color:#B0B0B0;line-height:1.55;">
+            <div style="font-size:13px;color:#1d1d1f;font-weight:700;margin-bottom:0.35rem;">Why the standalone page is better for this job</div>
+            <div style="font-size:13px;color:#424245;line-height:1.55;">
                 It puts results first, then the breakout pattern snapshot, then structured AI research. It also supports stricter language filtering, exact versus broad matching, subscriber ranges, and cleaner niche-scanning controls.
             </div>
         </div>
@@ -1575,6 +1643,62 @@ def _render_overview(channel_df: pd.DataFrame) -> None:
             y_cols=["videos", "views"],
             title="Uploads and Views",
             secondary_y=["views"],
+        )
+        # Improve dual-axis readability for non-technical users.
+        fig.update_layout(
+            hovermode="x unified",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1.0,
+                bgcolor="rgba(255,255,255,0.96)",
+                bordercolor="rgba(0,0,0,0.14)",
+                borderwidth=1,
+                font=dict(size=13, color="#111216"),
+            ),
+            margin=dict(l=72, r=84, t=78, b=72),
+        )
+        fig.update_xaxes(
+            title_text="Publish Month",
+            tickformat="%Y",
+            hoverformat="%b %Y",
+            showline=True,
+            linewidth=1.2,
+            linecolor="rgba(0,0,0,0.28)",
+            gridcolor="rgba(0,0,0,0.07)",
+            tickfont=dict(size=13, color="#1d1d1f"),
+            title_font=dict(size=15, color="#111216"),
+        )
+        fig.update_yaxes(
+            title_text="Videos",
+            secondary_y=False,
+            tickfont=dict(size=13, color="#111216"),
+            title_font=dict(size=15, color="#111216"),
+            gridcolor="rgba(0,0,0,0.11)",
+            rangemode="tozero",
+        )
+        fig.update_yaxes(
+            title_text="Views",
+            secondary_y=True,
+            tickformat="~s",
+            tickfont=dict(size=13, color="#111216"),
+            title_font=dict(size=15, color="#111216"),
+            showgrid=False,
+            rangemode="tozero",
+        )
+        fig.update_traces(
+            selector=dict(name="Videos"),
+            mode="lines",
+            line=dict(color="#FF0033", width=2.6),
+            hovertemplate="Month: %{x|%b %Y}<br>Videos: %{y:~s}<extra></extra>",
+        )
+        fig.update_traces(
+            selector=dict(name="Views"),
+            mode="lines",
+            line=dict(color="#00A6FF", width=2.6),
+            hovertemplate="Month: %{x|%b %Y}<br>Views: %{y:~s}<extra></extra>",
         )
         show_plotly_chart(fig)
 
@@ -2083,7 +2207,7 @@ def _render_outliers_finder(current_channel_title: str) -> None:
             y="outlier_score",
             size="views",
             color="age_bucket",
-            title="Outlier Score vs Channel Size (log10 subscribers + 1)",
+            title="Outlier Score vs Channel Size (log scale)",
         )
         show_plotly_chart(scatter_fig)
     with chart_cols[1]:
@@ -2593,9 +2717,9 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
                 f"""
                 <div class="yt-card" style="padding:0.6rem 0.75rem;margin-bottom:0.6rem;">
                     <div style="font-size:11px;color:#64748b;">{row['week']}</div>
-                    <div style="font-size:16px;font-weight:600;color:#FFFFFF;">{row['publish_date_utc']}</div>
-                    <div style="font-size:12px;color:#B0B0B0;margin-bottom:0.15rem;">{row['publish_time_utc']} UTC</div>
-                    <div style="font-size:12px;color:#d0d0e0;">
+                    <div style="font-size:16px;font-weight:600;color:#1d1d1f;">{row['publish_date_utc']}</div>
+                    <div style="font-size:12px;color:#6e6e73;margin-bottom:0.15rem;">{row['publish_time_utc']} UTC</div>
+                    <div style="font-size:12px;color:#424245;">
                         <span class="keyword-chip">{row['topic_hint']}</span>
                     </div>
                 </div>
@@ -2979,23 +3103,6 @@ def render() -> None:
         "gemini": get_provider_key_count("gemini"),
         "openai": get_provider_key_count("openai"),
     }
-
-    st.markdown(
-        """
-        <div class="ytuber-hero">
-            <div class="ytuber-brand-row">
-                <span class="ytuber-brand-dot"></span>
-                YouTube IP V5
-            </div>
-            <div class="ytuber-kicker">Live workspace</div>
-            <div class="ytuber-subtitle">
-                Search by handle, name, or channel ID — audits, AI studio, and calendar in one flow.
-            </div>
-            <div class="ytuber-search-meta">Pools reflect configured API keys below.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
     _, search_col, _ = st.columns([1, 3.8, 1])
     with search_col:

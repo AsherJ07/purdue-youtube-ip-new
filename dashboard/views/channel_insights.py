@@ -188,6 +188,62 @@ def _inject_channel_insights_css() -> None:
             font-size: 13px;
             line-height: 1.6;
         }
+        /* Light glass (classes are unique to Channel Insights) */
+        .ci-title { color: #1d1d1f !important; }
+        .ci-subtitle { color: #424245 !important; }
+        .ci-card {
+            background: rgba(255, 255, 255, 0.96) !important;
+            border: 1px solid rgba(0, 0, 0, 0.11) !important;
+            box-shadow: 0 16px 44px rgba(0, 0, 0, 0.1) !important;
+        }
+        .ci-card-title { color: #1d1d1f !important; }
+        .ci-card-copy,
+        .ci-list,
+        .ci-note { color: #424245 !important; }
+        .ci-summary-value,
+        .ci-theme-title { color: #1d1d1f !important; }
+        .ci-empty {
+            border: 1px dashed rgba(0, 0, 0, 0.15) !important;
+            background: rgba(255, 255, 255, 0.8) !important;
+            color: #6e6e73 !important;
+        }
+        /* Channel Insights help/info icon: replace dark dot with clear bulb */
+        [data-testid*="stTooltipHoverTarget"] button,
+        button[aria-label*="help" i],
+        button[aria-label*="info" i] {
+            width: 24px !important;
+            height: 24px !important;
+            min-width: 24px !important;
+            min-height: 24px !important;
+            border-radius: 999px !important;
+            background: linear-gradient(165deg, #fffaf0, #fff3d9) !important;
+            border: 1px solid rgba(230, 0, 18, 0.38) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+            color: transparent !important;
+            position: relative !important;
+        }
+        [data-testid*="stTooltipHoverTarget"] button svg,
+        button[aria-label*="help" i] svg,
+        button[aria-label*="info" i] svg {
+            opacity: 0 !important;
+        }
+        [data-testid*="stTooltipHoverTarget"] button::before,
+        button[aria-label*="help" i]::before,
+        button[aria-label*="info" i]::before {
+            content: "💡";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -54%);
+            font-size: 13px;
+            line-height: 1;
+        }
+        [data-testid*="stTooltipHoverTarget"] button:hover,
+        button[aria-label*="help" i]:hover,
+        button[aria-label*="info" i]:hover {
+            background: linear-gradient(165deg, #fffbe7, #ffefc6) !important;
+            border-color: rgba(230, 0, 18, 0.55) !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -239,22 +295,6 @@ def _artifact_status_label(state: str) -> str:
         "transform_failed": "Failed / Fallback Active",
     }
     return mapping.get(str(state or "").strip().lower(), "Unavailable")
-
-
-def _render_hero() -> None:
-    st.markdown(
-        """
-        <div class="channel-insights-page">
-            <div class="ci-hero">
-                <div class="ci-kicker"><span class="ci-kicker-dot"></span>Snapshot workflow</div>
-                <div class="ci-subtitle">
-                    Public channels only — refresh to save dated SQLite snapshots, topic views, and next-topic ideas.
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
@@ -742,7 +782,6 @@ def _render_history_tab(payload: Dict[str, Any]) -> None:
 
 def render() -> None:
     _inject_channel_insights_css()
-    _render_hero()
 
     connected_channels = list_connected_channels()
     _render_connect_card(connected_channels)
