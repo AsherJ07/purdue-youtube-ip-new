@@ -5,7 +5,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from dashboard.components.visualizations import section_header
+from dashboard.components.visualizations import graph_insight_expander, section_header
 from src.llm_integration.thumbnail_generator import ThumbnailGenerator, get_api_key
 from src.services.thumbnail_hub_service import PreparedThumbnailArtifact, ThumbnailPreview, prepare_thumbnail_download, preview_thumbnail_target
 from src.utils.api_keys import get_provider_key_count
@@ -585,12 +585,40 @@ def _render_download_tab() -> None:
                 )
 
 
-def render() -> None:
+def render_thumbnail_workspace() -> None:
+    """Thumbnail generate + public thumbnail export (used by Download Hub)."""
     _inject_page_css()
+    st.markdown('<div class="thumb-page">', unsafe_allow_html=True)
+
+    graph_insight_expander(
+        "Thumbnails",
+        """
+**Generate (AI)**  
+1. Choose **Provider** (Gemini or OpenAI) and **Model**.  
+2. Add an **API key** if one is not already in Streamlit secrets.  
+3. Fill **Video title**, **Creative context**, **Style**, and **Avoid** so the model matches your channel.  
+4. Set **Options** (count), **Size**, and **Quality**, then click **Generate Thumbnails**.  
+5. Use each **Download** button to save images to your computer.
+
+**Download from URL (public thumbnail)**  
+1. Paste a watch, Short, `youtu.be`, or **video ID** and click **Preview Thumbnail**.  
+2. Pick a **Thumbnail variant** in the list.  
+3. Click **Prepare Thumbnail Download**, then **Download Thumbnail**.
+
+Public thumbnails come from YouTube’s published assets only; AI generation uses your provider’s API and may incur cost.
+        """,
+        for_instructions=True,
+    )
 
     tabs = st.tabs(["Generate", "Download From URL"])
     with tabs[0]:
         _render_generate_tab()
     with tabs[1]:
         _render_download_tab()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render() -> None:
+    render_thumbnail_workspace()
 

@@ -4,6 +4,7 @@ google-auth-httplib2>=0.2.0
 matplotlib
 numpy>=1.26,<3
 openai
+Pillow>=10.2.0
 pandas>=2.2,<3
 plotly
 pyarrow>=16.0.0

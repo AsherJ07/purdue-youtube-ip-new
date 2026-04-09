@@ -210,9 +210,13 @@ def show_plotly_chart(fig: go.Figure, *, config: Optional[Dict[str, Any]] = None
     st.plotly_chart(fig, use_container_width=True, config=merged)
 
 
-def graph_insight_expander(chart_title: str, body_md: str) -> None:
-    """Collapsed inference / interpretation text (dropdown) below analytics visuals."""
-    with st.expander(f"How to read this chart — {chart_title}", expanded=False):
+def graph_insight_expander(chart_title: str, body_md: str, *, for_instructions: bool = False) -> None:
+    """Collapsed help text: chart interpretation (`for_instructions=False`) or step-by-step (`True`)."""
+    if for_instructions:
+        label = f"Instructions — {chart_title}"
+    else:
+        label = f"How to read this chart — {chart_title}"
+    with st.expander(label, expanded=False):
         st.markdown(body_md)
 
 

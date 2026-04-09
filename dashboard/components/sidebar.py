@@ -4,15 +4,16 @@ import streamlit as st
 PAGE_OPTIONS = [
     "Channel Analysis",
     "Channel Insights",
-    "Thumbnails",
+    "Download Hub",
     "Outlier Finder",
     "Ytuber",
-    "Tools",
     "Deployment",
 ]
 
 _LEGACY_PAGE_MAP = {
-    "Recommendations": "Thumbnails",
+    "Recommendations": "Download Hub",
+    "Thumbnails": "Download Hub",
+    "Tools": "Download Hub",
 }
 
 

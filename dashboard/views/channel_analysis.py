@@ -1,4 +1,5 @@
 import os
+from datetime import date, datetime
 
 import pandas as pd
 import streamlit as st
@@ -23,6 +24,64 @@ CATEGORY_FILES = {
     "Entertainment": "entertainment_channels_videos.csv",
 }
 ALL_LABEL = "All Categories"
+
+
+def _coerce_publish_date_range(
+    selection: object,
+    *,
+    data_min: date,
+    data_max: date,
+) -> tuple[date, date]:
+    """Normalize ``st.date_input`` range output to an inclusive (start, end) pair.
+
+    Range mode can return ``()``, ``(start,)``, ``(start, end)``, a bare ``date``, or a ``list``.
+    Empty selection falls back to the dataset span so charts match the widget default.
+    """
+    if selection is None:
+        return data_min, data_max
+    if isinstance(selection, datetime):
+        d = selection.date()
+        return d, d
+    if isinstance(selection, date):
+        return selection, selection
+    if isinstance(selection, (tuple, list)):
+        dates: list[date] = []
+        for item in selection:
+            if item is None:
+                continue
+            if isinstance(item, datetime):
+                dates.append(item.date())
+            elif isinstance(item, date):
+                dates.append(item)
+        if len(dates) >= 2:
+            a, b = dates[0], dates[1]
+            if a > b:
+                a, b = b, a
+            return a, b
+        if len(dates) == 1:
+            d0 = dates[0]
+            return d0, d0
+        return data_min, data_max
+    return data_min, data_max
+
+
+def _filter_rows_by_publish_calendar_range(
+    frame: pd.DataFrame, start: date, end: date
+) -> pd.DataFrame:
+    """Keep rows whose publish instant falls on a UTC calendar day in [*start*, *end*]."""
+    ts = frame["video_publishedAt"]
+    valid = ts.notna()
+    ts_ok = ts[valid]
+    if ts_ok.empty:
+        return frame.iloc[0:0]
+    if ts_ok.dt.tz is None:
+        ts_ok = ts_ok.dt.tz_localize("UTC")
+    else:
+        ts_ok = ts_ok.dt.tz_convert("UTC")
+    pub_day = ts_ok.dt.date
+    m = valid.copy()
+    m.loc[valid] = (pub_day >= start) & (pub_day <= end)
+    return frame.loc[m]
 
 
 def _dataset_path_for_label(label: str) -> str:
@@ -115,25 +174,33 @@ def render() -> None:
         "Filter channels", channels, default=channels[:8]
     )
 
-    min_date = df["video_publishedAt"].min().date()
-    max_date = df["video_publishedAt"].max().date()
+    ts_min = df["video_publishedAt"].min()
+    ts_max = df["video_publishedAt"].max()
+    min_date = ts_min.date() if pd.notna(ts_min) else date.today()
+    max_date = ts_max.date() if pd.notna(ts_max) else date.today()
+    # Do not set max_value to the latest video date: choosing any window past that (e.g. next month)
+    # would fail Streamlit validation and snap the widget back to the full range, so charts ignore the
+    # user's range. min_value stays the dataset floor; upper bound defaults to last default +10y in Streamlit.
     date_range = st.date_input(
         "Published date range",
         value=(min_date, max_date),
         min_value=min_date,
-        max_value=max_date,
+        max_value=None,
+        key=f"channel_analysis_pub_range:{selected_category}",
+        help="UTC publish date of each video. Narrow ranges with no uploads in this dataset will empty the charts until you widen the window.",
+    )
+    st.caption(
+        "Filter uses each video's **UTC** calendar day. Switching dataset category resets this range to that file's span."
     )
 
     filtered = df.copy()
     if selected_channels:
         filtered = filtered[filtered["channel_title"].isin(selected_channels)]
 
-    if isinstance(date_range, tuple) and len(date_range) == 2:
-        start_date, end_date = date_range
-        filtered = filtered[
-            (filtered["video_publishedAt"].dt.date >= start_date)
-            & (filtered["video_publishedAt"].dt.date <= end_date)
-        ]
+    start_date, end_date = _coerce_publish_date_range(
+        date_range, data_min=min_date, data_max=max_date
+    )
+    filtered = _filter_rows_by_publish_calendar_range(filtered, start_date, end_date)
 
     if filtered.empty:
         st.warning("No data after filters. Broaden your channel/date filters.")

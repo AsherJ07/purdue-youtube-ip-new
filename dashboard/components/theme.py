@@ -1209,46 +1209,43 @@ div[role="option"]:hover {
     color: #1d1d1f !important;
 }
 
-/* Date picker calendar popup — force light theme */
-[data-baseweb="calendar"],
+/* Date picker / range calendar — single light theme (no light-on-white from mixed rules) */
+[data-baseweb="popover"]:has([data-baseweb="calendar"]),
 [data-baseweb="datepicker"],
-[data-baseweb="calendar"] *,
-[data-baseweb="datepicker"] * {
-    color: #1d1d1f !important;
-}
-
-[data-baseweb="calendar"],
 [data-baseweb="datepicker"] [role="dialog"],
-[data-baseweb="datepicker"] [data-testid*="calendar"],
-[data-baseweb="popover"]:has([data-baseweb="calendar"]) {
+[data-baseweb="calendar"] {
     background: linear-gradient(165deg, rgba(255, 255, 255, 0.99), rgba(240, 244, 250, 0.97)) !important;
-    border: 1px solid rgba(0, 0, 0, 0.16) !important;
+    border: 1px solid rgba(0, 0, 0, 0.14) !important;
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.98),
-        0 12px 30px rgba(0, 0, 0, 0.14) !important;
+        0 12px 30px rgba(0, 0, 0, 0.12) !important;
 }
 
-[data-baseweb="calendar"] button,
-[data-baseweb="datepicker"] button {
-    background: transparent !important;
-    color: #1d1d1f !important;
+/* Default: dark ink on light chrome for every calendar node (Baseweb range pickers vary DOM depth) */
+[data-baseweb="calendar"] *,
+[data-baseweb="datepicker"] [data-baseweb="calendar"] *,
+[data-baseweb="datepicker"] [role="dialog"] * {
+    color: #111216 !important;
+    fill: #111216 !important;
+    stroke: #111216 !important;
+    -webkit-text-fill-color: #111216 !important;
+    opacity: 1 !important;
 }
 
-[data-baseweb="calendar"] button:hover,
-[data-baseweb="datepicker"] button:hover {
-    background: rgba(233, 241, 255, 0.9) !important;
-    color: #1d1d1f !important;
-}
-
-/* Calendar top header/month-year strip readability */
+/* Month/year nav strip + weekday row: explicit light surface so text is never “ghost” */
 [data-baseweb="calendar"] > div:first-child,
 [data-baseweb="calendar"] > div:nth-child(2),
 [data-baseweb="datepicker"] [data-baseweb="calendar"] > div:first-child,
 [data-baseweb="datepicker"] [data-baseweb="calendar"] > div:nth-child(2),
 [data-baseweb="calendar"] [role="heading"],
-[data-baseweb="datepicker"] [role="heading"] {
-    background: #0b1736 !important;
-    color: #f7f9ff !important;
+[data-baseweb="datepicker"] [role="heading"],
+[data-baseweb="calendar"] [class*="MonthHeader"],
+[data-baseweb="calendar"] [class*="WeekdaysRow"],
+[data-baseweb="calendar"] [class*="WeekdaysContainer"],
+[data-baseweb="calendar"] [class*="header"],
+[data-baseweb="calendar"] [class*="Header"] {
+    background: linear-gradient(180deg, rgba(250, 251, 253, 1), rgba(236, 241, 248, 0.96)) !important;
+    color: #111216 !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 
@@ -1258,76 +1255,45 @@ div[role="option"]:hover {
 [data-baseweb="datepicker"] [data-baseweb="calendar"] > div:nth-child(2) *,
 [data-baseweb="calendar"] [role="heading"] *,
 [data-baseweb="datepicker"] [role="heading"] * {
-    color: #f7f9ff !important;
-    fill: #f7f9ff !important;
-    stroke: #f7f9ff !important;
-    opacity: 1 !important;
+    color: #111216 !important;
+    fill: #111216 !important;
+    stroke: #111216 !important;
+    -webkit-text-fill-color: #111216 !important;
 }
 
-/* Baseweb datepicker internal wrappers (class names can be generated) */
-[data-baseweb="calendar"] [class*="Header"],
-[data-baseweb="calendar"] [class*="header"],
-[data-baseweb="calendar"] [class*="Weekday"],
-[data-baseweb="calendar"] [class*="weekday"],
-[data-baseweb="calendar"] [class*="DayName"],
-[data-baseweb="calendar"] [class*="dayName"] {
-    background: #0b1736 !important;
-    color: #f7f9ff !important;
-    opacity: 1 !important;
-}
-
-[data-baseweb="calendar"] [class*="Header"] *,
-[data-baseweb="calendar"] [class*="header"] *,
-[data-baseweb="calendar"] [class*="Weekday"] *,
-[data-baseweb="calendar"] [class*="weekday"] * {
-    color: #f7f9ff !important;
-    fill: #f7f9ff !important;
-    stroke: #f7f9ff !important;
-    opacity: 1 !important;
-}
-
-/* Weekday labels row can be rendered as generic cells/spans */
 [data-baseweb="calendar"] [role="columnheader"],
-[data-baseweb="datepicker"] [role="columnheader"],
-[data-baseweb="calendar"] [aria-label*="Sunday" i],
-[data-baseweb="calendar"] [aria-label*="Monday" i],
-[data-baseweb="calendar"] [aria-label*="Tuesday" i],
-[data-baseweb="calendar"] [aria-label*="Wednesday" i],
-[data-baseweb="calendar"] [aria-label*="Thursday" i],
-[data-baseweb="calendar"] [aria-label*="Friday" i],
-[data-baseweb="calendar"] [aria-label*="Saturday" i] {
-    color: #f7f9ff !important;
+[data-baseweb="datepicker"] [role="columnheader"] {
+    background: rgba(238, 242, 248, 0.95) !important;
+    color: #111216 !important;
+    font-weight: 600 !important;
+}
+
+/* Day grid: light panel (not navy) so all day numbers read clearly */
+[data-baseweb="calendar"] [role="grid"],
+[data-baseweb="calendar"] [role="row"],
+[data-baseweb="calendar"] table {
+    background: rgba(255, 255, 255, 0.98) !important;
+}
+
+[data-baseweb="calendar"] [role="gridcell"],
+[data-baseweb="calendar"] [role="grid"] button {
+    color: #111216 !important;
     background: transparent !important;
 }
 
-/* Month/year dropdown controls on top dark calendar strip only */
-[data-baseweb="calendar"] > div:first-child [data-baseweb="select"] *,
-[data-baseweb="calendar"] [role="heading"] [data-baseweb="select"] *,
-[data-baseweb="calendar"] > div:first-child [data-baseweb="select"] svg,
-[data-baseweb="calendar"] [role="heading"] button,
-[data-baseweb="calendar"] [role="heading"] button * {
-    color: #f7f9ff !important;
-    fill: #f7f9ff !important;
-    stroke: #f7f9ff !important;
+[data-baseweb="calendar"] button,
+[data-baseweb="datepicker"] button {
+    background: transparent !important;
+    color: #111216 !important;
 }
 
-/* Calendar body + footer controls: keep dark text on light background */
-[data-baseweb="calendar"] [role="grid"] *,
-[data-baseweb="calendar"] [role="gridcell"] *,
-[data-baseweb="calendar"] [role="option"] *,
-[data-baseweb="calendar"] [aria-label*="Choose a date range" i],
-[data-baseweb="calendar"] [aria-label*="Choose a date range" i] *,
-[data-baseweb="calendar"] > div:last-child *,
-[data-baseweb="calendar"] > div:last-child [data-baseweb="select"] *,
-[data-baseweb="calendar"] > div:last-child button,
-[data-baseweb="calendar"] > div:last-child button * {
-    color: #1d1d1f !important;
-    fill: #1d1d1f !important;
-    stroke: #1d1d1f !important;
-    opacity: 1 !important;
+[data-baseweb="calendar"] button:hover,
+[data-baseweb="datepicker"] button:hover {
+    background: rgba(233, 241, 255, 0.95) !important;
+    color: #111216 !important;
 }
 
-/* Selected / keyboard-focused day */
+/* Selected / keyboard-focused day — include children so label stays white on red */
 [data-baseweb="calendar"] [aria-selected="true"],
 [data-baseweb="datepicker"] [aria-selected="true"],
 [data-baseweb="calendar"] [data-selected="true"],
@@ -1337,10 +1303,30 @@ div[role="option"]:hover {
     border-radius: 999px !important;
 }
 
+[data-baseweb="calendar"] [aria-selected="true"] *,
+[data-baseweb="datepicker"] [aria-selected="true"] *,
+[data-baseweb="calendar"] [data-selected="true"] *,
+[data-baseweb="datepicker"] [data-selected="true"] * {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+    stroke: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
 [data-baseweb="calendar"] [aria-current="date"],
 [data-baseweb="datepicker"] [aria-current="date"] {
     box-shadow: inset 0 0 0 1px rgba(0, 113, 227, 0.35) !important;
     border-radius: 999px !important;
+}
+
+/* Range picker footer (presets / “None”) — readable on white */
+[data-baseweb="calendar"] [aria-label*="Choose a date range" i],
+[data-baseweb="calendar"] [aria-label*="Choose a date range" i] *,
+[data-baseweb="calendar"] [data-baseweb="select"] input,
+[data-baseweb="calendar"] [data-baseweb="select"] > div {
+    color: #111216 !important;
+    -webkit-text-fill-color: #111216 !important;
+    background: rgba(255, 255, 255, 0.98) !important;
 }
 
 /* Dropdown triggers / headers must stay light after blur */

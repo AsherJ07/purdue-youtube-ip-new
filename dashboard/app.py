@@ -11,7 +11,7 @@ from dashboard.components.layout import render_page_hero
 from dashboard.components.sidebar import render_sidebar_footer, render_sidebar_header
 from dashboard.components.intro_animation import inject_intro_animation
 from dashboard.components.theme import inject_shared_theme
-from dashboard.views import channel_analysis, channel_insights, outlier_finder, recommendations, tools, ytuber
+from dashboard.views import channel_analysis, channel_insights, download_hub, outlier_finder, ytuber
 
 
 def _render_app_shell(page: str) -> None:
@@ -37,9 +37,9 @@ def _page_channel_insights() -> None:
     channel_insights.render()
 
 
-def _page_thumbnails() -> None:
-    _render_app_shell("Thumbnails")
-    recommendations.render()
+def _page_download_hub() -> None:
+    _render_app_shell("Download Hub")
+    download_hub.render()
 
 
 def _page_outlier_finder() -> None:
@@ -50,11 +50,6 @@ def _page_outlier_finder() -> None:
 def _page_ytuber() -> None:
     _render_app_shell("Ytuber")
     ytuber.render()
-
-
-def _page_tools() -> None:
-    _render_app_shell("Tools")
-    tools.render()
 
 
 def _page_deployment() -> None:
@@ -88,11 +83,12 @@ def _page_deployment() -> None:
         ### Notes
         - `dashboard/app.py` remains the main application module.
         - `streamlit_app.py` is the root-level deployment entrypoint for Streamlit Cloud.
-        - `Channel Analysis` and `Thumbnails` use the committed assets and configured AI providers already in the repo.
+        - `Channel Analysis` uses the committed assets and configured AI providers already in the repo.
+        - `Download Hub` combines thumbnail generation/export with public media downloads (see each tab for API and ffmpeg notes).
         - `Channel Insights` is public-only in this build and stores dated SQLite snapshots on manual refresh.
-        - `Ytuber` and `Tools` remain available as part of the AI suite.
+        - `Ytuber` remains available as part of the AI suite.
         - `Outlier Finder` remains a standalone research workflow.
-        - `packages.txt` installs `ffmpeg` for the Tools page media flows.
+        - `packages.txt` installs `ffmpeg` for Download Hub video and media flows.
 
         ### Alternate Entrypoint
         ```bash
@@ -109,10 +105,9 @@ PAGE_CHANNEL_ANALYSIS = st.Page(
     default=True,
 )
 PAGE_CHANNEL_INSIGHTS = st.Page(_page_channel_insights, title="Channel Insights", icon="💡")
-PAGE_THUMBNAILS = st.Page(_page_thumbnails, title="Thumbnails", icon="🖼️")
+PAGE_DOWNLOAD_HUB = st.Page(_page_download_hub, title="Download Hub", icon="📥")
 PAGE_OUTLIER_FINDER = st.Page(_page_outlier_finder, title="Outlier Finder", icon="🎯")
 PAGE_YTUBER = st.Page(_page_ytuber, title="Ytuber", icon="🎬")
-PAGE_TOOLS = st.Page(_page_tools, title="Tools", icon="🛠️")
 PAGE_DEPLOYMENT = st.Page(_page_deployment, title="Deployment", icon="🚀")
 
 
@@ -136,10 +131,9 @@ def run() -> None:
         [
             PAGE_CHANNEL_ANALYSIS,
             PAGE_CHANNEL_INSIGHTS,
-            PAGE_THUMBNAILS,
+            PAGE_DOWNLOAD_HUB,
             PAGE_OUTLIER_FINDER,
             PAGE_YTUBER,
-            PAGE_TOOLS,
             PAGE_DEPLOYMENT,
         ],
         expanded=True,

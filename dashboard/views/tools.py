@@ -7,7 +7,7 @@ from typing import Any, Iterable
 import pandas as pd
 import streamlit as st
 
-from dashboard.components.visualizations import section_header, styled_dataframe
+from dashboard.components.visualizations import graph_insight_expander, section_header, styled_dataframe
 from src.services.transcript_service import TranscriptOption, fetch_transcript_text, list_transcript_options, prepare_transcript_download
 from src.services.youtube_tools import (
     PLAYLIST_PREVIEW_LIMIT_DEFAULT,
@@ -278,8 +278,8 @@ def _inject_tools_css() -> None:
             border: 1px solid rgba(0, 0, 0, 0.1) !important;
             box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08) !important;
         }
-        .tools-card-title, .tools-summary-label { color: #1d1d1f !important; }
-        .tools-card-copy, .tools-summary-value { color: #424245 !important; }
+        .tools-card-title, .tools-summary-label, .tools-meta-label { color: #1d1d1f !important; }
+        .tools-card-copy, .tools-summary-value, .tools-meta-value { color: #424245 !important; }
         .tools-empty {
             border: 1px dashed rgba(0, 0, 0, 0.15) !important;
             background: rgba(255, 255, 255, 0.85) !important;
@@ -909,26 +909,57 @@ def _render_playlist_tab() -> None:
     _render_batch_result_cards(results, key_prefix="tools_playlist")
 
 
-def render() -> None:
+def render_media_workspace() -> None:
+    """Single / batch / playlist public media workflows (used by Download Hub)."""
     _inject_tools_css()
     st.markdown('<div class="tools-page">', unsafe_allow_html=True)
-    single_tab, batch_tab, playlist_tab = st.tabs(["Single", "Batch", "Playlist"])
+
+    graph_insight_expander(
+        "Video & media downloads",
+        """
+**Single video**  
+1. Paste one public **YouTube URL** (video or Short) and click **Fetch Metadata**.  
+2. Review the metadata card, then open **Thumbnail**, **Transcript**, **Audio**, or **Video**.  
+3. Choose format or quality, click **Prepare … Download**, then use the **Download** button.  
+4. Very large files may be blocked for in-app download; **FFmpeg** may be required for some merges or MP3.
+
+**Batch (multiple URLs)**  
+1. Enter **one URL per line** in the text area.  
+2. Choose **Operation** (metadata, thumbnail, transcript, audio, or video).  
+3. Click **Run Batch**, review the status table, then open each result expander to download files.
+
+**Playlist**  
+1. Paste a **playlist URL**, set preview limit, click **Load Playlist**.  
+2. Select which videos to include, pick an **Operation**, then **Run Playlist Operation**.  
+3. Download artifacts from each result card.
+
+This area works with **public** URLs only. Outputs are **temporary** and may be cleared when the session resets.
+        """,
+        for_instructions=True,
+    )
+
+    single_tab, batch_tab, playlist_tab = st.tabs(["Single video", "Batch URLs", "Playlist"])
     with single_tab:
         _render_single_tab()
     with batch_tab:
         _render_batch_tab()
     with playlist_tab:
         _render_playlist_tab()
+
     st.markdown(
         (
             '<div class="tools-card" style="margin-top:1.5rem;">'
-            '<div class="tools-card-title">Tools Notes</div>'
+            '<div class="tools-card-title">Video download notes</div>'
             '<div class="tools-card-copy">'
-            'The Tools page works with public YouTube URLs only. Private, members-only, age-gated, or region-restricted videos may fail. '
-            'Downloads are prepared into temporary files and are not persisted by the app. Large files may be blocked from in-app delivery to keep the Streamlit session stable.'
-            '</div>'
-            '</div>'
+            "The download workspace works with public YouTube URLs only. Private, members-only, age-gated, or region-restricted videos may fail. "
+            "Downloads are prepared into temporary files and are not persisted by the app. Large files may be blocked from in-app delivery to keep the Streamlit session stable."
+            "</div>"
+            "</div>"
         ),
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render() -> None:
+    render_media_workspace()

@@ -22,11 +22,11 @@ PAGE_HERO: Dict[str, Tuple[str, str, str, Tuple[str, ...]]] = {
         "Add a public channel by URL, handle, or channel ID. Channel Insights stores manual snapshots over time, highlights the themes and formats that are working, and turns those signals into grounded next-topic ideas.",
         ("SQLite snapshots", "Heuristic & optional BERTopic", "Public API only"),
     ),
-    "Thumbnails": (
-        "THUMBNAILS",
-        "Generate stronger thumbnail concepts or export the best public thumbnail from any video.",
-        "This workspace is intentionally thumbnail-only—use it to create fresh concepts with Gemini or OpenAI, or pull public thumbnail variants from a YouTube URL without dragging in broader strategy, transcript, or media-download tooling.",
-        ("Gemini & OpenAI", "Generate or export", "Scoped workflow"),
+    "Download Hub": (
+        "DOWNLOAD HUB",
+        "One place for thumbnail ideas, exports, and public YouTube media downloads.",
+        "Use the Thumbnails tab to generate concepts with your AI providers or pull the public thumbnail from any video. Switch to Video downloads for single links, batches, or playlists—metadata, transcripts, audio, and video where available.",
+        ("Thumbnails & media", "Single & batch", "Consistent glass UI"),
     ),
     "Outlier Finder": (
         "OUTLIER FINDER",
@@ -44,12 +44,6 @@ PAGE_HERO: Dict[str, Tuple[str, str, str, Tuple[str, ...]]] = {
         "Your live creator workspace for search, audits, AI studio, and planning.",
         "Search by handle, name, or channel ID—then move through audits, keyword intel, outliers, title lab, benchmarks, planner, and AI Studio in one continuous flow. Provider pools reflect your configured API keys.",
         ("YouTube Data API", "Multi-module workspace", "AI Studio"),
-    ),
-    "Tools": (
-        "TOOLS",
-        "Inspect public YouTube assets and prepare export-ready downloads.",
-        "Metadata, thumbnails, transcripts, and batch or playlist workflows—outputs are temporary; see each tool for ffmpeg or API key requirements.",
-        ("Single & batch", "Playlist flows", "Transcripts & media"),
     ),
     "Deployment": (
         "DEPLOYMENT",
