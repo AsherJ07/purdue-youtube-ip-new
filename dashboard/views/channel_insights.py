@@ -715,6 +715,13 @@ def _render_ai_card(title: str, body: str, *, empty_message: str = "") -> None:
     )
 
 
+def _render_metric_note(text: str) -> None:
+    st.markdown(
+        f"<div class='ci-note' style='margin-top:0.35rem;'>* {escape(text)}</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def _overview_actions_prompt(payload: Dict[str, Any], display_topic_metrics_df: pd.DataFrame) -> str:
     summary = dict(payload.get("summary", {}))
     summary["strongest_theme"] = _best_display_theme(payload, "strongest")
@@ -1094,6 +1101,9 @@ def _render_summary_action_row(payload: Dict[str, Any]) -> None:
 
     deltas = payload.get("history_delta", {})
     _render_summary_kpi_cards(summary, deltas, payload)
+    _render_metric_note(
+        "Strongest Theme uses the highest momentum repeated theme, Weakest Theme uses the lowest views-per-day repeated theme, and Recent Outliers counts videos whose overall performance score lands in the top quartile of the current snapshot."
+    )
 
 
 def _render_overview_tab(payload: Dict[str, Any]) -> None:
@@ -1168,6 +1178,9 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
                 horizontal=True,
             )
             show_plotly_chart(topic_fig)
+            _render_metric_note(
+                "Trend Score compares a theme's recent 90-day median views per day against its earlier baseline. Higher values mean the theme is gaining momentum faster right now."
+            )
 
         if not duration_metrics_df.empty:
             duration_fig = plotly_bar_chart(
@@ -1178,6 +1191,9 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
                 horizontal=True,
             )
             show_plotly_chart(duration_fig)
+            _render_metric_note(
+                "Median Views / Day normalizes performance by video age, so newer and older uploads can be compared more fairly across duration buckets."
+            )
 
         if summary.get("topic_mode_requested") == TOPIC_MODE_BERTOPIC_OPTIONAL and summary.get("topic_mode_used") != TOPIC_MODE_BERTOPIC_OPTIONAL:
             st.caption(summary.get("topic_model_failure_reason") or "BERTopic beta mode fell back to the heuristic topic flow.")
@@ -1200,6 +1216,9 @@ def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
         title="Topic Cluster Performance",
         precision=2,
     )
+    _render_metric_note(
+        "Video Count shows how much evidence supports a theme. Outlier Count is the number of videos in that theme with performance score at 75 or higher. Avg Engagement is (likes + comments) divided by views."
+    )
 
     chart_cols = st.columns(2, gap="large")
     with chart_cols[0]:
@@ -1211,6 +1230,9 @@ def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
             horizontal=True,
         )
         show_plotly_chart(trend_fig)
+        _render_metric_note(
+            "Theme Momentum is the same Trend Score from the table, so it highlights relative movement rather than raw view volume."
+        )
     with chart_cols[1]:
         views_fig = plotly_bar_chart(
             topic_metrics_df.head(10).sort_values("median_views_per_day", ascending=True),
@@ -1220,6 +1242,9 @@ def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
             horizontal=True,
         )
         show_plotly_chart(views_fig)
+        _render_metric_note(
+            "Median Views / Day By Theme shows steady per-video performance. It is usually the better read for consistency than a single viral upload."
+        )
 
     top_topics = topic_metrics_df["topic_label"].head(10).tolist()
     if top_topics:
@@ -1241,9 +1266,15 @@ def _render_formats_tab(payload: Dict[str, Any]) -> None:
     with top_cols[0]:
         if not duration_metrics_df.empty:
             styled_dataframe(duration_metrics_df, title="Duration Performance", precision=2)
+            _render_metric_note(
+                "Videos is the sample size for each duration bucket. Median Views / Day shows the typical performance for that length, while Avg Engagement tracks interaction rate."
+            )
     with top_cols[1]:
         if not title_pattern_metrics_df.empty:
             styled_dataframe(title_pattern_metrics_df, title="Title Pattern Performance", precision=2)
+            _render_metric_note(
+                "Title Pattern groups videos by packaging style, such as How-To or Versus. Use it to compare which headline structures perform best on average."
+            )
 
     bottom_cols = st.columns(2, gap="large")
     with bottom_cols[0]:
@@ -1256,6 +1287,9 @@ def _render_formats_tab(payload: Dict[str, Any]) -> None:
                 horizontal=True,
             )
             show_plotly_chart(day_fig)
+            _render_metric_note(
+                "Best Publish Days compares the typical views per day for videos published on each weekday. It suggests timing patterns, not guaranteed outcomes."
+            )
     with bottom_cols[1]:
         if not publish_hour_metrics_df.empty:
             hour_fig = plotly_line_chart(
@@ -1266,6 +1300,9 @@ def _render_formats_tab(payload: Dict[str, Any]) -> None:
                 secondary_y=["videos"],
             )
             show_plotly_chart(hour_fig)
+            _render_metric_note(
+                "This chart uses two signals: median views per day for performance and videos for posting volume. A strong hour matters most when it combines solid performance with repeatable volume."
+            )
 
 
 def _render_outliers_tab(payload: Dict[str, Any]) -> None:
@@ -1282,6 +1319,9 @@ def _render_outliers_tab(payload: Dict[str, Any]) -> None:
                 title=None,
                 precision=2,
             )
+            _render_metric_note(
+                "Outliers are videos whose combined performance score lands in the top quartile for this snapshot. Views / Day normalizes for age, and Performance Score blends views, engagement, and recency."
+            )
     with outlier_cols[1]:
         st.markdown("**Underperformers**")
         if underperformers_df.empty:
@@ -1291,6 +1331,9 @@ def _render_outliers_tab(payload: Dict[str, Any]) -> None:
                 underperformers_df[["video_title", "primary_topic", "views", "views_per_day", "performance_score", "why_it_lagged"]],
                 title=None,
                 precision=2,
+            )
+            _render_metric_note(
+                "Underperformers are the lowest-scoring videos in the current snapshot, using the same blended Performance Score so you can compare weak titles against your strongest outliers on a like-for-like basis."
             )
 
 
@@ -1358,6 +1401,9 @@ def _render_history_tab(payload: Dict[str, Any]) -> None:
         return
 
     styled_dataframe(history_df, title="Snapshot History", precision=2)
+    _render_metric_note(
+        "Each row is a saved refresh of the channel. Median Views / Day tracks the typical performance level at that time, while Recent Outlier Count shows how many standout videos were present in that snapshot."
+    )
     if len(history_df) > 1:
         history_line = history_df.sort_values("snapshot_at").copy()
         history_line["snapshot_at"] = pd.to_datetime(history_line["snapshot_at"], errors="coerce")
@@ -1369,6 +1415,9 @@ def _render_history_tab(payload: Dict[str, Any]) -> None:
             secondary_y=["recent_outlier_count"],
         )
         show_plotly_chart(fig)
+        _render_metric_note(
+            "The history trendline uses two axes: Median Views / Day for baseline channel performance and Recent Outlier Count for standout-video volume over time."
+        )
 
 
 def render() -> None:
