@@ -219,25 +219,6 @@ def _inject_channel_insights_css() -> None:
             font-size: 12px;
             line-height: 1.55;
         }
-        .ci-metric-note {
-            margin-top: 0.4rem;
-            padding: 0.55rem 0.7rem;
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.82);
-            border: 1px solid rgba(0, 0, 0, 0.08);
-        }
-        .ci-metric-note ul {
-            margin: 0;
-            padding-left: 1rem;
-        }
-        .ci-metric-note li {
-            margin-bottom: 0.2rem;
-            color: #424245;
-            line-height: 1.55;
-        }
-        .ci-metric-note li:last-child {
-            margin-bottom: 0;
-        }
         .ci-empty {
             padding: 1rem 1.1rem;
             border-radius: 20px;
@@ -323,10 +304,6 @@ def _inject_channel_insights_css() -> None:
         .ci-card-copy,
         .ci-list,
         .ci-note { color: #424245 !important; }
-        .ci-metric-note {
-            background: rgba(255, 255, 255, 0.88) !important;
-            border: 1px solid rgba(0, 0, 0, 0.08) !important;
-        }
         .ci-summary-value,
         .ci-theme-title { color: #1d1d1f !important; }
         .ci-kpi-card {
@@ -746,15 +723,12 @@ def _render_metric_note(text: str | Sequence[str]) -> None:
     if not items:
         return
 
-    if len(items) == 1:
-        body = f"<div class='ci-note'>* {escape(items[0])}</div>"
-    else:
-        body = "<div class='ci-note'>*</div><ul>" + "".join(
-            f"<li>{escape(item)}</li>" for item in items
-        ) + "</ul>"
-
+    body = "".join(
+        f"<div class='ci-note' style='margin-top:0.18rem;'>* {escape(item)}</div>"
+        for item in items
+    )
     st.markdown(
-        f"<div class='ci-metric-note'>{body}</div>",
+        f"<div style='margin-top:0.35rem;'>{body}</div>",
         unsafe_allow_html=True,
     )
 
