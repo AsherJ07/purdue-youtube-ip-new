@@ -219,6 +219,25 @@ def _inject_channel_insights_css() -> None:
             font-size: 12px;
             line-height: 1.55;
         }
+        .ci-metric-note {
+            margin-top: 0.4rem;
+            padding: 0.55rem 0.7rem;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        .ci-metric-note ul {
+            margin: 0;
+            padding-left: 1rem;
+        }
+        .ci-metric-note li {
+            margin-bottom: 0.2rem;
+            color: #424245;
+            line-height: 1.55;
+        }
+        .ci-metric-note li:last-child {
+            margin-bottom: 0;
+        }
         .ci-empty {
             padding: 1rem 1.1rem;
             border-radius: 20px;
@@ -304,6 +323,10 @@ def _inject_channel_insights_css() -> None:
         .ci-card-copy,
         .ci-list,
         .ci-note { color: #424245 !important; }
+        .ci-metric-note {
+            background: rgba(255, 255, 255, 0.88) !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        }
         .ci-summary-value,
         .ci-theme-title { color: #1d1d1f !important; }
         .ci-kpi-card {
@@ -715,9 +738,23 @@ def _render_ai_card(title: str, body: str, *, empty_message: str = "") -> None:
     )
 
 
-def _render_metric_note(text: str) -> None:
+def _render_metric_note(text: str | Sequence[str]) -> None:
+    if isinstance(text, str):
+        items = [text]
+    else:
+        items = [str(item) for item in text if str(item).strip()]
+    if not items:
+        return
+
+    if len(items) == 1:
+        body = f"<div class='ci-note'>* {escape(items[0])}</div>"
+    else:
+        body = "<div class='ci-note'>*</div><ul>" + "".join(
+            f"<li>{escape(item)}</li>" for item in items
+        ) + "</ul>"
+
     st.markdown(
-        f"<div class='ci-note' style='margin-top:0.35rem;'>* {escape(text)}</div>",
+        f"<div class='ci-metric-note'>{body}</div>",
         unsafe_allow_html=True,
     )
 
@@ -1102,7 +1139,11 @@ def _render_summary_action_row(payload: Dict[str, Any]) -> None:
     deltas = payload.get("history_delta", {})
     _render_summary_kpi_cards(summary, deltas, payload)
     _render_metric_note(
-        "Strongest Theme uses the highest momentum repeated theme, Weakest Theme uses the lowest views-per-day repeated theme, and Recent Outliers counts videos whose overall performance score lands in the top quartile of the current snapshot."
+        [
+            "Strongest Theme uses the highest-momentum repeated theme.",
+            "Weakest Theme uses the lowest views-per-day repeated theme.",
+            "Recent Outliers counts videos whose overall performance score lands in the top quartile of the current snapshot.",
+        ]
     )
 
 
@@ -1217,7 +1258,11 @@ def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
         precision=2,
     )
     _render_metric_note(
-        "Video Count shows how much evidence supports a theme. Outlier Count is the number of videos in that theme with performance score at 75 or higher. Avg Engagement is (likes + comments) divided by views."
+        [
+            "Video Count shows how much evidence supports a theme.",
+            "Outlier Count is the number of videos in that theme with performance score at 75 or higher.",
+            "Avg Engagement is (likes + comments) divided by views.",
+        ]
     )
 
     chart_cols = st.columns(2, gap="large")
@@ -1267,7 +1312,11 @@ def _render_formats_tab(payload: Dict[str, Any]) -> None:
         if not duration_metrics_df.empty:
             styled_dataframe(duration_metrics_df, title="Duration Performance", precision=2)
             _render_metric_note(
-                "Videos is the sample size for each duration bucket. Median Views / Day shows the typical performance for that length, while Avg Engagement tracks interaction rate."
+                [
+                    "Videos is the sample size for each duration bucket.",
+                    "Median Views / Day shows the typical performance for that length.",
+                    "Avg Engagement tracks interaction rate.",
+                ]
             )
     with top_cols[1]:
         if not title_pattern_metrics_df.empty:
@@ -1301,7 +1350,10 @@ def _render_formats_tab(payload: Dict[str, Any]) -> None:
             )
             show_plotly_chart(hour_fig)
             _render_metric_note(
-                "This chart uses two signals: median views per day for performance and videos for posting volume. A strong hour matters most when it combines solid performance with repeatable volume."
+                [
+                    "This chart uses two signals: median views per day for performance and videos for posting volume.",
+                    "A strong hour matters most when it combines solid performance with repeatable volume.",
+                ]
             )
 
 
@@ -1320,7 +1372,11 @@ def _render_outliers_tab(payload: Dict[str, Any]) -> None:
                 precision=2,
             )
             _render_metric_note(
-                "Outliers are videos whose combined performance score lands in the top quartile for this snapshot. Views / Day normalizes for age, and Performance Score blends views, engagement, and recency."
+                [
+                    "Outliers are videos whose combined performance score lands in the top quartile for this snapshot.",
+                    "Views / Day normalizes performance for video age.",
+                    "Performance Score blends views, engagement, and recency.",
+                ]
             )
     with outlier_cols[1]:
         st.markdown("**Underperformers**")
@@ -1333,7 +1389,11 @@ def _render_outliers_tab(payload: Dict[str, Any]) -> None:
                 precision=2,
             )
             _render_metric_note(
-                "Underperformers are the lowest-scoring videos in the current snapshot, using the same blended Performance Score so you can compare weak titles against your strongest outliers on a like-for-like basis."
+                [
+                    "Underperformers are the lowest-scoring videos in the current snapshot.",
+                    "They use the same blended Performance Score as the outlier table.",
+                    "That makes weak titles easier to compare against your strongest winners on a like-for-like basis.",
+                ]
             )
 
 
@@ -1402,7 +1462,11 @@ def _render_history_tab(payload: Dict[str, Any]) -> None:
 
     styled_dataframe(history_df, title="Snapshot History", precision=2)
     _render_metric_note(
-        "Each row is a saved refresh of the channel. Median Views / Day tracks the typical performance level at that time, while Recent Outlier Count shows how many standout videos were present in that snapshot."
+        [
+            "Each row is a saved refresh of the channel.",
+            "Median Views / Day tracks the typical performance level at that time.",
+            "Recent Outlier Count shows how many standout videos were present in that snapshot.",
+        ]
     )
     if len(history_df) > 1:
         history_line = history_df.sort_values("snapshot_at").copy()
@@ -1416,7 +1480,11 @@ def _render_history_tab(payload: Dict[str, Any]) -> None:
         )
         show_plotly_chart(fig)
         _render_metric_note(
-            "The history trendline uses two axes: Median Views / Day for baseline channel performance and Recent Outlier Count for standout-video volume over time."
+            [
+                "The history trendline uses two axes.",
+                "Median Views / Day tracks baseline channel performance.",
+                "Recent Outlier Count tracks standout-video volume over time.",
+            ]
         )
 
 
