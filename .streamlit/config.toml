@@ -2,6 +2,11 @@
 # "minimal" can confuse some hosts; "auto" keeps scrolling/nav reliable. Override locally if you prefer.
 toolbarMode = "auto"
 
+[server]
+# Cloud deployments do not need source hot-reloading. Disabling the watcher also
+# prevents it from importing optional ML modules while inspecting package paths.
+fileWatcherType = "none"
+
 [theme]
 primaryColor = "#FF0000"
 backgroundColor = "#F5F5F7"

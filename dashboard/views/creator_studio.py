@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import streamlit as st
 
-from dashboard.views import recommendations, tools, ytuber
-
 
 SECTIONS = ["Channel Workspace", "Thumbnail Lab", "Media Export"]
 
@@ -31,8 +29,14 @@ def render() -> None:
     st.caption(descriptions.get(section or SECTIONS[0], descriptions[SECTIONS[0]]))
 
     if section == "Thumbnail Lab":
+        from dashboard.views import recommendations
+
         recommendations.render_thumbnail_workspace()
     elif section == "Media Export":
+        from dashboard.views import tools
+
         tools.render_media_workspace()
     else:
+        from dashboard.views import ytuber
+
         ytuber.render()
