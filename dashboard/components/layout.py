@@ -11,16 +11,16 @@ import streamlit as st
 # Badge (ALL CAPS), headline, description, optional feature tags (glass pills)
 PAGE_HERO: Dict[str, Tuple[str, str, str, Tuple[str, ...]]] = {
     "Channel Analysis": (
-        "CHANNEL ANALYSIS",
-        "Benchmark datasets and see which channels and videos actually move the needle.",
-        "Filter committed CSVs, compare engagement across categories, and surface rankings, trends, and scatter insights—without leaving this workspace.",
-        ("CSV benchmarks", "Engagement signals", "Portfolio view"),
+        "BENCHMARKS",
+        "Understand the evidence before choosing the idea.",
+        "Compare public performance across the research corpus with explicit formulas, valid denominators, and visible sample sizes.",
+        ("Public data", "Robust statistics", "Transparent limits"),
     ),
     "Channel Insights": (
-        "CHANNEL INSIGHTS",
-        "Track public channel snapshots and turn real performance signals into better topic decisions.",
-        "Add a public channel by URL, handle, or channel ID. Channel Insights stores manual snapshots over time, highlights the themes and formats that are working, and turns those signals into grounded next-topic ideas.",
-        ("SQLite snapshots", "Heuristic & optional BERTopic", "Public API only"),
+        "DECISION BRIEF",
+        "Move from channel evidence to one testable content decision.",
+        "Analyze a public channel, inspect confidence and supporting samples, then turn the strongest repeated signal into a controlled creator experiment.",
+        ("Evidence first", "Confidence shown", "Public API only"),
     ),
     "Download Hub": (
         "DOWNLOAD HUB",
@@ -29,14 +29,14 @@ PAGE_HERO: Dict[str, Tuple[str, str, str, Tuple[str, ...]]] = {
         ("Thumbnails & media", "Single & batch", "Consistent glass UI"),
     ),
     "Outlier Finder": (
-        "OUTLIER FINDER",
-        "Discover breakout videos before the niche catches up.",
-        "Scan any topic, filter the noise, and surface overperforming videos with clear research signals. Review the winners first, understand the pattern next, and layer AI interpretation only after the evidence is visible.",
+        "OUTLIER RESEARCH",
+        "Find unusual performance without mistaking noise for signal.",
+        "Compare age-adjusted reach, channel baselines, public interactions, and evidence reliability with an explainable score.",
         (
             "Public YouTube API data",
             "Explainable outlier scoring",
             "Quota-aware query caching",
-            "Structured AI research",
+            "Confidence-aware ranking",
         ),
     ),
     "Ytuber": (
@@ -75,7 +75,7 @@ def render_page_hero(page: str) -> None:
     st.markdown(
         f"""
 <div class="glass-page-hero fade-in">
-  <p class="product-eyebrow">YouTube Creator Insights <span class="product-eyebrow-sep">·</span> Purdue × Google</p>
+  <p class="product-eyebrow">VCreator <span class="product-eyebrow-sep">·</span> Evidence-led creator decisions</p>
   <div class="feature-badge">
     <span class="feature-badge-dot" aria-hidden="true"></span>
     {escape(badge)}

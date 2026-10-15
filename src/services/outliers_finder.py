@@ -10,6 +10,14 @@ import pandas as pd
 import requests
 import streamlit as st
 
+from src.services.analytics_metrics import (
+    MIN_BASELINE_SAMPLE,
+    lifetime_average_daily_views,
+    log_lift,
+    neutral_percentile_rank,
+    public_interaction_rate,
+    weighted_available,
+)
 from src.utils.api_keys import run_with_provider_keys
 
 
@@ -277,9 +285,7 @@ def _ratio_to_unit_interval(ratio: Optional[float], cap: float) -> Optional[floa
 
 
 def _percentile(values: pd.Series) -> pd.Series:
-    if values.empty:
-        return values
-    return values.rank(pct=True, method="average").clip(0.0, 1.0)
+    return neutral_percentile_rank(values)
 
 
 def _title_tokens(text: str) -> List[str]:
@@ -613,8 +619,12 @@ def _build_candidate_frame(
 
         age_hours = _age_hours_from_timestamp(published_at)
         age_days = age_hours / 24.0
-        engagement_rate = (likes + comments) / max(views, 1)
-        views_per_day = views / max(age_days, 1 / 24)
+        engagement_rate = public_interaction_rate(
+            pd.Series([views]), pd.Series([likes]), pd.Series([comments])
+        ).iloc[0]
+        views_per_day = lifetime_average_daily_views(
+            pd.Series([views]), pd.Series([age_days])
+        ).iloc[0]
         hidden_subscribers = subscribers in (None, 0)
         views_per_subscriber = None
         if subscribers and subscribers > 0:
@@ -705,9 +715,10 @@ def _prepare_peer_percentiles(frame: pd.DataFrame) -> pd.DataFrame:
 
     out = frame.copy()
     out["views_per_day_log"] = out["views_per_day"].fillna(0).apply(lambda value: math.log1p(max(value, 0)))
-    out["views_per_subscriber_filled"] = out["views_per_subscriber"].fillna(0.40)
-    out["views_per_subscriber_log"] = out["views_per_subscriber_filled"].apply(
+    out["views_per_subscriber_log"] = out["views_per_subscriber"].apply(
         lambda value: math.log1p(max(value, 0))
+        if value is not None and not pd.isna(value)
+        else float("nan")
     )
 
     detailed_group_counts = (
@@ -735,11 +746,9 @@ def _prepare_peer_percentiles(frame: pd.DataFrame) -> pd.DataFrame:
         .transform(_percentile)
         .fillna(0.5)
     )
-    out["peer_percentile"] = (
-        out["peer_views_percentile"] * 0.60
-        + out["peer_engagement_percentile"] * 0.25
-        + out["peer_subscriber_percentile"] * 0.15
-    )
+    # Keep the main performance and interaction signals independent so the
+    # final score does not count public interactions multiple times.
+    out["peer_percentile"] = out["peer_views_percentile"]
     return out
 
 
@@ -808,7 +817,9 @@ def _fetch_channel_baseline_cached(
             age_hours = _age_hours_from_timestamp(published_at)
             age_days = age_hours / 24.0
             views_per_day = views / max(age_days, 1 / 24)
-            engagement_rate = (likes + comments) / max(views, 1)
+            engagement_rate = public_interaction_rate(
+                pd.Series([views]), pd.Series([likes]), pd.Series([comments])
+            ).iloc[0]
             views_per_subscriber = None
             if subscriber_count and subscriber_count > 0:
                 views_per_subscriber = views / subscriber_count
@@ -865,7 +876,7 @@ def _score_outlier_frame(
     for row in out.to_dict(orient="records"):
         baseline = baselines.get(str(row["channel_id"]))
         baseline_sample_sizes.append(int(baseline.sample_size) if baseline else 0)
-        if not baseline or baseline.sample_size < 3:
+        if not baseline or baseline.sample_size < MIN_BASELINE_SAMPLE:
             baseline_components.append(None)
             baseline_views_ratios.append(None)
             baseline_engagement_ratios.append(None)
@@ -885,12 +896,11 @@ def _score_outlier_frame(
         ):
             subscriber_ratio = float(row["views_per_subscriber"]) / baseline.median_views_per_subscriber
 
-        baseline_component = _weighted_average(
-            [
-                (_ratio_to_unit_interval(view_ratio, cap=8), 0.60),
-                (_ratio_to_unit_interval(engagement_ratio, cap=4), 0.25),
-                (_ratio_to_unit_interval(subscriber_ratio, cap=4), 0.15),
-            ]
+        # Channel-relative reach is the independent baseline signal. Public
+        # interaction is scored exactly once below; subscriber-normalized reach
+        # remains diagnostic because current subscriber count is not historical.
+        baseline_component = log_lift(
+            float(row["views_per_day"]), baseline.median_views_per_day, cap=8
         )
         baseline_components.append(baseline_component)
         baseline_views_ratios.append(view_ratio)
@@ -904,19 +914,21 @@ def _score_outlier_frame(
 
     scores: List[float] = []
     for row in out.to_dict(orient="records"):
-        if row.get("baseline_component") is not None and not pd.isna(row["baseline_component"]):
-            score = 100 * (
-                0.45 * float(row["baseline_component"])
-                + 0.30 * float(row["peer_percentile"])
-                + 0.15 * float(row["engagement_percentile"])
-                + 0.10 * float(row["recency_boost"])
-            )
-        else:
-            score = 100 * (
-                0.55 * float(row["peer_percentile"])
-                + 0.25 * float(row["engagement_percentile"])
-                + 0.20 * float(row["recency_boost"])
-            )
+        reach_signal = weighted_available(
+            [
+                (row.get("baseline_component"), 0.55),
+                (row.get("peer_percentile"), 0.45),
+            ]
+        )
+        sample_size = int(row.get("baseline_sample_size") or 0)
+        reliability = min(1.0, max(0.35, sample_size / 20.0)) if sample_size else 0.55
+        score = 100 * weighted_available(
+            [
+                (reach_signal, 0.65),
+                (row.get("engagement_percentile"), 0.25),
+                (reliability, 0.10),
+            ]
+        )
         scores.append(score)
 
     out["outlier_score"] = scores
@@ -933,9 +945,9 @@ def _primary_outlier_reason(row: Mapping[str, Any]) -> str:
     age_days = float(row.get("age_days") or 0)
 
     if baseline_view_ratio and baseline_view_ratio >= 1.2:
-        reasons.append((baseline_view_ratio, f"{baseline_view_ratio:.1f}x the channel's median views/day"))
+        reasons.append((baseline_view_ratio, f"{baseline_view_ratio:.1f}x the channel's median lifetime-average daily views"))
     if baseline_engagement_ratio and baseline_engagement_ratio >= 1.15:
-        reasons.append((baseline_engagement_ratio, f"{baseline_engagement_ratio:.1f}x the channel's median engagement rate"))
+        reasons.append((baseline_engagement_ratio, f"{baseline_engagement_ratio:.1f}x the channel's median public-interaction rate"))
     if peer_percentile >= 0.85:
         top_share = max(1, int(round((1 - peer_percentile) * 100)))
         reasons.append((peer_percentile, f"Top {top_share}% for age-adjusted performance in this scanned cohort"))

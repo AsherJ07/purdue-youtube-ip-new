@@ -1400,13 +1400,13 @@ def _render_methodology_section() -> None:
                 (
                     '<div class="outlier-method-card">'
                     '<h4>What The Outlier Score Means</h4>'
-                    '<p>The score is a public-performance heuristic. It blends channel-baseline lift, peer percentile, engagement percentile, and recency boost into one 0-100 score.</p>'
+                    '<p>The score is a public-performance heuristic. It combines channel-relative reach, age-cohort reach percentile, public-interaction percentile, and evidence reliability. Freshness is shown separately.</p>'
                     '</div>'
                     '<div class="outlier-method-card">'
                     '<h4>Metric Definitions</h4>'
                     '<ul>'
-                    '<li><strong>Views Per Day</strong>: total views divided by video age in days.</li>'
-                    '<li><strong>Engagement Rate</strong>: likes plus comments divided by views.</li>'
+                    '<li><strong>Lifetime Average Daily Views</strong>: total views divided by observed video age; it is not current velocity.</li>'
+                    '<li><strong>Public Interaction Rate</strong>: likes plus comments divided by views; zero-view and unavailable rows are excluded.</li>'
                     '<li><strong>Views Per Subscriber</strong>: views divided by public subscriber count when available.</li>'
                     '<li><strong>Language Confidence</strong>: metadata plus title-script heuristic, not a guaranteed classifier.</li>'
                     '</ul>'
@@ -1763,7 +1763,7 @@ def render() -> None:
             "channel_title": "Channel",
             "outlier_score": "Outlier Score",
             "views": "Views",
-            "views_per_day": "Views / Day",
+            "views_per_day": "Lifetime Avg. Daily Views",
             "duration_bucket": "Duration",
             "language_confidence_label": "Language Confidence",
             "why_outlier": "Why It Stands Out",
@@ -1786,7 +1786,7 @@ def render() -> None:
     summary_cols = st.columns(4, gap="medium")
     summary_cards = [
         ("Median Outlier Score", f"{summary_stats.get('median_outlier_score', 0):.1f}", "The middle-performing winner in this scan."),
-        ("Median Views / Day", _format_int(summary_stats.get("median_views_per_day")), "Typical breakout velocity across surfaced videos."),
+        ("Median Lifetime Avg. Daily Views", _format_int(summary_stats.get("median_views_per_day")), "Typical age-normalized reach in the surfaced sample."),
         ("Scanned Videos / Channels", f"{result.scanned_videos:,} / {result.scanned_channels:,}", "Coverage of the scanned cohort after filters."),
         ("High-Confidence Language Match", f"{summary_stats.get('high_language_share', 0):.1f}%", "Share of results with a high-confidence language match."),
     ]
@@ -1799,7 +1799,7 @@ def render() -> None:
         with st.container(border=True):
             _render_chart_shell(
                 "Breakout Map",
-                "Spot which videos are gaining velocity faster than channel size alone would suggest.",
+                "Compare unusual age-normalized reach against channel and peer context.",
             )
             breakout_fig = _breakout_scatter(sorted_frame)
             breakout_fig.update_layout(height=400)
@@ -1856,101 +1856,18 @@ def render() -> None:
     with chart_bottom[2]:
         with st.container(border=True):
             _render_chart_shell(
-                "Scan Quality",
-                "Use this quick read to judge how clean and actionable the surfaced cohort is before you hand it to AI.",
+                "Evidence Quality",
+                "Judge how complete and actionable the surfaced comparison set is.",
             )
             _render_scan_quality_card(sorted_frame)
 
-    st.markdown(
-        (
-            '<div class="outlier-ai-section-head">AI Research</div>'
-            '<p style="color:#5F6368;font-size:14px;line-height:1.55;max-width:780px;margin:0 0 1rem;">'
-            "Turn the surfaced evidence into structured theme, title, angle, anomaly, and next-step cards "
-            "after you review the results above. Controls stay in the panel below; the report renders in "
-            "clear sections with highlighted titles."
-            "</p>"
-        ),
-        unsafe_allow_html=True,
+    keyword_summary = build_title_keyword_summary(sorted_frame)
+    preview_tokens = keyword_summary["keyword"].tolist()[:8] if not keyword_summary.empty else []
+    if preview_tokens:
+        _render_subsection_label("Repeated Title Keywords")
+        styled_keyword_chips(preview_tokens)
+    st.caption(
+        "Treat recurring words and formats as hypotheses. The scan is a query-result sample, not a causal estimate of audience demand."
     )
-
-    available_providers = [provider for provider in ("gemini", "openai") if get_provider_key_count(provider) > 0]
-    if not available_providers:
-        st.markdown(
-            '<div class="outlier-panel-note">Add <code>GEMINI_API_KEYS</code> and/or <code>OPENAI_API_KEYS</code> to unlock the structured AI research layer.</div>',
-            unsafe_allow_html=True,
-        )
-    else:
-        default_provider = "gemini" if "gemini" in available_providers else available_providers[0]
-        if (
-            "outlier_page_ai_provider" not in st.session_state
-            or st.session_state["outlier_page_ai_provider"] not in available_providers
-        ):
-            st.session_state["outlier_page_ai_provider"] = default_provider
-
-        with st.expander("Research controls — provider, model, and generate", expanded=True):
-            provider_cols = st.columns([1.05, 1.2, 0.95], gap="small")
-            with provider_cols[0]:
-                provider = st.selectbox(
-                    "AI Provider",
-                    available_providers,
-                    key="outlier_page_ai_provider",
-                    format_func=lambda value: AI_PROVIDER_LABELS.get(value, value.title()),
-                )
-            models = AI_MODELS[provider]
-            if (
-                "outlier_page_ai_model" not in st.session_state
-                or st.session_state["outlier_page_ai_model"] not in models
-            ):
-                st.session_state["outlier_page_ai_model"] = models[0]
-            with provider_cols[1]:
-                model = st.selectbox("AI Model", models, key="outlier_page_ai_model")
-            with provider_cols[2]:
-                st.markdown('<div class="outlier-inline-field-label">Research Action</div>', unsafe_allow_html=True)
-                trigger_ai = st.button("Generate AI Research", type="primary", use_container_width=True)
-
-        fingerprint = _result_fingerprint(sorted_frame, result.request.niche_query)
-        if st.session_state.get("outlier_page_ai_fingerprint") != fingerprint:
-            st.session_state.pop("outlier_page_ai_report", None)
-
-        if trigger_ai:
-            query_context = {
-                "niche_query": result.request.niche_query,
-                "language": result.request.relevance_language or "Any",
-                "region": result.request.region_code or "Any",
-                "timeframe_start": result.request.published_after_iso,
-                "timeframe_end": result.request.published_before_iso,
-                "match_mode": result.request.match_mode,
-            }
-            summary_payload = {
-                **summary_stats,
-                **build_scan_quality_summary(sorted_frame),
-                "scanned_videos": result.scanned_videos,
-                "scanned_channels": result.scanned_channels,
-                "baseline_channels": result.baseline_channels,
-            }
-            with st.spinner("Generating structured AI research..."):
-                report = generate_outlier_ai_report(
-                    provider=provider,
-                    model=model,
-                    query_context=query_context,
-                    summary_stats=summary_payload,
-                    result_frame=sorted_frame,
-                )
-            st.session_state["outlier_page_ai_report"] = report
-            st.session_state["outlier_page_ai_fingerprint"] = fingerprint
-
-        report = st.session_state.get("outlier_page_ai_report")
-        if report:
-            _render_ai_report(report)
-        else:
-            keyword_summary = build_title_keyword_summary(sorted_frame)
-            preview_tokens = keyword_summary["keyword"].tolist()[:8] if not keyword_summary.empty else []
-            if preview_tokens:
-                _render_subsection_label("Repeated Title Keywords In The Scan")
-                styled_keyword_chips(preview_tokens)
-            st.markdown(
-                '<div class="outlier-panel-note">Generate AI research to transform the surfaced videos into theme cards, title observations, repeatable angles, and next-step recommendations.</div>',
-                unsafe_allow_html=True,
-            )
 
     _render_methodology_section()

@@ -4,16 +4,13 @@ import streamlit as st
 PAGE_OPTIONS = [
     "Channel Analysis",
     "Channel Insights",
-    "Download Hub",
     "Outlier Finder",
-    "Ytuber",
-    "Deployment",
 ]
 
 _LEGACY_PAGE_MAP = {
-    "Recommendations": "Download Hub",
-    "Thumbnails": "Download Hub",
-    "Tools": "Download Hub",
+    "Recommendations": "Channel Insights",
+    "Thumbnails": "Channel Analysis",
+    "Tools": "Channel Analysis",
 }
 
 
@@ -29,24 +26,17 @@ def render_sidebar_header() -> None:
     st.markdown(
         """
         <div class="sidebar-brand-mast">
-            <div class="sidebar-brand-emblem" aria-hidden="true">
-                <div class="sidebar-brand-emblem-head">
-                    <div class="sidebar-brand-emblem-eye"></div>
-                    <div class="sidebar-brand-emblem-eye"></div>
-                </div>
-                <div class="sidebar-brand-emblem-smile"></div>
-            </div>
             <div class="sidebar-brand-row">
                 <div class="sidebar-brand-bar-col">
                     <div class="sidebar-brand-bar"></div>
                 </div>
                 <div class="sidebar-brand-copy">
                     <div class="sidebar-brand-yt">
-                        <span class="sidebar-brand-yt-gradient">Creator</span>
+                        <span class="sidebar-brand-yt-gradient">VCreator</span>
                     </div>
-                    <div class="sidebar-brand-ci">YouTube Insights</div>
+                    <div class="sidebar-brand-ci">Decision intelligence</div>
                     <div class="sidebar-brand-line" aria-hidden="true"></div>
-                    <div class="sidebar-brand-sub">Purdue × Google</div>
+                    <div class="sidebar-brand-sub">Public data · clear evidence</div>
                 </div>
             </div>
         </div>
@@ -70,9 +60,8 @@ def render_sidebar_footer() -> None:
     st.markdown(
         """
         <div style="font-size:10px;color:#86868b;margin-top:0.6rem;line-height:1.45;">
-            <strong style="color:#1d1d1f;">Purdue University × Google</strong><br/>
-            Daniels School of Business — MS BAIM Capstone<br/>
-            <span style="opacity:0.9;">YouTube Creator Insights</span>
+            Built during a Purdue industry practicum<br/>
+            with Google partners · public data only
         </div>
         """,
         unsafe_allow_html=True,

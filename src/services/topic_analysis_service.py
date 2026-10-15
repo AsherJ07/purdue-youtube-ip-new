@@ -8,6 +8,12 @@ from typing import Any, Dict, Iterable, List
 
 import pandas as pd
 
+from src.services.analytics_metrics import (
+    lifetime_average_daily_views,
+    public_interaction_rate,
+    shrunk_log_trend,
+)
+
 
 STOPWORDS = {
     "the",
@@ -99,21 +105,22 @@ def add_channel_video_features(channel_df: pd.DataFrame) -> pd.DataFrame:
     df = channel_df.copy()
     now = datetime.now(timezone.utc)
     df["video_publishedAt"] = pd.to_datetime(df["video_publishedAt"], errors="coerce", utc=True)
-    df["views"] = pd.to_numeric(df["views"], errors="coerce").fillna(0)
+    df["views"] = pd.to_numeric(df["views"], errors="coerce")
     if "likes" not in df.columns:
         df["likes"] = 0
     if "comments" not in df.columns:
         df["comments"] = 0
     if "duration_seconds" not in df.columns:
         df["duration_seconds"] = 0
-    df["likes"] = pd.to_numeric(df["likes"], errors="coerce").fillna(0)
-    df["comments"] = pd.to_numeric(df["comments"], errors="coerce").fillna(0)
+    df["likes"] = pd.to_numeric(df["likes"], errors="coerce")
+    df["comments"] = pd.to_numeric(df["comments"], errors="coerce")
     df["duration_seconds"] = pd.to_numeric(df["duration_seconds"], errors="coerce").fillna(0)
-    df["engagement_rate"] = ((df["likes"] + df["comments"]) / df["views"].clip(lower=1)).fillna(0)
+    df["engagement_rate"] = public_interaction_rate(df["views"], df["likes"], df["comments"])
+    df["public_interaction_rate"] = df["engagement_rate"]
     df["age_days"] = df["video_publishedAt"].apply(
-        lambda value: max((now - value.to_pydatetime()).total_seconds() / 86400.0, 0.5) if pd.notna(value) else 0.5
+        lambda value: max((now - value.to_pydatetime()).total_seconds() / 86400.0, 0.0) if pd.notna(value) else float("nan")
     )
-    df["views_per_day"] = (df["views"] / df["age_days"].clip(lower=0.5)).fillna(0)
+    df["views_per_day"] = lifetime_average_daily_views(df["views"], df["age_days"])
     df["publish_day"] = df["video_publishedAt"].dt.day_name()
     df["publish_hour"] = df["video_publishedAt"].dt.hour
     df["is_short"] = df["duration_seconds"] <= 60
@@ -178,12 +185,9 @@ def build_topic_metrics(channel_df: pd.DataFrame) -> pd.DataFrame:
             & (topic_df["video_publishedAt"] >= previous_cutoff)
         ]
 
-        recent_median = float(recent_df["views_per_day"].median()) if not recent_df.empty else 0.0
-        previous_median = float(previous_df["views_per_day"].median()) if not previous_df.empty else 0.0
-        if previous_median > 0:
-            trend_score = (recent_median - previous_median) / previous_median
-        else:
-            trend_score = recent_median / max(float(topic_df["views_per_day"].median()), 1.0)
+        trend_score, trend_status = shrunk_log_trend(
+            recent_df["views_per_day"], previous_df["views_per_day"]
+        )
 
         row = {
             "topic_label": str(topic).replace("_", " ").title(),
@@ -191,10 +195,14 @@ def build_topic_metrics(channel_df: pd.DataFrame) -> pd.DataFrame:
             "video_count": int(len(topic_df)),
             "median_views_per_day": float(topic_df["views_per_day"].median()),
             "median_views": float(topic_df["views"].median()),
-            "avg_engagement": float(topic_df["engagement_rate"].mean()),
-            "outlier_count": int((topic_df["performance_score"] >= 75).sum()) if "performance_score" in topic_df.columns else 0,
-            "trend_score": float(trend_score),
+            "avg_engagement": float(topic_df["engagement_rate"].median()),
+            "median_public_interaction_rate": float(topic_df["engagement_rate"].median()),
+            "interaction_coverage": float(topic_df["engagement_rate"].notna().mean()),
+            "outlier_count": int(topic_df["is_top_quartile"].fillna(False).sum()) if "is_top_quartile" in topic_df.columns else 0,
+            "trend_score": float(trend_score) if trend_score is not None else float("nan"),
+            "trend_status": trend_status,
             "recent_video_count": int(len(recent_df)),
+            "previous_video_count": int(len(previous_df)),
         }
         if "owner_video_thumbnail_impressions_click_rate" in topic_df.columns:
             row["avg_thumbnail_ctr"] = float(
@@ -209,7 +217,9 @@ def build_topic_metrics(channel_df: pd.DataFrame) -> pd.DataFrame:
     topic_metrics = pd.DataFrame(rows)
     if topic_metrics.empty:
         return topic_metrics
-    return topic_metrics.sort_values(["trend_score", "median_views_per_day"], ascending=[False, False]).reset_index(drop=True)
+    return topic_metrics.sort_values(
+        ["trend_score", "median_views_per_day"], ascending=[False, False], na_position="last"
+    ).reset_index(drop=True)
 
 
 def build_title_pattern_metrics(channel_df: pd.DataFrame) -> pd.DataFrame:
@@ -218,7 +228,7 @@ def build_title_pattern_metrics(channel_df: pd.DataFrame) -> pd.DataFrame:
     agg_map: Dict[str, Any] = {
         "videos": ("video_id", "count"),
         "median_views_per_day": ("views_per_day", "median"),
-        "avg_engagement": ("engagement_rate", "mean"),
+        "avg_engagement": ("engagement_rate", "median"),
     }
     if "owner_video_thumbnail_impressions_click_rate" in channel_df.columns:
         agg_map["avg_thumbnail_ctr"] = ("owner_video_thumbnail_impressions_click_rate", "mean")
@@ -238,7 +248,7 @@ def build_duration_metrics(channel_df: pd.DataFrame) -> pd.DataFrame:
     agg_map: Dict[str, Any] = {
         "videos": ("video_id", "count"),
         "median_views_per_day": ("views_per_day", "median"),
-        "avg_engagement": ("engagement_rate", "mean"),
+        "avg_engagement": ("engagement_rate", "median"),
     }
     if "owner_video_thumbnail_impressions_click_rate" in channel_df.columns:
         agg_map["avg_thumbnail_ctr"] = ("owner_video_thumbnail_impressions_click_rate", "mean")

@@ -71,7 +71,7 @@ def test_refresh_channel_insights_persists_snapshot(monkeypatch, tmp_path: Path)
     assert payload["channel"]["channel_id"] == "UC123"
     assert loaded is not None
     assert loaded["summary"]["strongest_theme"]
-    assert not loaded["outliers_df"].empty
+    assert loaded["outliers_df"].empty  # fewer than four videos cannot define a quartile
     assert loaded["summary"]["topic_mode_used"] == TOPIC_MODE_HEURISTIC
 
 def test_refresh_channel_insights_falls_back_when_optional_topic_model_fails(monkeypatch, tmp_path: Path) -> None:

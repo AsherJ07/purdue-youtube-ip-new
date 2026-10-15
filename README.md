@@ -1,6 +1,6 @@
-# YouTube IP V6
+# VCreator — Evidence-led Creator Decisions
 
-YouTube IP V6 is the current presentation-ready, Streamlit-deployable release. It carries forward the V5 product surface—seven sidebar destinations, public-only `Channel Insights`, bundled CSV benchmarking, and live YouTube / Gemini / OpenAI workflows—while refreshing the Streamlit entrypoint (`streamlit_app.py` → `dashboard/app.py`), built-in multipage navigation (`st.navigation`), dependency hardening (for example NumPy, PyArrow, and Google API client stacks on Windows and Cloud), and UI polish.
+VCreator is a public-data decision product for small and mid-sized YouTube creators. The current interview build focuses on one clear workflow: inspect trustworthy evidence, choose a supported content hypothesis, and turn it into a measurable experiment. It keeps the full research history in the repository while presenting only three purposeful surfaces in the deployed app.
 
 **Live app (V6):**
 
@@ -15,6 +15,7 @@ Quick jump:
 | current runtime and page flows | [Architecture](docs/ARCHITECTURE.md) |
 | deployment targets, secrets, and version mapping | [Deployment And Versions](docs/DEPLOYMENT_AND_VERSIONS.md) |
 | the full project story from V1 through V5 and into V6 | [Project Brief](docs/PROJECT_BRIEF.md) |
+| every active formula and its limitations | [Metrics and Decision Logic](maths.md) |
 | a GCP-friendly env template | [`.env.gcp.example`](.env.gcp.example) |
 
 ## At A Glance
@@ -23,19 +24,20 @@ Quick jump:
 | --- | --- |
 | Deployed versions documented here | `6` (`V1`–`V6`) |
 | Live Streamlit app links (including historical) | `6` |
-| Current V6 sidebar destinations | `7` |
+| Current sidebar destinations | `3` |
 | Current primary data paths | `2` |
 | Current Channel Insights topic modes | `2` |
-| Current live provider families | `3` (`YouTube`, `Gemini`, `OpenAI`) |
+| Required live provider family | `1` (`YouTube`) |
 | Optional model-artifact path | `1` (`BERTopic` beta) |
 
-## Current V6 In One Minute
+## Current Product In One Minute
 
-- V6 keeps the same two core data paths as V5: bundled GitHub CSVs for benchmarking and live API pulls for channel, outlier, tool, and thumbnail workflows.
-- `Channel Insights` remains public-only with two topic modes: default heuristics and optional BERTopic beta.
-- `Thumbnails`, `Ytuber`, and `Tools` continue the creative and AI-assisted workflows from V5.
-- V6 focuses on **reliable deployment**: explicit `run()` entry from `streamlit_app.py`, Streamlit’s **`st.navigation` / `pg.run()`** router, clearer dependency pins (`pyarrow`, `google-api-python-client`, `google-auth-httplib2`), and layout/CSS fixes for the global hero header.
-- V5 already removed the V4 `Assistant` and Google OAuth owner overlays; V6 does not bring them back.
+- `Benchmarks` uses the committed research datasets and robust, documented public metrics.
+- `Decision Brief` analyzes one public channel, shows confidence and supporting sample sizes, and proposes controlled creator experiments.
+- `Outlier Research` compares channel-relative reach, age-cohort reach, public interaction, and evidence reliability without double-counting freshness or interactions.
+- Heuristic topics are always available; BERTopic remains an optional, confidence-aware model path that can abstain.
+- Generative AI does not automatically manufacture recommendations. The default decision layer is deterministic and evidence-backed.
+- Every active formula, invalid case, and interpretation limit is documented in [`maths.md`](maths.md).
 
 ## Why This Project Exists
 
@@ -114,29 +116,21 @@ flowchart LR
 | Broader “everything page” behavior in earlier suites | V2 | useful during exploration and experimentation | harder to document and reason about than clearly separated workflows |
 | Always-growing feature surface | V2-V4 | helped the team test many ideas quickly | eventually created duplication, deployment weight, and documentation drift |
 
-## Current V6 Product Surface
+## Current Product Surface
 
-The current V6 sidebar order is:
+The current sidebar order is:
 
 1. `Channel Analysis`
-2. `Channel Insights`
-3. `Thumbnails`
-4. `Outlier Finder`
-5. `Ytuber`
-6. `Tools`
-7. `Deployment`
+2. `Decision Brief`
+3. `Outlier Research`
 
 This is the high-level page map. The detailed runtime handoffs for each page live in [Architecture](docs/ARCHITECTURE.md).
 
 | Page | What Problem It Solves | Main Inputs | Main Outputs | Runtime Type |
 | --- | --- | --- | --- | --- |
 | `Channel Analysis` | benchmark bundled datasets and compare portfolio-level performance | committed CSV data in `data/youtube api data/` | KPI cards, trend charts, channel/video rankings | dataset-backed |
-| `Channel Insights` | analyze one tracked public channel over time | live YouTube Data API pulls, snapshot history, optional BERTopic | topic trends, format patterns, outliers, next-topic ideas | mixed |
-| `Thumbnails` | generate and export thumbnails without mixing broader strategy UI | Gemini/OpenAI image calls, public thumbnail URLs | generated concepts, preview cards, downloads | mixed |
-| `Outlier Finder` | find breakout videos in a niche | live YouTube API scans and outlier scoring | scored outlier tables, breakout snapshots, AI research | mixed |
-| `Ytuber` | run a creator-focused live workspace | live channel data, AI generation, creator tools | audits, planner outputs, AI Studio results | mixed |
-| `Tools` | inspect and export public YouTube assets | YouTube metadata, transcripts, yt-dlp, ffmpeg | previews, transcript exports, audio/video/thumbnail downloads | API-backed |
-| `Deployment` | show deployment/setup guidance inside the app | static in-app instructions | repo, branch, secrets, deployment notes | static |
+| `Decision Brief` | convert one tracked public channel into a supported experiment | YouTube public data, snapshot history, optional BERTopic | evidence, confidence, supporting samples, next tests | mixed |
+| `Outlier Research` | find unusual performance in a niche | live YouTube API scan and explainable scoring | ranked evidence, score decomposition, cohort caveats | API-backed |
 
 ## Current V6 Workflow Map
 
@@ -145,12 +139,8 @@ This section is about the live app today, not the historical versions.
 | Page | User Goal | Main Inputs | Main Services Used | Main Outputs | Runtime Type |
 | --- | --- | --- | --- | --- | --- |
 | `Channel Analysis` | compare bundled channel/video benchmarks | committed CSV files, filters, date ranges | pandas transforms, visualization helpers | KPI cards, monthly trends, top channels, top videos | dataset-backed |
-| `Channel Insights` | analyze a tracked public channel over time | channel URL/handle/ID, optional beta topic mode, snapshot refresh actions | `public_channel_service`, `channel_insights_service`, `channel_snapshot_store`, `topic_model_runtime`, `model_artifact_service` | topic trends, format metrics, outliers, next-topic ideas, history | mixed |
-| `Thumbnails` | generate new thumbnail concepts or export a public one | title/context/style prompts, provider/model choice, YouTube video URL or ID | `thumbnail_generator.py`, `thumbnail_hub_service.py` | generated images, preview cards, prepared downloads | mixed |
-| `Outlier Finder` | surface overperforming videos in a niche | niche query, filters, optional AI research trigger | `outliers_finder.py`, `outlier_ai.py`, provider-key helpers | outlier cards, scored result tables, breakout charts, AI insight cards | mixed |
-| `Ytuber` | open a live creator workspace for one channel | channel query, live refresh toggle, segmented workspace module selection | YouTube API loaders, keyword/title scoring helpers, thumbnail generator, outlier handoff logic | audit views, keyword tables, AI Studio outputs, planner and benchmark results | mixed |
-| `Tools` | inspect public YouTube assets and prepare downloads | single URL, batch URLs, playlist URL, operation choice | `youtube_tools.py`, `transcript_service.py`, `yt-dlp`, `ffmpeg` | metadata previews, transcripts, audio/video/thumbnail artifacts, batch/playlist results | API-backed |
-| `Deployment` | understand how to run and deploy the app | none; in-app reference content | app shell guidance in `dashboard/app.py` | deployment instructions, repo/branch/secrets notes | static |
+| `Decision Brief` | choose one evidence-backed creator experiment | channel URL/handle/ID, topic mode, snapshot refresh | `public_channel_service`, `channel_insights_service`, `channel_snapshot_store`, `topic_model_runtime` | decision brief, evidence tables, outliers, history | mixed |
+| `Outlier Research` | surface unusual videos in a niche | niche query and explicit filters | `outliers_finder.py`, canonical metric helpers | ranked results, evidence-quality summaries, transparent methodology | API-backed |
 
 ```mermaid
 flowchart TD
@@ -194,12 +184,8 @@ These are the main interactive surfaces a user actually navigates once a page is
 | Page | Surface Type | Count | Current Surfaces | What They Do |
 | --- | --- | --- | --- | --- |
 | `Channel Analysis` | main analytics canvas | `1` | dataset filters + charts/tables | benchmark bundled CSV data |
-| `Channel Insights` | tabs | `6` | `Overview`, `Topic Trends`, `Formats & Patterns`, `Outliers`, `Next Topics`, `History` | turn tracked public-channel snapshots into interpretable strategy signals |
-| `Thumbnails` | tabs | `2` | `Generate`, `Download From URL` | create new thumbnails or export a public one |
-| `Outlier Finder` | post-search sections | `4` | `Top Outliers In This Scan`, `Breakout Snapshot`, `AI Research`, `How This Works` | score breakout videos first, then interpret them |
-| `Ytuber` | segmented modules | `8` | `AI Studio`, `Overview`, `Channel Audit`, `Keyword Intel`, `Outliers Finder`, `Title & SEO Lab`, `Competitor Benchmark`, `Content Planner` | open a live creator workspace around one channel |
-| `Tools` | tabs | `3` | `Single`, `Batch`, `Playlist` | inspect and prepare public YouTube asset downloads |
-| `Deployment` | in-app reference view | `1` | deployment/setup guidance | explain how to run and deploy the app |
+| `Decision Brief` | tabs | `4` | `Decision Brief`, `Evidence`, `Outliers`, `History` | turn a tracked public-channel snapshot into a testable decision with visible confidence |
+| `Outlier Research` | post-search sections | `4` | results, breakout snapshot, repeated evidence, methodology | inspect unusual performance before acting on it |
 
 For the detailed tab-by-tab and module-by-module behavior, see:
 
@@ -217,7 +203,7 @@ flowchart TD
     U["User actions in the Streamlit UI"] --> B
     B --> C["dashboard/app.py run + st.navigation"]
     C --> D["sidebar navigation"]
-    D --> E["7 V6 page views"]
+    D --> E["3 focused product views"]
 
     S["Streamlit secrets / env vars"] --> F["src/utils/api_keys.py"]
     F --> G["YouTube Data API v3"]
@@ -317,7 +303,7 @@ For the full topic-mode branch, tab flow, and artifact-state details, see [Archi
 | Public V6 live app | [ip-youtube-creator-insight-2026.streamlit.app](https://ip-youtube-creator-insight-2026.streamlit.app/) |
 | Earlier documented deploy (V5) | `royayushkr/Youtube-IP-V5` on `main` (see [Deployment And Versions](docs/DEPLOYMENT_AND_VERSIONS.md)) |
 | Main file path (Streamlit Cloud) | `streamlit_app.py` |
-| Required secret families | `YOUTUBE`, `GEMINI`, `OPENAI` |
+| Required secret family | `YOUTUBE` for live analysis; bundled benchmarks work without it |
 | Optional secret family | `MODEL_ARTIFACTS_*` for BERTopic beta |
 
 ```mermaid
@@ -327,7 +313,7 @@ flowchart LR
     C --> D["Secrets / env vars"]
     D --> E["streamlit_app.py"]
     E --> F["dashboard/app.py run + navigation"]
-    F --> G["7-page V6 app shell"]
+    F --> G["3-page focused product shell"]
 ```
 
 Deployment notes in one screen:

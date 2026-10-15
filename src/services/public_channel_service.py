@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from src.services.analytics_metrics import lifetime_average_daily_views, public_interaction_rate
+
 try:
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
@@ -344,10 +346,10 @@ def ensure_public_channel_frame(df: pd.DataFrame) -> pd.DataFrame:
     else:
         output["video_publishedAt"] = pd.NaT
 
-    output["likes"] = output["likes"].fillna(0)
-    output["comments"] = output["comments"].fillna(0)
-    output["views"] = output["views"].fillna(0)
-    output["engagement_rate"] = (output["likes"] + output["comments"]) / output["views"].clip(lower=1)
+    output["engagement_rate"] = public_interaction_rate(
+        output["views"], output["likes"], output["comments"]
+    )
+    output["public_interaction_rate"] = output["engagement_rate"]
     output["publish_month"] = output["video_publishedAt"].dt.strftime("%Y-%m")
     output["publish_day"] = output["video_publishedAt"].dt.day_name()
     output["publish_hour"] = output["video_publishedAt"].dt.hour
@@ -357,9 +359,9 @@ def ensure_public_channel_frame(df: pd.DataFrame) -> pd.DataFrame:
     output["is_short"] = output["duration_seconds"] <= 60
     now = datetime.now(timezone.utc)
     output["age_days"] = output["video_publishedAt"].apply(
-        lambda value: max((now - value.to_pydatetime()).total_seconds() / 86400.0, 0.5) if pd.notna(value) else 0.5
+        lambda value: max((now - value.to_pydatetime()).total_seconds() / 86400.0, 0.0) if pd.notna(value) else float("nan")
     )
-    output["views_per_day"] = output["views"] / output["age_days"].clip(lower=0.5)
+    output["views_per_day"] = lifetime_average_daily_views(output["views"], output["age_days"])
     return output
 
 

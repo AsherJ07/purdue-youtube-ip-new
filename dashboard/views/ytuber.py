@@ -33,6 +33,13 @@ from dashboard.components.visualizations import (
     styled_keyword_chips,
 )
 from src.llm_integration.thumbnail_generator import ThumbnailGenerator
+from src.services.analytics_metrics import (
+    lifetime_average_daily_views,
+    neutral_percentile_rank,
+    public_interaction_rate,
+    robust_consistency,
+    shrunk_log_trend,
+)
 from src.services.public_channel_service import load_public_channel_workspace
 from src.services.outliers_finder import (
     SUBSCRIBER_BUCKETS,
@@ -1229,12 +1236,15 @@ def _ensure_numeric_and_dates(df: pd.DataFrame) -> pd.DataFrame:
             out[c] = pd.to_numeric(out[c], errors="coerce")
     if "video_publishedAt" in out.columns:
         out["video_publishedAt"] = pd.to_datetime(out["video_publishedAt"], errors="coerce", utc=True)
-    out["engagement_rate"] = (out["likes"].fillna(0) + out["comments"].fillna(0)) / out["views"].clip(lower=1)
+    out["engagement_rate"] = public_interaction_rate(out["views"], out["likes"], out["comments"])
     out["publish_month"] = out["video_publishedAt"].dt.to_period("M").astype(str)
     out["publish_day"] = out["video_publishedAt"].dt.day_name()
     out["publish_hour"] = out["video_publishedAt"].dt.hour
     out["duration_seconds"] = out["duration"].fillna("").astype(str).map(_parse_iso_duration_seconds)
     out["is_short"] = out["duration_seconds"] <= 60
+    now = pd.Timestamp.now(tz="UTC")
+    out["age_days"] = (now - out["video_publishedAt"]).dt.total_seconds() / 86400
+    out["views_per_day"] = lifetime_average_daily_views(out["views"], out["age_days"])
     return out
 
 
@@ -1283,8 +1293,8 @@ def _keyword_intel(df: pd.DataFrame, top_n: int = 40) -> pd.DataFrame:
         kdf.groupby("keyword", dropna=False)
         .agg(
             videos=("keyword", "count"),
-            avg_views=("views", "mean"),
-            avg_engagement=("engagement", "mean"),
+            avg_views=("views", "median"),
+            avg_engagement=("engagement", "median"),
             momentum=("recency_weight", "mean"),
         )
         .reset_index()
@@ -1293,16 +1303,11 @@ def _keyword_intel(df: pd.DataFrame, top_n: int = 40) -> pd.DataFrame:
     if out.empty:
         return out
 
-    max_views = max(out["avg_views"].max(), 1)
-    max_eng = max(out["avg_engagement"].max(), 0.0001)
-    max_momentum = max(out["momentum"].max(), 0.0001)
-    competition_proxy = out["videos"] / max(out["videos"].max(), 1)
-
-    out["score"] = (
-        (out["avg_views"] / max_views) * 40
-        + (out["avg_engagement"] / max_eng) * 30
-        + (out["momentum"] / max_momentum) * 20
-        + (1 - competition_proxy) * 10
+    out = out[out["videos"] >= 3].copy()
+    out["score"] = 100 * (
+        neutral_percentile_rank(out["avg_views"]) * 0.50
+        + neutral_percentile_rank(out["avg_engagement"]) * 0.30
+        + neutral_percentile_rank(out["momentum"]) * 0.20
     )
 
     return out.sort_values("score", ascending=False).head(top_n)
@@ -1501,33 +1506,31 @@ def _compute_channel_audit(df: pd.DataFrame) -> Dict[str, Any]:
 
     out["videos"] = len(ordered)
     out["median_views"] = float(ordered["views"].median()) if not ordered.empty else 0
-    out["avg_engagement"] = float(ordered["engagement_rate"].mean()) if not ordered.empty else 0
+    out["avg_engagement"] = float(ordered["engagement_rate"].median()) if ordered["engagement_rate"].notna().any() else float("nan")
     out["shorts_ratio"] = float(ordered["is_short"].mean()) if not ordered.empty else 0
 
     if len(ordered) > 2:
         gaps = ordered["video_publishedAt"].diff().dt.total_seconds().dropna() / 86400
-        mean_gap = float(gaps.mean()) if not gaps.empty else 0
-        std_gap = float(gaps.std()) if not gaps.empty else 0
-        consistency = max(0.0, 100 - (std_gap / max(mean_gap, 1)) * 40)
+        mean_gap = float(gaps.median()) if not gaps.empty else 0
+        consistency = robust_consistency(gaps)
     else:
         mean_gap = 0
-        consistency = 0
+        consistency = None
 
     out["avg_upload_gap_days"] = mean_gap
-    out["consistency_score"] = float(consistency)
+    out["consistency_score"] = float(consistency) if consistency is not None else float("nan")
 
     recent_cutoff = datetime.now(timezone.utc) - timedelta(days=90)
     previous_cutoff = datetime.now(timezone.utc) - timedelta(days=180)
     recent = ordered[ordered["video_publishedAt"] >= recent_cutoff]
     previous = ordered[(ordered["video_publishedAt"] < recent_cutoff) & (ordered["video_publishedAt"] >= previous_cutoff)]
 
-    recent_avg = float(recent["views"].mean()) if not recent.empty else 0
-    previous_avg = float(previous["views"].mean()) if not previous.empty else 0
-    growth = ((recent_avg - previous_avg) / previous_avg * 100) if previous_avg > 0 else 0
-    out["view_growth_90d_pct"] = growth
+    growth, growth_status = shrunk_log_trend(recent["views_per_day"], previous["views_per_day"])
+    out["view_growth_90d_pct"] = (math.expm1(growth) * 100) if growth is not None else float("nan")
+    out["view_growth_status"] = growth_status
 
-    threshold = max(float(ordered["views"].median()) * 2.0, 1.0)
-    out["outlier_rate"] = float((ordered["views"] >= threshold).mean()) if not ordered.empty else 0
+    threshold = float(ordered["views_per_day"].quantile(0.75)) if len(ordered) >= 4 else float("inf")
+    out["outlier_rate"] = float((ordered["views_per_day"] >= threshold).mean()) if len(ordered) >= 4 else float("nan")
 
     return out
 

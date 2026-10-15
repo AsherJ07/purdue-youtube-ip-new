@@ -483,16 +483,10 @@ def _stable_topic_metrics_df(payload: Dict[str, Any]) -> pd.DataFrame:
     if topic_metrics_df.empty:
         return topic_metrics_df
 
-    stable_mask = (
-        topic_metrics_df.get("video_count", pd.Series(dtype=float)).fillna(0).astype(float) >= 2
-    ) | (
-        topic_metrics_df.get("recent_video_count", pd.Series(dtype=float)).fillna(0).astype(float) >= 2
-    ) | (
-        topic_metrics_df.get("outlier_count", pd.Series(dtype=float)).fillna(0).astype(float) >= 2
-    )
+    stable_mask = topic_metrics_df.get("video_count", pd.Series(dtype=float)).fillna(0).astype(float) >= 3
     stable_df = topic_metrics_df[stable_mask].copy()
     if stable_df.empty:
-        return topic_metrics_df
+        return stable_df
     return stable_df.sort_values(
         ["trend_score", "video_count", "median_views_per_day"],
         ascending=[False, False, False],
@@ -503,9 +497,9 @@ def _stable_duration_metrics_df(payload: Dict[str, Any]) -> pd.DataFrame:
     duration_metrics_df = payload.get("duration_metrics_df", pd.DataFrame())
     if duration_metrics_df.empty or "videos" not in duration_metrics_df.columns:
         return duration_metrics_df
-    stable_df = duration_metrics_df[duration_metrics_df["videos"].fillna(0).astype(float) >= 2].copy()
+    stable_df = duration_metrics_df[duration_metrics_df["videos"].fillna(0).astype(float) >= 3].copy()
     if stable_df.empty:
-        return duration_metrics_df
+        return stable_df
     return stable_df.sort_values(["median_views_per_day", "videos"], ascending=[False, False])
 
 
@@ -513,9 +507,9 @@ def _stable_title_pattern_metrics_df(payload: Dict[str, Any]) -> pd.DataFrame:
     title_pattern_metrics_df = payload.get("title_pattern_metrics_df", pd.DataFrame())
     if title_pattern_metrics_df.empty or "videos" not in title_pattern_metrics_df.columns:
         return title_pattern_metrics_df
-    stable_df = title_pattern_metrics_df[title_pattern_metrics_df["videos"].fillna(0).astype(float) >= 2].copy()
+    stable_df = title_pattern_metrics_df[title_pattern_metrics_df["videos"].fillna(0).astype(float) >= 3].copy()
     if stable_df.empty:
-        return title_pattern_metrics_df
+        return stable_df
     return stable_df.sort_values(["median_views_per_day", "videos"], ascending=[False, False])
 
 
@@ -814,7 +808,7 @@ def _render_summary_kpi_cards(summary: Dict[str, Any], deltas: Dict[str, Any], p
             "delta": None,
         },
         {
-            "label": "Median Views / Day",
+            "label": "Median Daily Views",
             "value": _format_int(summary.get("median_views_per_day", 0)),
             "delta": _history_delta_text(deltas.get("median_views_per_day_delta", 0)) if deltas else None,
         },
@@ -877,7 +871,7 @@ def _fallback_overview_actions(payload: Dict[str, Any]) -> List[str]:
     upload_gap_days = float(summary.get("avg_upload_gap_days", 0) or 0)
     if upload_gap_days > 0:
         actions.append(
-            f"Your average upload gap is {upload_gap_days:.1f} days, so tightening cadence could help the strongest themes compound faster."
+            f"The observed upload gap is {upload_gap_days:.1f} days. Use it as experiment context; this analysis does not establish a causal cadence effect."
         )
 
     deduped: List[str] = []
@@ -1126,7 +1120,7 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
     recommendations = payload.get("recommendations", {})
     topic_metrics_df = _visible_topic_metrics_df(payload)
     duration_metrics_df = payload.get("duration_metrics_df", pd.DataFrame())
-    ai_actions = _generate_channel_insights_text(payload, "overview_actions", _overview_actions_prompt(payload, topic_metrics_df))
+    ai_actions = ""
 
     overview_cols = st.columns([1.15, 1], gap="large")
     with overview_cols[0]:
@@ -1149,7 +1143,7 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
                         <div class="ci-summary-value">{_format_pct(summary.get('shorts_ratio', 0))}</div>
                     </div>
                     <div class="ci-summary-item">
-                        <div class="ci-summary-label">Median Engagement</div>
+                        <div class="ci-summary-label">Median Public Interaction</div>
                         <div class="ci-summary-value">{_format_pct(summary.get('median_engagement', 0))}</div>
                     </div>
                     <div class="ci-summary-item">
@@ -1194,7 +1188,7 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
             )
             show_plotly_chart(topic_fig)
             _render_metric_note(
-                "Trend Score compares a theme's recent 90-day median views per day against its earlier baseline. Higher values mean the theme is gaining momentum faster right now."
+                "Measured trend is a shrunk log comparison of recent and prior 90-day medians. Topics without at least three videos in both windows are not ranked."
             )
 
         if not duration_metrics_df.empty:
@@ -1207,7 +1201,7 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
             )
             show_plotly_chart(duration_fig)
             _render_metric_note(
-                "Median Views / Day normalizes performance by video age, so newer and older uploads can be compared more fairly across duration buckets."
+                "Lifetime-average daily views partially normalizes age, but it is not current velocity and does not establish causality."
             )
 
         if summary.get("topic_mode_requested") == TOPIC_MODE_BERTOPIC_OPTIONAL and summary.get("topic_mode_used") != TOPIC_MODE_BERTOPIC_OPTIONAL:
@@ -1220,13 +1214,9 @@ def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
         st.markdown("<div class='ci-empty'>This channel needs more public uploads before theme clustering becomes stable.</div>", unsafe_allow_html=True)
         return
 
-    topic_insight_text = _generate_channel_insights_text(payload, "topic_trends", _topic_trends_prompt(payload, topic_metrics_df))
-    if topic_insight_text:
-        _render_ai_card("AI Topic Trend Insights", topic_insight_text)
-
     styled_dataframe(
         topic_metrics_df[
-            ["topic_label", "video_count", "median_views_per_day", "outlier_count", "trend_score", "avg_engagement"]
+            ["topic_label", "video_count", "recent_video_count", "previous_video_count", "median_views_per_day", "trend_status", "trend_score", "median_public_interaction_rate", "interaction_coverage"]
         ],
         title="Topic Cluster Performance",
         precision=2,
@@ -1234,8 +1224,8 @@ def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
     _render_metric_note(
         [
             "Video Count shows how much evidence supports a theme.",
-            "Outlier Count is the number of videos in that theme with performance score at 75 or higher.",
-            "Avg Engagement is (likes + comments) divided by views.",
+            "Trend is only measured with at least three recent and three prior videos.",
+            "Public interaction is the median of (likes + comments) / views across valid rows.",
         ]
     )
 
@@ -1257,12 +1247,12 @@ def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
             topic_metrics_df.head(10).sort_values("median_views_per_day", ascending=True),
             x="topic_label",
             y="median_views_per_day",
-            title="Median Views / Day By Theme",
+            title="Median Lifetime Daily Views By Theme",
             horizontal=True,
         )
         show_plotly_chart(views_fig)
         _render_metric_note(
-            "Median Views / Day By Theme shows steady per-video performance. It is usually the better read for consistency than a single viral upload."
+            "Lifetime-average daily views reduces age bias but should not be interpreted as current momentum."
         )
 
     top_topics = topic_metrics_df["topic_label"].head(10).tolist()
@@ -1276,11 +1266,6 @@ def _render_formats_tab(payload: Dict[str, Any]) -> None:
     title_pattern_metrics_df = payload.get("title_pattern_metrics_df", pd.DataFrame())
     publish_day_metrics_df = payload.get("publish_day_metrics_df", pd.DataFrame())
     publish_hour_metrics_df = payload.get("publish_hour_metrics_df", pd.DataFrame())
-    format_insight_text = _generate_channel_insights_text(payload, "formats_patterns", _formats_prompt(payload))
-
-    if format_insight_text:
-        _render_ai_card("AI Format & Pattern Insights", format_insight_text)
-
     top_cols = st.columns(2, gap="large")
     with top_cols[0]:
         if not duration_metrics_df.empty:
@@ -1288,8 +1273,8 @@ def _render_formats_tab(payload: Dict[str, Any]) -> None:
             _render_metric_note(
                 [
                     "Videos is the sample size for each duration bucket.",
-                    "Median Views / Day shows the typical performance for that length.",
-                    "Avg Engagement tracks interaction rate.",
+                    "Median lifetime-average daily views shows typical age-normalized reach for that length.",
+                    "Public interaction is a median over rows with valid public counts.",
                 ]
             )
     with top_cols[1]:
@@ -1306,7 +1291,7 @@ def _render_formats_tab(payload: Dict[str, Any]) -> None:
                 publish_day_metrics_df.sort_values("median_views_per_day", ascending=True),
                 x="publish_day",
                 y="median_views_per_day",
-                title="Best Publish Days",
+                title="Observed Performance by Publish Day",
                 horizontal=True,
             )
             show_plotly_chart(day_fig)
@@ -1348,8 +1333,8 @@ def _render_outliers_tab(payload: Dict[str, Any]) -> None:
             _render_metric_note(
                 [
                     "Outliers are videos whose combined performance score lands in the top quartile for this snapshot.",
-                    "Views / Day normalizes performance for video age.",
-                    "Performance Score blends views, engagement, and recency.",
+                    "Lifetime-average daily views partially normalizes performance for video age.",
+                    "Performance Score blends age-adjusted reach and public interaction; recency is not double-counted.",
                 ]
             )
     with outlier_cols[1]:
@@ -1384,7 +1369,8 @@ def _render_theme_cards(title: str, rows: Iterable[Dict[str, Any]], channel_titl
             <div class="ci-theme-card">
                 <div class="ci-theme-title">{escape(str(item.get('theme', 'Theme')))}</div>
                 <div class="ci-theme-copy">{escape(str(item.get('rationale', '')))}</div>
-                <div class="ci-theme-copy" style="margin-top:0.35rem;color:#F7F8FC;">{escape(str(item.get('action', '')))}</div>
+                <div class="ci-theme-copy" style="margin-top:0.35rem;">{escape(str(item.get('action', '')))}</div>
+                <div class="ci-note" style="margin-top:0.55rem;">Confidence: {escape(str(item.get('confidence', 'Low')))} · n={int(item.get('sample_size', 0) or 0)} · {escape(str(item.get('evidence', '')))}</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1490,16 +1476,14 @@ def render() -> None:
 
     _render_summary_action_row(payload)
 
-    tabs = st.tabs(["Overview", "Topic Trends", "Formats & Patterns", "Outliers", "Next Topics", "History"])
+    tabs = st.tabs(["Decision Brief", "Evidence", "Outliers", "History"])
     with tabs[0]:
         _render_overview_tab(payload)
+        _render_next_topics_tab(payload)
     with tabs[1]:
         _render_topic_trends_tab(payload)
-    with tabs[2]:
         _render_formats_tab(payload)
-    with tabs[3]:
+    with tabs[2]:
         _render_outliers_tab(payload)
-    with tabs[4]:
-        _render_next_topics_tab(payload)
-    with tabs[5]:
+    with tabs[3]:
         _render_history_tab(payload)

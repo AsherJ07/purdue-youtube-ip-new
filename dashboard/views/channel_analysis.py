@@ -4,6 +4,8 @@ from datetime import date, datetime
 import pandas as pd
 import streamlit as st
 
+from src.services.analytics_metrics import lifetime_average_daily_views, public_interaction_rate
+
 from dashboard.components.visualizations import (
     kpi_row,
     plotly_bar_chart,
@@ -123,20 +125,22 @@ def _load_data_for_label(label: str) -> pd.DataFrame:
     df["video_publishedAt"] = pd.to_datetime(
         df["video_publishedAt"], errors="coerce", utc=True
     )
-    df["engagement_rate"] = (
-        (df["likes"].fillna(0) + df["comments"].fillna(0))
-        / df["views"].clip(lower=1)
-    )
+    df["engagement_rate"] = public_interaction_rate(df["views"], df["likes"], df["comments"])
+    df["public_interaction_pct"] = df["engagement_rate"] * 100
+    now = pd.Timestamp.now(tz="UTC")
+    df["age_days"] = (now - df["video_publishedAt"]).dt.total_seconds() / 86400
+    df["views_per_day"] = lifetime_average_daily_views(df["views"], df["age_days"])
     df["publish_month"] = df["video_publishedAt"].dt.to_period("M").astype(str)
     df["publish_day"] = df["video_publishedAt"].dt.day_name()
     return df
 
 
 def _render_engagement_formula_block() -> None:
-    st.markdown("#### How Engagement Rate is Calculated")
+    st.markdown("#### How public interaction is calculated")
     st.caption(
-        "Engagement Rate (%) = ((Likes + Comments) / Views) * 100. "
-        "If views are 0, we safely treat views as 1 to avoid divide-by-zero errors."
+        "Public interaction rate = (public likes + public comments) / views. "
+        "Rows with zero views or unavailable interaction counts are excluded—not imputed. "
+        "This is not total engagement because public data omits watch time, shares, and saves."
     )
 
     formula_matrix = pd.DataFrame(
@@ -145,7 +149,7 @@ def _render_engagement_formula_block() -> None:
             {"Metric": "Comments", "Meaning": "Total comments on the video"},
             {"Metric": "Views", "Meaning": "Total views on the video"},
             {
-                "Metric": "Engagement Rate (%)",
+                "Metric": "Public Interaction Rate (%)",
                 "Meaning": "((Likes + Comments) / Views) * 100",
             },
         ]
@@ -227,12 +231,12 @@ def render() -> None:
             "color": "#FF0000",
         },
         {
-            "label": "Avg Views / Video",
-            "value": f"{int(filtered['views'].fillna(0).mean()):,}",
+            "label": "Median Views / Video",
+            "value": f"{int(filtered['views'].median()):,}",
             "icon": "📈",
         },
         {
-            "label": "Typical Engagement Rate",
+            "label": "Typical Public Interaction",
             "value": f"{filtered['engagement_rate'].median() * 100:.2f}%",
             "icon": "💡",
         },
@@ -248,13 +252,15 @@ def render() -> None:
             .agg(
                 videos=("video_id", "count"),
                 total_views=("views", "sum"),
-                avg_views=("views", "mean"),
+                median_views=("views", "median"),
                 typical_engagement_rate=("engagement_rate", "median"),
+                valid_interaction_rows=("engagement_rate", "count"),
             )
             .sort_values("total_views", ascending=False)
             .head(15)
             .reset_index()
         )
+        channel_summary["typical_public_interaction_pct"] = channel_summary.pop("typical_engagement_rate") * 100
         fig = plotly_bar_chart(
             channel_summary, x="channel_title", y="total_views", title="Top 15 Channels"
         )
@@ -262,19 +268,19 @@ def render() -> None:
         styled_dataframe(channel_summary, title="Channel Summary")
 
     with right:
-        section_header("Monthly Upload Trend", icon="📆")
+        section_header("Publication Cohorts", icon="📆")
         trend = (
             filtered.groupby("publish_month", dropna=False)
-            .agg(videos=("video_id", "count"), views=("views", "sum"))
+            .agg(videos=("video_id", "count"), median_lifetime_views=("views", "median"))
             .reset_index()
             .sort_values("publish_month")
         )
         fig = plotly_line_chart(
             trend,
             x="publish_month",
-            y_cols=["videos", "views"],
-            title="Videos & Views Over Time",
-            secondary_y=["views"],
+            y_cols=["videos", "median_lifetime_views"],
+            title="Uploads and Current Median Lifetime Views by Publish Month",
+            secondary_y=["median_lifetime_views"],
         )
         st.plotly_chart(fig, use_container_width=True)
 
@@ -286,7 +292,7 @@ def render() -> None:
             "views",
             "likes",
             "comments",
-            "engagement_rate",
+            "public_interaction_pct",
             "video_publishedAt",
         ]
     ].sort_values("views", ascending=False)
@@ -302,8 +308,9 @@ def render() -> None:
         filtered.groupby("publish_day", dropna=False)
         .agg(
             videos=("video_id", "count"),
-            avg_views=("views", "mean"),
+            median_lifetime_daily_views=("views_per_day", "median"),
             typical_engagement_rate=("engagement_rate", "median"),
+            sample_size=("video_id", "count"),
         )
         .reindex(
             [
@@ -319,23 +326,25 @@ def render() -> None:
         .dropna(how="all")
         .reset_index()
     )
+    day_perf["typical_public_interaction_pct"] = day_perf.pop("typical_engagement_rate") * 100
 
     col_day1, col_day2 = st.columns(2)
     with col_day1:
         fig_views = plotly_bar_chart(
             day_perf,
             x="publish_day",
-            y="avg_views",
-            title="Average Views by Day",
+            y="median_lifetime_daily_views",
+            title="Median Lifetime Daily Views by Publish Day",
         )
         st.plotly_chart(fig_views, use_container_width=True)
     with col_day2:
         fig_eng = plotly_bar_chart(
             day_perf,
             x="publish_day",
-            y="typical_engagement_rate",
-            title="Typical Engagement Rate by Day",
+            y="typical_public_interaction_pct",
+            title="Typical Public Interaction by Publish Day",
         )
+        fig_eng.update_yaxes(ticksuffix="%")
         st.plotly_chart(fig_eng, use_container_width=True)
 
     section_header("Views vs Engagement", icon="📉")
@@ -343,17 +352,17 @@ def render() -> None:
     fig_scatter = plotly_scatter(
         scatter_df,
         x="views",
-        y="engagement_rate",
+        y="public_interaction_pct",
         size=None,
         color="channel_title",
-        title="Views vs Engagement Rate (Log Scale)",
+        title="Views vs Public Interaction Rate",
     )
     fig_scatter.update_traces(marker={"size": 9, "opacity": 0.65})
     fig_scatter.update_xaxes(type="log", title="Views (log scale)")
-    fig_scatter.update_yaxes(title="Engagement Rate")
+    fig_scatter.update_yaxes(title="Public Interaction Rate (%)", ticksuffix="%")
     st.plotly_chart(fig_scatter, use_container_width=True)
 
-    section_header("Engagement Distribution", icon="🥧")
+    section_header("Public Interaction Distribution", icon="🥧")
     bins = []
     for val in filtered["engagement_rate"]:
         if pd.isna(val):
@@ -373,6 +382,6 @@ def render() -> None:
             dist_df,
             names="bucket",
             values="count",
-            title="Engagement Rate Buckets",
+            title="Public Interaction Rate Buckets",
         )
         st.plotly_chart(fig_donut, use_container_width=True)

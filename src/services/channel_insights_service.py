@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from src.services.analytics_metrics import evidence_confidence, neutral_percentile_rank
+
 from src.services.channel_idea_service import build_grounded_idea_bundle, maybe_generate_ai_overlay
 from src.services.model_artifact_service import get_bertopic_artifact_status
 from src.services.channel_snapshot_store import (
@@ -44,26 +46,28 @@ def _compute_upload_gap_days(df: pd.DataFrame) -> float:
     if len(ordered) < 2:
         return 0.0
     gaps = ordered["video_publishedAt"].diff().dt.total_seconds().dropna() / 86400
-    return float(gaps.mean()) if not gaps.empty else 0.0
+    return float(gaps.median()) if not gaps.empty else 0.0
 
 
 def _score_videos(channel_df: pd.DataFrame) -> pd.DataFrame:
     if channel_df.empty:
         return channel_df.copy()
     df = channel_df.copy()
-    views_rank = df["views_per_day"].rank(method="average", pct=True).fillna(0)
-    engagement_rank = df["engagement_rate"].rank(method="average", pct=True).fillna(0)
-    recency_raw = 1 / df["age_days"].clip(lower=0.5)
-    recency_rank = recency_raw.rank(method="average", pct=True).fillna(0)
+    views_rank = neutral_percentile_rank(df["views_per_day"])
+    engagement_rank = neutral_percentile_rank(df["engagement_rate"])
     weighted_parts = [
-        (views_rank, 55.0),
-        (engagement_rank, 25.0),
-        (recency_rank, 20.0),
+        (views_rank, 70.0),
+        (engagement_rank, 30.0),
     ]
 
     total_weight = sum(weight for _, weight in weighted_parts) or 1.0
     score_series = sum(series * weight for series, weight in weighted_parts) / total_weight * 100
     df["performance_score"] = score_series.clip(0, 100)
+    if len(df) >= 4:
+        threshold = float(df["performance_score"].quantile(0.75))
+        df["is_top_quartile"] = df["performance_score"] >= threshold
+    else:
+        df["is_top_quartile"] = False
     return df
 
 
@@ -128,13 +132,16 @@ def _outlier_and_underperformer_tables(channel_df: pd.DataFrame) -> tuple[pd.Dat
         return pd.DataFrame(), pd.DataFrame()
 
     ranked = channel_df.sort_values(["performance_score", "views_per_day"], ascending=[False, False]).copy()
-    outliers = ranked[ranked["performance_score"] >= 75].head(12).copy()
+    outliers = ranked[ranked["is_top_quartile"]].head(12).copy()
     underperformers = ranked.sort_values(["performance_score", "views_per_day"], ascending=[True, True]).head(12).copy()
 
-    outliers["why_it_worked"] = outliers.apply(
-        lambda row: f"{row['primary_topic'].replace('_', ' ').title()} is outperforming the channel median with {row['views_per_day']:.0f} views/day.",
-        axis=1,
-    )
+    if outliers.empty:
+        outliers["why_it_worked"] = pd.Series(dtype=str)
+    else:
+        outliers["why_it_worked"] = outliers.apply(
+            lambda row: f"{row['primary_topic'].replace('_', ' ').title()} is in the channel's observed top quartile with {row['views_per_day']:.0f} lifetime-average daily views.",
+            axis=1,
+        )
     underperformers["why_it_lagged"] = underperformers.apply(
         lambda row: f"{row['primary_topic'].replace('_', ' ').title()} is lagging the channel baseline and the packaging may need a new angle.",
         axis=1,
@@ -143,10 +150,13 @@ def _outlier_and_underperformer_tables(channel_df: pd.DataFrame) -> tuple[pd.Dat
 
 
 def _format_metrics(topic_metrics: pd.DataFrame, duration_metrics: pd.DataFrame, title_pattern_metrics: pd.DataFrame) -> Dict[str, Any]:
-    strongest_theme = topic_metrics.iloc[0]["topic_label"] if not topic_metrics.empty else "No Theme Yet"
-    weakest_theme = topic_metrics.sort_values("median_views_per_day", ascending=True).iloc[0]["topic_label"] if not topic_metrics.empty else "No Theme Yet"
-    best_duration = duration_metrics.iloc[0]["duration_bucket"] if not duration_metrics.empty else "No Pattern Yet"
-    best_title_pattern = title_pattern_metrics.iloc[0]["title_pattern"] if not title_pattern_metrics.empty else "No Pattern Yet"
+    stable_topics = topic_metrics[topic_metrics["video_count"] >= 3] if not topic_metrics.empty else topic_metrics
+    stable_durations = duration_metrics[duration_metrics["videos"] >= 3] if not duration_metrics.empty else duration_metrics
+    stable_titles = title_pattern_metrics[title_pattern_metrics["videos"] >= 3] if not title_pattern_metrics.empty else title_pattern_metrics
+    strongest_theme = stable_topics.sort_values("median_views_per_day", ascending=False).iloc[0]["topic_label"] if not stable_topics.empty else "No Theme Yet"
+    weakest_theme = stable_topics.sort_values("median_views_per_day", ascending=True).iloc[0]["topic_label"] if not stable_topics.empty else "No Theme Yet"
+    best_duration = stable_durations.iloc[0]["duration_bucket"] if not stable_durations.empty else "No Pattern Yet"
+    best_title_pattern = stable_titles.iloc[0]["title_pattern"] if not stable_titles.empty else "No Pattern Yet"
     return {
         "strongest_theme": strongest_theme,
         "weakest_theme": weakest_theme,
@@ -163,23 +173,27 @@ def _recommended_actions(
 ) -> List[str]:
     actions: List[str] = []
     upload_gap = _compute_upload_gap_days(channel_df)
+    stable_topics = topic_metrics[topic_metrics["video_count"] >= 3] if not topic_metrics.empty else topic_metrics
+    stable_durations = duration_metrics[duration_metrics["videos"] >= 3] if not duration_metrics.empty else duration_metrics
 
-    if not topic_metrics.empty:
-        strongest = topic_metrics.iloc[0]["topic_label"]
+    if not stable_topics.empty:
+        strongest = stable_topics.sort_values("median_views_per_day", ascending=False).iloc[0]["topic_label"]
         actions.append(f"Double Down On {strongest} because it currently leads your channel on median views per day.")
-        weakest = topic_metrics.sort_values("median_views_per_day", ascending=True).iloc[0]["topic_label"]
+        weakest = stable_topics.sort_values("median_views_per_day", ascending=True).iloc[0]["topic_label"]
         if weakest != strongest:
             actions.append(f"Reduce volume on {weakest} unless you can repackage it with a stronger promise or format.")
 
-    if not duration_metrics.empty:
-        best_duration = duration_metrics.iloc[0]["duration_bucket"]
+    if not stable_durations.empty:
+        best_duration = stable_durations.iloc[0]["duration_bucket"]
         actions.append(f"Test more uploads in the {best_duration} bucket because it is your current strongest duration pattern.")
 
     if upload_gap > 0:
-        actions.append(f"Your average upload gap is {upload_gap:.1f} days. Tighten the cadence if you want the trend signals to compound faster.")
+        actions.append(
+            f"Your observed median upload gap is {upload_gap:.1f} days. Treat cadence as context, not a proven performance driver."
+        )
 
     if len(outliers) > 0:
-        actions.append("Study the top outlier titles and reuse the same promise structure before trying a completely new topic.")
+        actions.append("Use the top-quartile videos as hypotheses for a controlled packaging test, not as guaranteed templates.")
 
     unique_actions = []
     for action in actions:
@@ -217,7 +231,9 @@ def _build_summary(
         "snapshot_at": _iso_now(),
         "video_count": int(len(channel_df)),
         "median_views_per_day": float(channel_df["views_per_day"].median()) if not channel_df.empty else 0.0,
-        "median_engagement": float(channel_df["engagement_rate"].median()) if not channel_df.empty else 0.0,
+        "median_engagement": float(channel_df["engagement_rate"].median()) if channel_df["engagement_rate"].notna().any() else float("nan"),
+        "interaction_coverage": float(channel_df["engagement_rate"].notna().mean()) if not channel_df.empty else 0.0,
+        "evidence_confidence": evidence_confidence(len(channel_df)),
         "avg_upload_gap_days": _compute_upload_gap_days(channel_df),
         "shorts_ratio": float(channel_df["is_short"].mean()) if not channel_df.empty else 0.0,
         "recent_outlier_count": int(len(outliers)),
@@ -307,14 +323,9 @@ def refresh_channel_insights(
         "video_ideas": [item.__dict__ for item in idea_bundle.video_ideas],
     }
     recommendations["actions"] = _recommended_actions(channel_df, topic_metrics, duration_metrics, outliers)
-    try:
-        recommendations["ai_overlay"] = maybe_generate_ai_overlay(
-            workspace.channel_title,
-            summary,
-            topic_metrics.to_dict(orient="records"),
-        )
-    except Exception:
-        recommendations["ai_overlay"] = ""
+    # Recommendations are deterministic and evidence-backed by default. The UI
+    # does not auto-call an LLM or present generated prose as analysis.
+    recommendations["ai_overlay"] = ""
 
     snapshot_at = summary["snapshot_at"]
     channel_handle = parsed_input.handle or (parsed_input.lookup_value if parsed_input.lookup_value.startswith("@") else "")

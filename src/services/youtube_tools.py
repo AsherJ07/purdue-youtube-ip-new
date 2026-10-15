@@ -9,7 +9,10 @@ from urllib.parse import parse_qs, urlparse
 
 import requests
 import streamlit as st
-import yt_dlp
+try:
+    import yt_dlp
+except ImportError:  # Optional: retired download UI is not part of the active product.
+    yt_dlp = None
 
 from src.utils.file_utils import guess_mime_type, safe_temp_dir, sanitize_filename
 
@@ -31,6 +34,11 @@ YOUTUBE_HOSTS = {
 PLAYLIST_PREVIEW_LIMIT_DEFAULT = 25
 STREAMLIT_DOWNLOAD_LIMIT_BYTES = 100 * 1024 * 1024
 _CACHE_TTL_SECONDS = 60 * 60
+
+
+def _require_yt_dlp() -> None:
+    if yt_dlp is None:
+        raise RuntimeError("Media download support requires the optional yt-dlp dependency.")
 
 
 @dataclass(frozen=True)
@@ -222,6 +230,7 @@ def _yt_dlp_base_options() -> dict[str, Any]:
 
 @st.cache_data(ttl=_CACHE_TTL_SECONDS, show_spinner=False)
 def _cached_video_info(url: str) -> dict[str, Any]:
+    _require_yt_dlp()
     with yt_dlp.YoutubeDL(
         {
             **_yt_dlp_base_options(),
@@ -233,6 +242,7 @@ def _cached_video_info(url: str) -> dict[str, Any]:
 
 @st.cache_data(ttl=_CACHE_TTL_SECONDS, show_spinner=False)
 def _cached_playlist_info(url: str, max_items: int) -> dict[str, Any]:
+    _require_yt_dlp()
     with yt_dlp.YoutubeDL(
         {
             **_yt_dlp_base_options(),

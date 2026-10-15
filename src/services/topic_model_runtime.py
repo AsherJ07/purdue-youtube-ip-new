@@ -11,6 +11,7 @@ from src.services.model_artifact_service import ModelArtifactStatus, ensure_bert
 
 SPARSE_TOKEN_THRESHOLD = 5
 DESCRIPTION_CHAR_LIMIT = 600
+TOPIC_CONFIDENCE_THRESHOLD = 0.35
 
 _BOILERPLATE_PATTERNS = [
     r"subscribe.*",
@@ -95,12 +96,38 @@ def _topic_label_from_model(topic_model: Any, topic_id: int) -> tuple[str, str]:
         topic_terms = topic_model.get_topic(topic_id) or []
     except Exception:
         topic_terms = []
-    keywords = [str(term).strip().lower() for term, _score in topic_terms[:4] if str(term).strip()]
+    keywords: List[str] = []
+    for term, _score in topic_terms:
+        cleaned = str(term).strip().lower().replace("_", " ")
+        if not cleaned or cleaned in keywords or len(cleaned) < 3:
+            continue
+        keywords.append(cleaned)
+        if len(keywords) == 4:
+            break
     if not keywords:
         return f"{topic_id}_topic", f"Topic {topic_id}"
     raw = f"{topic_id}_" + "_".join(keywords)
     human = " / ".join(keyword.replace("_", " ").title() for keyword in keywords)
     return raw, human
+
+
+def _assignment_confidences(probabilities: Any, count: int) -> List[float | None]:
+    if probabilities is None:
+        return [None] * count
+    try:
+        values = probabilities.tolist() if hasattr(probabilities, "tolist") else list(probabilities)
+    except TypeError:
+        return [None] * count
+    result: List[float | None] = []
+    for value in values[:count]:
+        if isinstance(value, (list, tuple)):
+            result.append(float(max(value)) if value else None)
+        else:
+            try:
+                result.append(float(value))
+            except (TypeError, ValueError):
+                result.append(None)
+    return result + [None] * max(0, count - len(result))
 
 
 def apply_optional_topic_model(channel_df: pd.DataFrame) -> TopicModelInferenceResult:
@@ -149,7 +176,7 @@ def apply_optional_topic_model(channel_df: pd.DataFrame) -> TopicModelInferenceR
         sparse_flags.append(is_sparse)
 
     try:
-        topic_ids, _ = topic_model.transform(texts)
+        topic_ids, probabilities = topic_model.transform(texts)
     except Exception as exc:
         return TopicModelInferenceResult(
             success=False,
@@ -160,18 +187,31 @@ def apply_optional_topic_model(channel_df: pd.DataFrame) -> TopicModelInferenceR
         )
 
     rows: List[Dict[str, Any]] = []
-    for video_id, topic_id, inference_text, token_count, is_sparse in zip(video_ids, topic_ids, texts, tokens, sparse_flags):
-        raw_label, human_label = _topic_label_from_model(topic_model, int(topic_id))
+    confidences = _assignment_confidences(probabilities, len(video_ids))
+    for video_id, topic_id, confidence, inference_text, token_count, is_sparse in zip(
+        video_ids, topic_ids, confidences, texts, tokens, sparse_flags
+    ):
+        assigned_id = int(topic_id)
+        abstained = bool(
+            is_sparse
+            or assigned_id == -1
+            or (confidence is not None and confidence < TOPIC_CONFIDENCE_THRESHOLD)
+        )
+        if abstained:
+            assigned_id = -1
+        raw_label, human_label = _topic_label_from_model(topic_model, assigned_id)
         rows.append(
             {
                 "video_id": str(video_id),
-                "model_topic_id": int(topic_id),
+                "model_topic_id": assigned_id,
                 "model_topic_label_raw": raw_label,
                 "model_topic_label": human_label,
                 "topic_source": "bertopic_global",
                 "bertopic_text": inference_text,
                 "bertopic_token_count": token_count,
                 "is_sparse_text": is_sparse,
+                "topic_confidence": confidence,
+                "topic_abstained": abstained,
             }
         )
 
@@ -188,6 +228,7 @@ def apply_optional_topic_model(channel_df: pd.DataFrame) -> TopicModelInferenceR
 __all__ = [
     "DESCRIPTION_CHAR_LIMIT",
     "SPARSE_TOKEN_THRESHOLD",
+    "TOPIC_CONFIDENCE_THRESHOLD",
     "TopicModelInferenceResult",
     "apply_optional_topic_model",
     "build_bertopic_inference_text",

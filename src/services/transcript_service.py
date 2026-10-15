@@ -3,8 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import streamlit as st
-from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled, VideoUnavailable
+try:
+    from youtube_transcript_api import YouTubeTranscriptApi
+    from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled, VideoUnavailable
+except ImportError:  # Optional: transcript downloads are outside the active product surface.
+    YouTubeTranscriptApi = None
+
+    class _TranscriptDependencyError(Exception):
+        pass
+
+    NoTranscriptFound = TranscriptsDisabled = VideoUnavailable = _TranscriptDependencyError
 
 from src.services.youtube_tools import PreparedArtifact
 from src.utils.file_utils import guess_mime_type, safe_temp_dir, sanitize_filename
@@ -22,6 +30,8 @@ class TranscriptOption:
 
 
 def _api() -> YouTubeTranscriptApi:
+    if YouTubeTranscriptApi is None:
+        raise RuntimeError("Transcript downloads require the optional youtube-transcript-api dependency.")
     return YouTubeTranscriptApi()
 
 
