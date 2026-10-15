@@ -2,9 +2,9 @@
 
 VCreator is a public-data decision product for small and mid-sized YouTube creators. The current interview build focuses on one clear workflow: inspect trustworthy evidence, choose a supported content hypothesis, and turn it into a measurable experiment. It keeps the full research history in the repository while presenting only three purposeful surfaces in the deployed app.
 
-**Live app (V6):**
+**Live app (V7):**
 
-- **[ip-youtube-creator-insight-2026.streamlit.app](https://ip-youtube-creator-insight-2026.streamlit.app/)**
+- **[youtube-ip-v7.streamlit.app](https://youtube-ip-v7.streamlit.app/)**
 
 Earlier V5 deployment (historical): [youtube-ip-v5.streamlit.app](https://youtube-ip-v5.streamlit.app/)
 
@@ -14,7 +14,7 @@ Quick jump:
 | --- | --- |
 | current runtime and page flows | [Architecture](docs/ARCHITECTURE.md) |
 | deployment targets, secrets, and version mapping | [Deployment And Versions](docs/DEPLOYMENT_AND_VERSIONS.md) |
-| the full project story from V1 through V5 and into V6 | [Project Brief](docs/PROJECT_BRIEF.md) |
+| the full project story from V1 through V7 | [Project Brief](docs/PROJECT_BRIEF.md) |
 | every active formula and its limitations | [Metrics and Decision Logic](maths.md) |
 | a GCP-friendly env template | [`.env.gcp.example`](.env.gcp.example) |
 
@@ -22,8 +22,8 @@ Quick jump:
 
 | Metric | Current Count / State |
 | --- | --- |
-| Deployed versions documented here | `6` (`V1`–`V6`) |
-| Live Streamlit app links (including historical) | `6` |
+| Deployed versions documented here | `7` (`V1`–`V7`) |
+| Live Streamlit app links (including historical) | `7` |
 | Current sidebar destinations | `3` |
 | Current primary data paths | `2` |
 | Current Channel Insights topic modes | `2` |
@@ -49,7 +49,7 @@ The original goal of the project was simple: help small-to-mid-sized YouTube cre
 
 That core question stayed constant across every version. What changed was the way the app packaged the answer.
 
-## Version Lineage (V1–V6)
+## Version Lineage (V1–V7)
 
 Short history before the deeper tables below.
 
@@ -60,6 +60,7 @@ flowchart LR
     V3 --> V4["V4<br/>deepest intelligence layer"]
     V4 --> V5["V5<br/>cleanup + presentation-ready shell"]
     V5 --> V6["V6<br/>deploy + router refresh"]
+    V6 --> V7["V7<br/>evidence-led interview build"]
 
     V1 --- A1["Public metadata, BERTopic framing, recommendation concept"]
     V2 --- A2["Ytuber suite, workflow expansion, AI generation, deploy practicality"]
@@ -67,6 +68,7 @@ flowchart LR
     V4 --- A4["Channel Insights, Assistant, Google OAuth, owner analytics, BERTopic beta"]
     V5 --- A5["Assistant removed, OAuth removed, public-only insights, retained AI suite"]
     V6 --- A6["st.navigation multipage, entry run loop, deps + header UX for Cloud/local"]
+    V7 --- A7["3 focused views, canonical formulas, confidence-aware recommendations"]
 ```
 
 ## Deployed Version History
@@ -78,7 +80,8 @@ flowchart LR
 | `V3` | [youtube-ip-v3.streamlit.app](https://youtube-ip-v3.streamlit.app/) | turn the project into a clearer product | five-page product shell, strong runtime architecture, outlier workflow, better repo map | later versions added deeper insights and then simplified again | historical productization |
 | `V4` | [youtube-ip-v4.streamlit.app](https://youtube-ip-v4.streamlit.app/) | deepen intelligence and tracked-channel analysis | Channel Insights, sidebar Assistant, Google OAuth owner analytics, optional BERTopic beta | V5 removed the Assistant and Google OAuth to reduce deployment complexity | historical deep-intelligence release |
 | `V5` | [youtube-ip-v5.streamlit.app](https://youtube-ip-v5.streamlit.app/) | keep the best parts and document the journey | public-only Channel Insights, retained AI suite pages, Thumbnails rename, consolidated docs, optional BERTopic beta | lighter than V4, easier to reason about, presentation-ready documentation | historical release |
-| `V6` | [ip-youtube-creator-insight-2026.streamlit.app](https://ip-youtube-creator-insight-2026.streamlit.app/) | ship a dependable Cloud + local runtime on top of V5 | Streamlit `st.navigation` router, `streamlit_app` → `run()` entry, explicit PyArrow / Google client deps, sidebar + hero layout fixes | product scope matches V5; focus is operational reliability | **current release** |
+| `V6` | [ip-youtube-creator-insight-2026.streamlit.app](https://ip-youtube-creator-insight-2026.streamlit.app/) | ship a dependable Cloud + local runtime on top of V5 | Streamlit `st.navigation` router, `streamlit_app` → `run()` entry, explicit PyArrow / Google client deps, sidebar + hero layout fixes | product scope matches V5; focus is operational reliability | historical release |
+| `V7` | [youtube-ip-v7.streamlit.app](https://youtube-ip-v7.streamlit.app/) | turn analysis into defensible creator decisions | three focused surfaces, canonical public-metric formulas, visible confidence and sample sizes, BERTopic abstention | removes redundant creator-suite surfaces and unsupported AI claims | **current release** |
 
 ## What Changed Across Versions
 
@@ -132,7 +135,7 @@ This is the high-level page map. The detailed runtime handoffs for each page liv
 | `Decision Brief` | convert one tracked public channel into a supported experiment | YouTube public data, snapshot history, optional BERTopic | evidence, confidence, supporting samples, next tests | mixed |
 | `Outlier Research` | find unusual performance in a niche | live YouTube API scan and explainable scoring | ranked evidence, score decomposition, cohort caveats | API-backed |
 
-## Current V6 Workflow Map
+## Current V7 Workflow Map
 
 This section is about the live app today, not the historical versions.
 
@@ -169,7 +172,7 @@ flowchart TD
     I --> T["Prepared thumbnail download"]
 ```
 
-In practice, V6 works as three layers:
+In practice, V7 works as three layers:
 
 - `Data`: bundled CSV benchmarking plus live provider/API calls
 - `Service`: normalization, scoring, topic assignment, artifact prep
@@ -195,7 +198,7 @@ For the detailed tab-by-tab and module-by-module behavior, see:
 - [Architecture: Ytuber](docs/ARCHITECTURE.md#ytuber)
 - [Architecture: Tools](docs/ARCHITECTURE.md#tools)
 
-## Current V6 Architecture In One View
+## Current V7 Architecture In One View
 
 ```mermaid
 flowchart TD
@@ -252,7 +255,7 @@ flowchart LR
     J --> K["Rendered Streamlit UI"]
 ```
 
-This is the live V6 runtime path today:
+This is the live V7 runtime path today:
 
 - bundled CSVs power `Channel Analysis`
 - live YouTube API calls power `Channel Insights`, `Outlier Finder`, `Ytuber`, `Tools`, and thumbnail URL export
@@ -263,7 +266,7 @@ For the deeper API/service explanation, see [Architecture](docs/ARCHITECTURE.md#
 
 ## Channel Insights: Where The Modeling Actually Lives
 
-`Channel Insights` is where the most advanced modeling work lands in V5/V6. Every refresh starts with the same public-channel workspace, then branches into one of two topic assignment modes:
+`Decision Brief` is where the most advanced modeling work lands in V7. Every refresh starts with the same public-channel workspace, then branches into one of two topic assignment modes:
 
 - `Heuristic Topics`
   - default mode
@@ -298,9 +301,11 @@ For the full topic-mode branch, tab flow, and artifact-state details, see [Archi
 | Item | Value |
 | --- | --- |
 | Original repo | `matt-foor/purdue-youtube-ip` |
-| V6 development branch | `youtube-ip-v6` |
+| Current deploy repo | `AsherJ07/purdue-youtube-ip-new` |
+| Current deploy branch | `main` |
+| V6 historical branch | `youtube-ip-v6` |
 | V5 historical branch | `youtube-ip-v5` |
-| Public V6 live app | [ip-youtube-creator-insight-2026.streamlit.app](https://ip-youtube-creator-insight-2026.streamlit.app/) |
+| Public V7 live app | [youtube-ip-v7.streamlit.app](https://youtube-ip-v7.streamlit.app/) |
 | Earlier documented deploy (V5) | `royayushkr/Youtube-IP-V5` on `main` (see [Deployment And Versions](docs/DEPLOYMENT_AND_VERSIONS.md)) |
 | Main file path (Streamlit Cloud) | `streamlit_app.py` |
 | Required secret family | `YOUTUBE` for live analysis; bundled benchmarks work without it |
@@ -308,7 +313,7 @@ For the full topic-mode branch, tab flow, and artifact-state details, see [Archi
 
 ```mermaid
 flowchart LR
-    A["GitHub repo"] --> B["V6 branch / fork"]
+    A["AsherJ07/purdue-youtube-ip-new"] --> B["main branch"]
     B --> C["Streamlit or GCP environment"]
     C --> D["Secrets / env vars"]
     D --> E["streamlit_app.py"]
@@ -318,7 +323,7 @@ flowchart LR
 
 Deployment notes in one screen:
 
-- V6 stays **public-only** for `Channel Insights` (same as V5)
+- V7 stays **public-only** for `Decision Brief`
 - the app reads `st.secrets` first, then environment variables
 - BERTopic beta only activates when `MODEL_ARTIFACTS_ENABLED=true` and the manifest URL is configured
 - the GCP-oriented env template is [`.env.gcp.example`](.env.gcp.example), which is meant to be copied into Cloud Run, GCE, or Secret Manager-backed environment configuration rather than committed as a real secret file
@@ -334,7 +339,8 @@ The short version of the project story is:
 - `V3` clarified the product shell and runtime structure
 - `V4` added the deepest intelligence layer with `Channel Insights`, Assistant, Google OAuth, and BERTopic beta
 - `V5` kept the strongest workflows, removed the heaviest operational complexity, and documented the system clearly for presentation and deployment
-- `V6` is the **current** Streamlit release: same V5 capabilities, with a hardened router, dependencies, and deployment path ([live app](https://ip-youtube-creator-insight-2026.streamlit.app/))
+- `V6` hardened the router, dependencies, and deployment path
+- `V7` is the **current** Streamlit release: a focused, evidence-led decision product with verified formulas and confidence-aware topic recommendations ([live app](https://youtube-ip-v7.streamlit.app/))
 
 What V5 removed on purpose (still true in V6):
 
@@ -362,11 +368,11 @@ For the full narrative brief and retrospective, see [Project Brief](docs/PROJECT
 
 - [Architecture](docs/ARCHITECTURE.md) for the full runtime pipeline, page map, and topic-model integration details
 - [Deployment And Versions](docs/DEPLOYMENT_AND_VERSIONS.md) for branch targets, secrets evolution, and version/deployment comparisons
-- [Project Brief](docs/PROJECT_BRIEF.md) for the narrative project story, original goals, what changed, and how V5 led to V6
+- [Project Brief](docs/PROJECT_BRIEF.md) for the narrative project story, original goals, and evolution through V7
 
 ## Ethics And Operating Principles
 
-The original V1 principles still apply in V6:
+The original V1 principles still apply in V7:
 
 - use public data responsibly
 - respect provider terms of service

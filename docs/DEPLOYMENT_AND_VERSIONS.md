@@ -1,10 +1,20 @@
-# V5 Deployment, Versions, And Model Flow
+# Deployment, Versions, And Model Flow
 
-This document tracks the deployment story across all five released versions and explains how the current V5 runtime, secrets, and optional BERTopic path are deployed.
+This document tracks the deployment story through V7. Legacy V5 details are retained below as historical context.
 
 For the current section-by-section runtime behavior, see [Architecture](ARCHITECTURE.md). This file stays focused on deployment, branch targets, version comparisons, and the model-artifact path.
 
-## Current V5 Branch And Repo Targets
+## Current Production Target
+
+| Item | Value |
+| --- | --- |
+| Deploy repo | `AsherJ07/purdue-youtube-ip-new` |
+| Deploy branch | `main` |
+| Main file | `streamlit_app.py` |
+| Live V7 app | [youtube-ip-v7.streamlit.app](https://youtube-ip-v7.streamlit.app/) |
+| Verified build | `b4f82fc` |
+
+## Historical V5 Branch And Repo Targets
 
 | Item | Value |
 | --- | --- |
@@ -23,7 +33,9 @@ For the current section-by-section runtime behavior, see [Architecture](ARCHITEC
 | `V2` | [youtube-stats-ip-v2.streamlit.app](https://youtube-stats-ip-v2.streamlit.app/) | expansion | larger creator operating system with more AI and workflow surface |
 | `V3` | [youtube-ip-v3.streamlit.app](https://youtube-ip-v3.streamlit.app/) | productization | clearer multi-page app with a stronger runtime story |
 | `V4` | [youtube-ip-v4.streamlit.app](https://youtube-ip-v4.streamlit.app/) | deep intelligence | most ambitious version with Assistant, Google OAuth, and BERTopic beta |
-| `V5` | [youtube-ip-v5.streamlit.app](https://youtube-ip-v5.streamlit.app/) | simplification + presentation | current public-only streamlined shell with retained AI suite pages |
+| `V5` | [youtube-ip-v5.streamlit.app](https://youtube-ip-v5.streamlit.app/) | simplification + presentation | historical public-only streamlined shell with retained AI suite pages |
+| `V6` | [ip-youtube-creator-insight-2026.streamlit.app](https://ip-youtube-creator-insight-2026.streamlit.app/) | runtime hardening | Streamlit navigation and Cloud deployment reliability |
+| `V7` | [youtube-ip-v7.streamlit.app](https://youtube-ip-v7.streamlit.app/) | evidence-led decisions | current three-surface build with verified formulas and confidence-aware topic recommendations |
 
 ## Version Evolution Flow
 

@@ -1,6 +1,6 @@
 # YouTube IP Project Brief And Retrospective
 
-This document combines the original project brief with a retrospective look at how the product evolved from V1 through V5.
+This document combines the original project brief with a retrospective look at how the product evolved from V1 through V7.
 
 It is intentionally narrative-first. For the current tab-by-tab and service-by-service runtime explanation of V5, use [Architecture](ARCHITECTURE.md).
 
@@ -181,6 +181,8 @@ If this repo is being used for a final presentation, the cleanest narrative is:
 | `V3` | [youtube-ip-v3.streamlit.app](https://youtube-ip-v3.streamlit.app/) |
 | `V4` | [youtube-ip-v4.streamlit.app](https://youtube-ip-v4.streamlit.app/) |
 | `V5` | [youtube-ip-v5.streamlit.app](https://youtube-ip-v5.streamlit.app/) |
+| `V6` | [ip-youtube-creator-insight-2026.streamlit.app](https://ip-youtube-creator-insight-2026.streamlit.app/) |
+| `V7` | [youtube-ip-v7.streamlit.app](https://youtube-ip-v7.streamlit.app/) |
 
 ## Where To Go Next
 
