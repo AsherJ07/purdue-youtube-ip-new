@@ -1214,13 +1214,25 @@ def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
         st.markdown("<div class='ci-empty'>This channel needs more public uploads before theme clustering becomes stable.</div>", unsafe_allow_html=True)
         return
 
+    preferred_columns = [
+        "topic_label",
+        "video_count",
+        "recent_video_count",
+        "previous_video_count",
+        "median_views_per_day",
+        "trend_status",
+        "trend_score",
+        "median_public_interaction_rate",
+        "interaction_coverage",
+    ]
+    available_columns = [column for column in preferred_columns if column in topic_metrics_df.columns]
     styled_dataframe(
-        topic_metrics_df[
-            ["topic_label", "video_count", "recent_video_count", "previous_video_count", "median_views_per_day", "trend_status", "trend_score", "median_public_interaction_rate", "interaction_coverage"]
-        ],
+        topic_metrics_df.loc[:, available_columns],
         title="Topic Cluster Performance",
         precision=2,
     )
+    if len(available_columns) < len(preferred_columns):
+        st.caption("Some evidence fields are unavailable in this older saved snapshot. Refresh the analysis to populate the current schema.")
     _render_metric_note(
         [
             "Video Count shows how much evidence supports a theme.",
