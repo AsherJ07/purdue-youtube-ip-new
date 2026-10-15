@@ -67,7 +67,12 @@ This audit treats every chart and interface element as a decision aid. A view pa
 ## Media Export and Thumbnail Lab
 
 - Kept single-video thumbnail export in Thumbnail Lab.
-- Removed the duplicate single-video thumbnail download control from Media Export.
-- Retained batch and playlist thumbnail operations because they solve a distinct bulk-export job.
+- Removed Media Export from Creator Studio so the page stays focused on channel decisions and thumbnail creation.
 - Updated Streamlit width APIs to remove production deprecation noise.
+
+## Product-design cleanup
+
+- Removed implementation-status tiles and exposed source metadata only in a collapsed workspace-details disclosure.
+- Collapsed formulas, chart interpretation, methodology, and advanced filters so primary tasks remain visually dominant.
+- Standardized large KPI values with compact K/M/B notation and removed duplicated page/section copy.
 

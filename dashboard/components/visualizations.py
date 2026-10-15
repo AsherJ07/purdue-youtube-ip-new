@@ -243,6 +243,19 @@ def graph_insight_expander(chart_title: str, body_md: str, *, for_instructions: 
         st.markdown(body_md)
 
 
+def format_compact_number(value: Any, *, decimals: int = 1) -> str:
+    """Format large display metrics compactly while preserving useful precision."""
+    if value is None or pd.isna(value):
+        return "—"
+    number = float(value)
+    magnitude = abs(number)
+    for threshold, suffix in ((1_000_000_000, "B"), (1_000_000, "M"), (1_000, "K")):
+        if magnitude >= threshold:
+            rendered = f"{number / threshold:.{decimals}f}".rstrip("0").rstrip(".")
+            return f"{rendered}{suffix}"
+    return f"{int(round(number)):,}"
+
+
 def styled_metric_card(
     label: str,
     value: str,

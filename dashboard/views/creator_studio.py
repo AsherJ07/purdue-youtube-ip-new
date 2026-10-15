@@ -1,41 +1,39 @@
-"""Unified creator workflow for strategy, thumbnails, and media exports."""
+"""Unified creator workflow for channel strategy and thumbnail creation."""
 
 from __future__ import annotations
 
 import streamlit as st
 
 
-SECTIONS = ["Channel Workspace", "Thumbnail Lab", "Media Export"]
+SECTIONS = ["Channel Workspace", "Thumbnail Lab"]
+SECTION_LABELS = {
+    "Channel Workspace": "📈 Channel workspace",
+    "Thumbnail Lab": "🎨 Thumbnail lab",
+}
 
 
 def render() -> None:
     """Render one task-based studio without duplicating creative workflows."""
     if "creator_studio_section" not in st.session_state:
         st.session_state["creator_studio_section"] = SECTIONS[0]
+    elif st.session_state["creator_studio_section"] not in SECTIONS:
+        st.session_state["creator_studio_section"] = SECTIONS[0]
 
+    st.markdown("#### Choose a workspace")
     section = st.segmented_control(
         "Creator Studio section",
         SECTIONS,
         key="creator_studio_section",
         selection_mode="single",
+        format_func=lambda value: SECTION_LABELS[value],
         label_visibility="collapsed",
+        width="stretch",
     )
-
-    descriptions = {
-        "Channel Workspace": "Research a channel, turn evidence into content ideas, and build a practical publishing plan.",
-        "Thumbnail Lab": "Generate focused thumbnail options or export the public thumbnail from an existing video.",
-        "Media Export": "Prepare transcripts, audio, or video assets from individual URLs, batches, and playlists.",
-    }
-    st.caption(descriptions.get(section or SECTIONS[0], descriptions[SECTIONS[0]]))
 
     if section == "Thumbnail Lab":
         from dashboard.views import recommendations
 
         recommendations.render_thumbnail_workspace()
-    elif section == "Media Export":
-        from dashboard.views import tools
-
-        tools.render_media_workspace()
     else:
         from dashboard.views import ytuber
 

@@ -26,7 +26,7 @@ This document is the current-runtime reference for V7. The version-history story
 | Channel Insights tabs | `6` | `Overview`, `Topic Trends`, `Formats & Patterns`, `Outliers`, `Next Topics`, `History` |
 | Thumbnails tabs | `2` | `Generate`, `Download From URL` |
 | Tools tabs | `3` | `Single`, `Batch`, `Playlist` |
-| Creator Studio task sections | `3` | `Channel Workspace`, `Thumbnail Lab`, `Media Export` |
+| Creator Studio task sections | `2` | `Channel Workspace`, `Thumbnail Lab` |
 | Channel Workspace modules | `8` | `Content Studio`, `Overview`, `Channel Audit`, `Keyword Intel`, `Outliers Finder`, `Title & SEO Lab`, `Competitor Benchmark`, `Content Planner` |
 | Main Outlier Finder post-search sections | `4` | `Top Outliers In This Scan`, `Breakout Snapshot`, `AI Research`, `How This Works` |
 
@@ -266,13 +266,12 @@ flowchart TD
 
 ## Creator Studio
 
-`Creator Studio` is the single creation destination. Its top-level selector is organized around three user jobs:
+`Creator Studio` is the single creation destination. Its top-level selector is organized around two user jobs:
 
 | Section | Purpose |
 | --- | --- |
 | `Channel Workspace` | analyze a channel, generate evidence-grounded content drafts, audit packaging, benchmark competitors, and plan publishing |
 | `Thumbnail Lab` | generate thumbnail options or export the public thumbnail from a video URL |
-| `Media Export` | prepare public thumbnails, transcripts, audio, or video assets from individual URLs, batches, or playlists |
 
 Thumbnail image generation appears only in `Thumbnail Lab`; `Content Studio` inside the channel workspace is text-only. This removes the former duplication between Download Hub and Ytuber.
 

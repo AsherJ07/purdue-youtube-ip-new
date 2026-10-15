@@ -10,6 +10,7 @@ import requests
 import streamlit as st
 
 from dashboard.components.visualizations import (
+    format_compact_number,
     plotly_bar_chart,
     plotly_line_chart,
     show_plotly_chart,
@@ -368,7 +369,7 @@ def _inject_channel_insights_css() -> None:
 def _format_int(value: Any) -> str:
     if value is None or value == "":
         return "0"
-    return f"{int(round(float(value))):,}"
+    return format_compact_number(value)
 
 
 def _format_pct(value: Any) -> str:
@@ -734,14 +735,9 @@ def _render_metric_note(text: str | Sequence[str]) -> None:
     if not items:
         return
 
-    body = "".join(
-        f"<div class='ci-note' style='margin-top:0.18rem;'>* {escape(item)}</div>"
-        for item in items
-    )
-    st.markdown(
-        f"<div style='margin-top:0.35rem;'>{body}</div>",
-        unsafe_allow_html=True,
-    )
+    with st.expander("How to interpret these metrics", expanded=False):
+        for item in items:
+            st.markdown(f"- {item}")
 
 
 def _overview_actions_prompt(payload: Dict[str, Any], display_topic_metrics_df: pd.DataFrame) -> str:
@@ -935,9 +931,7 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
             """
             <div class="ci-card">
                 <div class="ci-card-title">Analyze a public channel</div>
-                <div class="ci-card-copy">
-                    Add any public channel by URL, handle, or channel ID. This workflow is intentionally public-only and stores manual snapshots each time you refresh.
-                </div>
+                <div class="ci-card-copy">Enter a public channel URL, handle, or channel ID.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -948,10 +942,8 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
                 key="channel_insights_input",
                 placeholder="https://www.youtube.com/@veritasium or @veritasium",
             )
-            action_cols = st.columns([1.35, 1], gap="small")
-            with action_cols[0]:
-                connect_clicked = st.form_submit_button("Analyze channel", type="primary", width="stretch")
-            with action_cols[1]:
+            connect_clicked = st.form_submit_button("Analyze channel", type="primary", width="stretch")
+            with st.expander("Analysis options", expanded=False):
                 force_refresh = st.toggle(
                     "Refresh from YouTube",
                     key="channel_insights_force_refresh",
@@ -991,36 +983,6 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
                 format_func=lambda row: row["channel_title"],
             )
             st.session_state["channel_insights_selected_channel"] = choice["channel_id"]
-        else:
-            st.markdown("<div class='ci-empty'>No saved channels yet. Analyze one on the left to unlock snapshots and theme history.</div>", unsafe_allow_html=True)
-
-        st.markdown(
-            f"""
-            <div class="ci-card" style="margin-top:0.85rem;">
-                <div class="ci-card-title">Current workspace</div>
-                <div class="ci-summary-grid">
-                    <div class="ci-summary-item">
-                        <div class="ci-summary-label">Saved channels</div>
-                        <div class="ci-summary-value">{len(connected_channels)}</div>
-                    </div>
-                    <div class="ci-summary-item">
-                        <div class="ci-summary-label">History</div>
-                        <div class="ci-summary-value">Saved snapshots</div>
-                    </div>
-                    <div class="ci-summary-item">
-                        <div class="ci-summary-label">Data scope</div>
-                        <div class="ci-summary-value">Public data</div>
-                    </div>
-                    <div class="ci-summary-item">
-                        <div class="ci-summary-label">Theme method</div>
-                        <div class="ci-summary-value">Fast keywords</div>
-                    </div>
-                </div>
-                <div class="ci-note" style="margin-top:0.85rem;">Public-channel evidence only. Snapshots, topic trends, outliers, and next-topic recommendations use public API data.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
 
         with st.expander("Theme detection settings", expanded=False):
             st.write("Fast keyword themes are the dependable default. Semantic themes are optional and experimental.")
@@ -1464,10 +1426,6 @@ def render() -> None:
 
     selected_channel_id = st.session_state.get("channel_insights_selected_channel")
     if not selected_channel_id:
-        st.markdown(
-            "<div class='ci-empty'>Analyze a public channel to create the first snapshot. Return later and analyze it again to compare changes over time.</div>",
-            unsafe_allow_html=True,
-        )
         return
 
     payload = load_channel_insights(selected_channel_id)

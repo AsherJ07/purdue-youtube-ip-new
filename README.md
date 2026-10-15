@@ -34,7 +34,7 @@ Quick jump:
 
 - `Benchmarks` uses the committed research datasets and robust, documented public metrics.
 - `Channel Insights` analyzes one public channel, shows confidence and supporting sample sizes, and proposes controlled creator experiments.
-- `Creator Studio` combines channel strategy, content generation, thumbnail production, and media export in one task-based workspace.
+- `Creator Studio` combines channel strategy, content generation, and thumbnail production in one task-based workspace.
 - `Outlier Finder` compares channel-relative reach, age-cohort reach, public interaction, and evidence reliability, then offers optional evidence-grounded AI synthesis.
 - Heuristic topics are always available; BERTopic remains an optional, confidence-aware model path that can abstain.
 - Generative AI does not automatically manufacture recommendations. The default decision layer is deterministic and evidence-backed.
@@ -146,7 +146,7 @@ This section is about the live app today, not the historical versions.
 | --- | --- | --- | --- | --- | --- |
 | `Channel Analysis` | compare bundled channel/video benchmarks | committed CSV files, filters, date ranges | pandas transforms, visualization helpers | KPI cards, monthly trends, top channels, top videos | dataset-backed |
 | `Channel Insights` | choose one evidence-backed creator experiment | channel URL/handle/ID, topic mode, snapshot refresh | `public_channel_service`, `channel_insights_service`, `channel_snapshot_store`, `topic_model_runtime` | overview, evidence tables, outliers, history | mixed |
-| `Creator Studio` | research, plan, generate, and export without duplicated tools | channel inputs, prompts, public URLs, provider configuration | channel workspace, thumbnail lab, media export services | strategies, drafts, thumbnails, and prepared assets | mixed |
+| `Creator Studio` | research, plan, and create without duplicated tools | channel inputs, prompts, public URLs, provider configuration | channel workspace and thumbnail lab | strategies, drafts, and thumbnails | mixed |
 | `Outlier Finder` | surface unusual videos in a niche | niche query and explicit filters | `outliers_finder.py`, canonical metric helpers, optional AI provider | ranked results, evidence quality, structured synthesis | mixed |
 
 ```mermaid
@@ -161,7 +161,6 @@ flowchart TD
     Y --> D["Channel Insights"]
     Y --> E["Outlier Finder"]
     Y --> F["Creator Studio channel workspace"]
-    Y --> H["Creator Studio media export"]
     Y --> I["Creator Studio thumbnail export"]
 
     G --> J["Thumbnails generation"]
@@ -192,7 +191,7 @@ These are the main interactive surfaces a user actually navigates once a page is
 | --- | --- | --- | --- | --- |
 | `Channel Analysis` | main analytics canvas | `1` | dataset filters + charts/tables | benchmark bundled CSV data |
 | `Channel Insights` | tabs | `6` | `Overview`, `Topic Trends`, `Formats & Patterns`, `Outliers`, `Next Topics`, `History` | move from a tracked snapshot to a supported experiment without burying the evidence |
-| `Creator Studio` | task sections | `3` | `Channel Workspace`, `Thumbnail Lab`, `Media Export` | keep strategy, creation, and export together without duplicating thumbnail controls |
+| `Creator Studio` | task sections | `2` | `Channel Workspace`, `Thumbnail Lab` | keep strategy and visual creation together without duplicated controls |
 | `Outlier Finder` | post-search sections | `5` | results, breakout snapshot, repeated evidence, optional AI synthesis, methodology | inspect unusual performance before acting on it |
 
 For the detailed tab-by-tab and module-by-module behavior, see:
@@ -201,7 +200,6 @@ For the detailed tab-by-tab and module-by-module behavior, see:
 - [Architecture: Creator Studio](docs/ARCHITECTURE.md#creator-studio)
 - [Architecture: Outlier Finder](docs/ARCHITECTURE.md#outlier-finder)
 - [Architecture: Channel Workspace](docs/ARCHITECTURE.md#channel-workspace-implementation)
-- [Architecture: Media Export](docs/ARCHITECTURE.md#media-export-implementation)
 
 ## Current V7 Architecture In One View
 

@@ -10,6 +10,7 @@ import streamlit as st
 
 from dashboard.components.visualizations import (
     apply_dashboard_chart_theme,
+    format_compact_number,
     graph_insight_expander,
     show_plotly_chart,
     styled_dataframe,
@@ -888,7 +889,7 @@ def _parse_exclude_keywords(text: str) -> Tuple[str, ...]:
 def _format_int(value: Optional[float]) -> str:
     if value is None or pd.isna(value):
         return "N/A"
-    return f"{int(round(float(value))):,}"
+    return format_compact_number(value)
 
 
 def _format_pct(value: float) -> str:
@@ -966,14 +967,7 @@ def _render_search_header() -> None:
 
 
 def _render_search_footer_note() -> None:
-    st.markdown(
-        (
-            '<div class="outlier-helper">'
-            'Use tighter filters when you want a cleaner research set, and broader settings when you want a wider scouting pass.'
-            "</div>"
-        ),
-        unsafe_allow_html=True,
-    )
+    return
 
 
 def _render_prefill_note(note: str) -> None:
@@ -1392,11 +1386,7 @@ def _render_ai_report(report: OutlierAIReport) -> None:
 
 
 def _render_methodology_section() -> None:
-    _render_section_intro(
-        "How the score works",
-        "Use these notes to understand what the score means, how the filters behave, and what the public-data caveats imply for your research decisions.",
-    )
-    with st.expander("Metric definitions, filter rules, and limitations", expanded=False):
+    with st.expander("How scoring and filters work", expanded=False):
         left_col, right_col = st.columns(2, gap="medium")
         with left_col:
             st.markdown(
@@ -1441,10 +1431,6 @@ def _render_methodology_section() -> None:
                 ),
                 unsafe_allow_html=True,
             )
-    st.markdown(
-        '<div class="outlier-footnote">Results come from the scanned cohort returned by the official YouTube API. Language filtering is heuristic-based and becomes stricter as confidence requirements increase.</div>',
-        unsafe_allow_html=True,
-    )
 
 
 def _render_empty_state() -> None:
@@ -1505,7 +1491,7 @@ def render() -> None:
             with action_cols[1]:
                 reset_clicked = st.form_submit_button("Reset filters", width="stretch")
 
-        filter_row_one = st.columns(4, gap="medium")
+        filter_row_one = st.columns(3, gap="medium")
         with filter_row_one[0]:
             timeframe = st.selectbox("Timeframe", TIMEFRAME_OPTIONS, index=1, key="outlier_page_timeframe")
         with filter_row_one[1]:
@@ -1517,9 +1503,13 @@ def render() -> None:
                 default="Broad",
             )
         with filter_row_one[2]:
-            region_code = st.selectbox("Region", REGION_OPTIONS, index=0, key="outlier_page_region")
-        with filter_row_one[3]:
-            language_code = st.selectbox("Language", LANGUAGE_OPTIONS, index=0, key="outlier_page_language")
+            min_views = st.selectbox(
+                "Minimum views",
+                [0, 1_000, 5_000, 10_000, 50_000, 100_000],
+                index=0,
+                key="outlier_page_min_views",
+                format_func=lambda value: "No minimum" if value == 0 else f"{value:,}+",
+            )
 
         if timeframe == "Custom":
             default_end = datetime.now(timezone.utc).date()
@@ -1533,43 +1523,37 @@ def render() -> None:
         else:
             custom_dates = None
 
-        filter_row_two = st.columns(4, gap="medium")
-        with filter_row_two[0]:
-            freshness_focus = st.selectbox(
-                "Freshness focus",
-                list(FRESHNESS_OPTIONS.keys()),
-                index=0,
-                key="outlier_page_freshness",
-            )
-        with filter_row_two[1]:
-            duration_preference = st.selectbox(
-                "Video length",
-                DURATION_OPTIONS,
-                index=0,
-                key="outlier_page_duration",
-            )
-        with filter_row_two[2]:
-            strictness = st.segmented_control(
-                "Language matching",
-                STRICTNESS_OPTIONS,
-                key="outlier_page_language_strictness",
-                selection_mode="single",
-                default="Strict",
-            )
-        with filter_row_two[3]:
-            min_views = st.selectbox(
-                "Minimum views",
-                [0, 1_000, 5_000, 10_000, 50_000, 100_000],
-                index=0,
-                key="outlier_page_min_views",
-                format_func=lambda value: "No Minimum" if value == 0 else f"{value:,}+",
-            )
+        st.markdown('<div class="outlier-form-gap"></div>', unsafe_allow_html=True)
+        with st.expander("More filters", expanded=False):
+            discovery_cols = st.columns(4, gap="medium")
+            with discovery_cols[0]:
+                region_code = st.selectbox("Region", REGION_OPTIONS, index=0, key="outlier_page_region")
+            with discovery_cols[1]:
+                language_code = st.selectbox("Language", LANGUAGE_OPTIONS, index=0, key="outlier_page_language")
+            with discovery_cols[2]:
+                freshness_focus = st.selectbox(
+                    "Freshness focus",
+                    list(FRESHNESS_OPTIONS.keys()),
+                    index=0,
+                    key="outlier_page_freshness",
+                )
+            with discovery_cols[3]:
+                duration_preference = st.selectbox(
+                    "Video length",
+                    DURATION_OPTIONS,
+                    index=0,
+                    key="outlier_page_duration",
+                )
 
-        channel_cols = st.columns([1.85, 1], gap="medium")
-        with channel_cols[0]:
-            st.markdown('<div class="outlier-row-label">Channel size</div>', unsafe_allow_html=True)
-            subscriber_cols = st.columns(2, gap="small")
-            with subscriber_cols[0]:
+            refinement_cols = st.columns(3, gap="medium")
+            with refinement_cols[0]:
+                strictness = st.selectbox(
+                    "Language matching",
+                    STRICTNESS_OPTIONS,
+                    key="outlier_page_language_strictness",
+                    index=0,
+                )
+            with refinement_cols[1]:
                 min_subscribers = st.number_input(
                     "Minimum subscribers",
                     min_value=0,
@@ -1577,7 +1561,7 @@ def render() -> None:
                     step=1_000,
                     key="outlier_page_min_subscribers",
                 )
-            with subscriber_cols[1]:
+            with refinement_cols[2]:
                 max_subscribers = st.number_input(
                     "Maximum subscribers",
                     min_value=0,
@@ -1586,27 +1570,21 @@ def render() -> None:
                     key="outlier_page_max_subscribers",
                     help="Leave at 0 to keep the upper bound open.",
                 )
-        with channel_cols[1]:
-            st.markdown('<div class="outlier-row-label">Subscriber visibility</div>', unsafe_allow_html=True)
-            with st.container(border=True):
+
+            include_cols = st.columns([1, 2], gap="medium")
+            with include_cols[0]:
                 include_hidden = st.toggle(
                     "Include hidden subscriber counts",
                     value=True,
                     key="outlier_page_include_hidden",
                 )
-                st.markdown(
-                    '<div class="outlier-visibility-copy">Keep channels with hidden subscriber counts in the scan when subscriber size is not publicly visible.</div>',
-                    unsafe_allow_html=True,
+            with include_cols[1]:
+                exclude_keywords_text = st.text_input(
+                    "Exclude keywords",
+                    key="outlier_page_exclude_keywords",
+                    placeholder="news, reaction, podcast clips",
                 )
 
-        exclude_keywords_text = st.text_input(
-            "Exclude keywords",
-            key="outlier_page_exclude_keywords",
-            placeholder="news, reaction, podcast clips",
-        )
-
-        st.markdown('<div class="outlier-form-gap"></div>', unsafe_allow_html=True)
-        with st.expander("More filters", expanded=False):
             advanced_cols = st.columns(3, gap="medium")
             with advanced_cols[0]:
                 search_pages = st.slider(

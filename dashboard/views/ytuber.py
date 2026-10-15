@@ -20,6 +20,8 @@ except (ImportError, ModuleNotFoundError, OSError):
     HttpError = Exception
 
 from dashboard.components.visualizations import (
+    format_compact_number,
+    graph_insight_expander,
     kpi_row,
     plotly_bar_chart,
     plotly_heatmap,
@@ -716,41 +718,14 @@ def _render_connection_cards(provider_counts: Optional[Dict[str, int]] = None) -
     return provider_counts
 
 
-def _render_pool_footer(provider_counts: Dict[str, int], workspace_meta: Optional[Dict[str, Any]] = None) -> None:
-    st.markdown("<div style='margin-top:1.25rem;'></div>", unsafe_allow_html=True)
-    footer_cards: List[Tuple[str, str, str]] = []
-    if workspace_meta:
-        footer_cards.extend(
-            [
-                ("Data Source", workspace_meta.get("source_label", "Unavailable"), "How this channel was loaded"),
-                ("Channel ID", workspace_meta.get("channel_id", "Unavailable"), "Reference identifier"),
-                ("Videos In View", f"{workspace_meta.get('video_count', 0):,}", "Posts included in the workspace"),
-            ]
+def _render_workspace_details(workspace_meta: Dict[str, Any]) -> None:
+    """Keep implementation metadata available without competing with the workflow."""
+    with st.expander("Workspace details", expanded=False):
+        st.markdown(
+            f"**Source:** {escape(str(workspace_meta.get('source_label', 'Unavailable')))}  \n"
+            f"**Videos analyzed:** {int(workspace_meta.get('video_count', 0) or 0):,}  \n"
+            f"**Channel ID:** `{escape(str(workspace_meta.get('channel_id', 'Unavailable')))}`"
         )
-
-    footer_cards.extend(
-        [
-            ("YouTube Pool", str(provider_counts["youtube"]), "Live fetch"),
-            ("Gemini Pool", str(provider_counts["gemini"]), "AI text/image"),
-            ("OpenAI Pool", str(provider_counts["openai"]), "ChatGPT/image"),
-        ]
-    )
-
-    for row_start in range(0, len(footer_cards), 3):
-        row_cards = footer_cards[row_start:row_start + 3]
-        cols = st.columns(len(row_cards))
-        for col, (label, value, detail) in zip(cols, row_cards):
-            with col:
-                st.markdown(
-                    f"""
-                    <div class="ytuber-footer-card">
-                        <div class="ytuber-footer-label">{escape(label)}</div>
-                        <div class="ytuber-footer-value">{escape(value)}</div>
-                        <div class="ytuber-footer-detail">{escape(detail)}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
 
 
 def _catalog_map(items: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
@@ -1676,7 +1651,7 @@ def _openai_generate_text(openai_key: str, model: str, prompt: str) -> str:
 
 
 def _render_overview(channel_df: pd.DataFrame) -> None:
-    section_header("Channel Overview", icon="📈")
+    section_header("Channel overview", icon="📈")
 
     total_videos = len(channel_df)
     total_views = int(channel_df["views"].fillna(0).sum())
@@ -1688,19 +1663,15 @@ def _render_overview(channel_df: pd.DataFrame) -> None:
     kpi_row(
         [
             {"label": "Videos (1Y)", "value": f"{total_videos:,}", "icon": "🎬"},
-            {"label": "Total Views", "value": f"{total_views:,}", "icon": "👁️"},
-            {"label": "Total Likes", "value": f"{total_likes:,}", "icon": "❤️"},
-            {"label": "Total Comments", "value": f"{total_comments:,}", "icon": "💬"},
-            {"label": "Median Views / Video", "value": f"{median_views:,}", "icon": "📊"},
+            {"label": "Total Views", "value": format_compact_number(total_views), "icon": "👁️"},
+            {"label": "Total Likes", "value": format_compact_number(total_likes), "icon": "❤️"},
+            {"label": "Total Comments", "value": format_compact_number(total_comments), "icon": "💬"},
+            {"label": "Median Views / Video", "value": format_compact_number(median_views), "icon": "📊"},
             {"label": "Typical Public Interaction", "value": f"{med_eng:.2f}%", "icon": "💡"},
         ]
     )
 
-    section_header(
-        "Publishing Performance",
-        subtitle="Compare posting volume and age-normalized reach without mixing their units on one axis.",
-        icon="📆",
-    )
+    section_header("Publishing performance", icon="📆")
     trend = (
         channel_df.groupby("publish_month")
         .agg(
@@ -1737,11 +1708,12 @@ def _render_overview(channel_df: pd.DataFrame) -> None:
         reach_fig.update_xaxes(title="Publication month", type="category", tickangle=-35)
         reach_fig.update_yaxes(title="Median lifetime average daily views")
         show_plotly_chart(reach_fig)
-    st.caption(
-        "Each bar represents a publication cohort. Hover to check sample size; a month with one upload is weak evidence."
+    graph_insight_expander(
+        "Publishing performance",
+        "The charts separate upload volume from age-normalized reach because the units are not comparable. Hover to check sample size; a month with one upload is weak evidence.",
     )
 
-    section_header("Highest-Reach Videos", subtitle="Use individual winners as examples after reviewing the channel baseline.", icon="⭐")
+    section_header("Highest-reach videos", icon="⭐")
     top_videos = channel_df[
         [
             "video_title",
@@ -2653,8 +2625,9 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
             },
         ]
     )
-    st.caption(
-        f"A day or hour must have at least {minimum_evidence} videos in this channel sample before it can be highlighted. These are observed associations, not posting-time guarantees."
+    graph_insight_expander(
+        "Publishing recommendations",
+        f"A day or hour must have at least {minimum_evidence} videos in this channel sample before it can be highlighted. These are observed associations, not posting-time guarantees.",
     )
 
     day_cols = st.columns(2)
@@ -2724,15 +2697,18 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
             title="Video count by weekday and hour",
         )
         show_plotly_chart(heat_uploads)
-    st.caption("Use the video-count heatmap to identify sparse cells before interpreting the reach heatmap.")
+    graph_insight_expander(
+        "Weekday and hour heatmaps",
+        "Check the video-count heatmap before interpreting the reach heatmap. Sparse cells are weak evidence.",
+    )
 
     top_topics = _suggested_topic_angles(channel_df, top_n=8)
     if top_topics:
         st.markdown("**Promising themes from top recent videos**")
         styled_keyword_chips(top_topics)
-        st.caption(
-            "These themes come from the sample's highest age-normalized performers. "
-            "Treat them as creative starting points, not performance predictions."
+        graph_insight_expander(
+            "Suggested themes",
+            "These themes come from the sample's highest age-normalized performers. Treat them as creative starting points, not performance predictions.",
         )
 
     weekday_map = {d: i for i, d in enumerate(weekday_order)}
@@ -3303,9 +3279,9 @@ def render() -> None:
     with search_col:
         st.markdown(
             """
-            <div class="ytuber-command-title">Start With a Channel</div>
+            <div class="ytuber-command-title">Start with a channel</div>
             <div class="ytuber-command-subtitle">
-                Search by handle, channel name, or channel ID to launch the workspace.
+                Enter a handle, channel name, or channel ID.
             </div>
             """,
             unsafe_allow_html=True,
@@ -3325,25 +3301,12 @@ def render() -> None:
                 width="stretch",
                 disabled=provider_counts["youtube"] <= 0,
             )
-        detected_channel = _extract_channel_query(growth_prompt)
-        meta_cols = st.columns([1.2, 2.1], gap="medium")
-        with meta_cols[0]:
+        with st.expander("Data options", expanded=False):
             force_refresh = st.toggle(
                 "Force live refresh",
                 key="ytuber_force_refresh",
                 help="Bypass cached rows and pull the last year from the YouTube API again.",
             )
-        with meta_cols[1]:
-            if detected_channel:
-                st.markdown(
-                    f"<div class='ytuber-toolbar-note'>Ready To Search: {escape(detected_channel)}</div>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(
-                    "<div class='ytuber-toolbar-note'>Use a Handle Like @veritasium or Paste a Channel ID.</div>",
-                    unsafe_allow_html=True,
-                )
 
     if provider_counts["youtube"] <= 0:
         st.warning(
@@ -3378,16 +3341,15 @@ def render() -> None:
         st.session_state.pop("ytuber_outliers_error", None)
         st.session_state.pop("ytuber_outliers_summary_output", None)
         st.session_state.pop("ytuber_outliers_angles_output", None)
-        st.session_state["ytuber_active_module"] = "Content Studio"
+        st.session_state["ytuber_active_module"] = "Overview"
         st.session_state.pop("ytuber_active_module_pending", None)
         st.session_state.pop("ytuber_ai_notice", None)
 
     if "ytuber_channel_df" not in st.session_state:
         st.markdown(
-            "<div class='ytuber-empty-copy'>Search a channel above to unlock content generation, audits, benchmarking, and planning.</div>",
+            "<div class='ytuber-empty-copy'>Enter a channel to begin.</div>",
             unsafe_allow_html=True,
         )
-        _render_pool_footer(provider_counts)
         return
 
     channel_df = st.session_state["ytuber_channel_df"]
@@ -3397,7 +3359,6 @@ def render() -> None:
 
     if channel_df.empty:
         st.warning("No videos available for this channel in the last year.")
-        _render_pool_footer(provider_counts)
         return
 
     channel_df = _ensure_numeric_and_dates(channel_df)
@@ -3405,7 +3366,7 @@ def render() -> None:
         f"""
         <div class="ytuber-banner">
             <div class="ytuber-banner-title">{escape(channel_title)}</div>
-            <div class="ytuber-banner-meta">Live Workspace Ready</div>
+            <div class="ytuber-banner-meta">{len(channel_df):,} videos analyzed · last 12 months</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -3426,7 +3387,6 @@ def render() -> None:
         key="ytuber_active_module",
         format_func=lambda value: WORKSPACE_LABELS.get(value, value),
     )
-    st.caption(WORKSPACE_DESCRIPTIONS.get(active_module, ""))
 
     if active_module == "Content Studio":
         hints = st.session_state.get("ytuber_keyword_hints") or _top_keywords(channel_df, 20)
@@ -3446,11 +3406,10 @@ def render() -> None:
     elif active_module == "Content Planner":
         _render_content_planner(channel_df)
 
-    _render_pool_footer(
-        provider_counts,
-        workspace_meta={
+    _render_workspace_details(
+        {
             "source_label": source.replace("_", " ").title() if source else "Unavailable",
             "channel_id": channel_id,
             "video_count": len(channel_df),
-        },
+        }
     )

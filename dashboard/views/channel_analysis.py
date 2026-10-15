@@ -9,6 +9,8 @@ from src.services.analytics_metrics import lifetime_average_daily_views, public_
 
 from dashboard.components.visualizations import (
     apply_dashboard_chart_theme,
+    format_compact_number,
+    graph_insight_expander,
     kpi_row,
     plotly_bar_chart,
     plotly_scatter,
@@ -138,8 +140,7 @@ def _load_data_for_label(label: str) -> pd.DataFrame:
 
 
 def _render_engagement_formula_block() -> None:
-    with st.container(border=True):
-        st.markdown("#### Public interaction rate")
+    with st.expander("How public interaction is calculated", expanded=False):
         st.markdown("**(Public likes + public comments) ÷ public views × 100**")
         definition, coverage, limitation = st.columns(3)
         with definition:
@@ -152,18 +153,13 @@ def _render_engagement_formula_block() -> None:
             st.markdown("**What it omits**")
             st.write("Watch time, shares, saves, impressions, and private engagement signals.")
 
-    formula_matrix = pd.DataFrame(
-        [
-            {"Metric": "Likes", "Meaning": "Total likes on the video"},
-            {"Metric": "Comments", "Meaning": "Total comments on the video"},
-            {"Metric": "Views", "Meaning": "Total views on the video"},
-            {
-                "Metric": "Public Interaction Rate (%)",
-                "Meaning": "((Likes + Comments) / Views) * 100",
-            },
-        ]
-    )
-    with st.expander("See the calculation fields", expanded=False):
+        formula_matrix = pd.DataFrame(
+            [
+                {"Metric": "Likes", "Meaning": "Total likes on the video"},
+                {"Metric": "Comments", "Meaning": "Total comments on the video"},
+                {"Metric": "Views", "Meaning": "Total views on the video"},
+            ]
+        )
         st.table(formula_matrix)
 
 
@@ -219,16 +215,8 @@ def _publication_cohort_chart(summary: pd.DataFrame, grain: str) -> go.Figure:
 
 
 def render() -> None:
-    section_header(
-        "Channel Analysis",
-        subtitle="Compare a clearly defined sample, understand what is typical, and identify hypotheses worth testing.",
-        icon="📊",
-    )
-
     categories = _available_categories()
     selected_category = st.selectbox("Category", categories, index=0)
-
-    st.caption(f"Showing the committed {selected_category} research sample.")
 
     df = _load_data_for_label(selected_category)
     if df.empty:
@@ -239,7 +227,11 @@ def render() -> None:
 
     channels = sorted(df["channel_title"].dropna().unique().tolist())
     selected_channels = st.multiselect(
-        "Channels to compare", channels, default=channels[:8]
+        "Filter channels",
+        channels,
+        default=[],
+        placeholder="All channels",
+        help="Leave empty to include every channel in the selected category.",
     )
 
     ts_min = df["video_publishedAt"].min()
@@ -257,10 +249,6 @@ def render() -> None:
         key=f"channel_analysis_pub_range:{selected_category}",
         help="UTC publish date of each video. Narrow ranges with no uploads in this dataset will empty the charts until you widen the window.",
     )
-    st.caption(
-        "Filter uses each video's **UTC** calendar day. Switching dataset category resets this range to that file's span."
-    )
-
     filtered = df.copy()
     if selected_channels:
         filtered = filtered[filtered["channel_title"].isin(selected_channels)]
@@ -284,19 +272,18 @@ def render() -> None:
         },
         {
             "label": "Channels",
-            "value": f"{filtered['channel_id'].nunique():,}",
+            "value": f"{filtered['channel_title'].nunique():,}",
             "icon": "📺",
-            "color": "#FDFDFD",
         },
         {
             "label": "Total Views",
-            "value": f"{int(filtered['views'].fillna(0).sum()):,}",
+            "value": format_compact_number(filtered["views"].fillna(0).sum()),
             "icon": "👁️",
             "color": "#FF0000",
         },
         {
             "label": "Median Views / Video",
-            "value": f"{int(filtered['views'].median()):,}",
+            "value": format_compact_number(filtered["views"].median()),
             "icon": "📈",
         },
         {
@@ -315,20 +302,15 @@ def render() -> None:
         if not top_channel_views.empty and float(top_channel_views.sum()) > 0
         else 0.0
     )
-    with st.container(border=True):
-        st.markdown("#### What this comparison says")
+    with st.expander("Key takeaways from this comparison", expanded=False):
         st.markdown(
             f"- **Typical reach:** the median video has **{int(filtered['views'].median()):,} views**, which is more representative than the average when a few videos dominate.\n"
             f"- **View concentration:** **{leader_name}** accounts for **{leader_share:.1f}%** of views in the selected sample.\n"
             f"- **Interaction evidence:** the typical public interaction rate is **{filtered['engagement_rate'].median() * 100:.2f}%**, supported by **{valid_interactions:,} of {len(filtered):,} videos**."
         )
-        st.caption("These are descriptive signals from the selected public-data sample, not causal performance claims.")
+        st.caption("These describe the selected public-data sample; they do not establish causality.")
 
-    section_header(
-        "Where Views Are Concentrated",
-        subtitle="Compare channel scale before interpreting the rest of the sample.",
-        icon="🏆",
-    )
+    section_header("View concentration", icon="🏆")
     channel_summary = (
         filtered.groupby("channel_title", dropna=False)
         .agg(
@@ -352,7 +334,10 @@ def render() -> None:
     )
     fig.update_layout(height=max(360, 42 * len(channel_summary) + 120))
     show_plotly_chart(fig)
-    st.caption("A dominant bar means the selected sample is weighted toward that channel; it does not mean the channel is universally better.")
+    graph_insight_expander(
+        "View concentration",
+        "A dominant bar means the selected sample contains more views from that channel. It does not mean the channel is universally better.",
+    )
     channel_table = channel_summary.rename(
         columns={
             "channel_title": "Channel",
@@ -366,23 +351,20 @@ def render() -> None:
     with st.expander("View channel-level details", expanded=False):
         styled_dataframe(channel_table, precision=2)
 
-    section_header(
-        "Performance by Publication Cohort",
-        subtitle="Compare age-normalized typical reach for videos published in the same period.",
-        icon="📆",
-    )
+    section_header("Performance by publication period", icon="📆")
     cohort_summary, cohort_grain = _publication_cohort_summary(filtered)
     if cohort_summary.empty:
         st.info("There is not enough dated performance data to compare publication cohorts.")
     else:
         show_plotly_chart(_publication_cohort_chart(cohort_summary, cohort_grain))
-        st.caption(
+        graph_insight_expander(
+            "Publication-period performance",
             f"Each bar is the median lifetime average daily views for videos published in that {cohort_grain}. "
             "Bars are not connected because publication cohorts are separate groups, not a continuous view-growth timeline. "
-            "Hover to see the number of videos behind each bar."
+            "Hover to see the number of videos behind each bar.",
         )
 
-    section_header("Videos With the Most Reach", subtitle="Review individual winners after understanding the channel-level baseline.", icon="⭐")
+    section_header("Highest-reach videos", icon="⭐")
     top_videos = filtered[
         [
             "channel_title",
@@ -407,12 +389,11 @@ def render() -> None:
     )
     styled_dataframe(
         top_videos_table,
-        title="Highest-viewed videos in this sample",
         precision=2,
     )
     _render_engagement_formula_block()
 
-    section_header("Observed Patterns by Publish Day", subtitle="Compare medians and sample sizes before treating a weekday as a useful test.", icon="🗓️")
+    section_header("Performance by publish day", icon="🗓️")
     day_perf = (
         filtered.groupby("publish_day", dropna=False)
         .agg(
@@ -445,7 +426,6 @@ def render() -> None:
             title="Typical age-normalized reach by publish day",
         )
         show_plotly_chart(fig_views)
-        st.caption("Higher bars mean stronger typical age-normalized reach for videos published on that weekday.")
     with col_day2:
         fig_eng = plotly_bar_chart(
             day_perf,
@@ -455,7 +435,10 @@ def render() -> None:
         )
         fig_eng.update_yaxes(ticksuffix="%")
         show_plotly_chart(fig_eng)
-        st.caption("This measures public likes and comments per view—not watch time, shares, saves, or causality.")
+    graph_insight_expander(
+        "Publish-day performance",
+        "Compare medians with the sample size before testing a weekday. Public interaction includes visible likes and comments, not watch time, shares, saves, or causality.",
+    )
 
     day_table = day_perf.rename(
         columns={
@@ -465,9 +448,10 @@ def render() -> None:
             "typical_public_interaction_pct": "Typical Public Interaction (%)",
         }
     )
-    styled_dataframe(day_table, title="Weekday evidence and sample size", precision=2)
+    with st.expander("View weekday sample sizes", expanded=False):
+        styled_dataframe(day_table, precision=2)
 
-    section_header("Reach vs Public Interaction", subtitle="Look for videos that combine scale with active public response.", icon="📉")
+    section_header("Reach vs public interaction", icon="📉")
     scatter_df = filtered.copy()
     fig_scatter = plotly_scatter(
         scatter_df,
@@ -486,9 +470,12 @@ def render() -> None:
     fig_scatter.add_hline(y=median_interaction, line_dash="dot", line_color="#6E6E73")
     fig_scatter.update_layout(height=520, legend_title_text="Channel")
     show_plotly_chart(fig_scatter)
-    st.caption("The horizontal axis uses a log scale so small and very large videos remain visible together. Upper-right observations combine higher reach and interaction.")
+    graph_insight_expander(
+        "Reach vs public interaction",
+        "The horizontal axis uses a log scale so small and very large videos remain visible together. Upper-right observations combine higher reach and interaction.",
+    )
 
-    section_header("How Public Interaction Is Distributed", icon="📊")
+    section_header("Public interaction distribution", icon="📊")
     bins = []
     for val in filtered["engagement_rate"]:
         if pd.isna(val):
@@ -520,4 +507,7 @@ def render() -> None:
         fig_donut.update_xaxes(title="Public interaction rate")
         fig_donut.update_yaxes(title="Share of videos", ticksuffix="%")
         show_plotly_chart(fig_donut)
-        st.caption("These neutral ranges describe the selected sample; they are not universal quality grades.")
+        graph_insight_expander(
+            "Public interaction distribution",
+            "These neutral ranges describe the selected sample; they are not universal quality grades.",
+        )

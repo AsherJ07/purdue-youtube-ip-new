@@ -6,6 +6,7 @@ from dashboard.views.channel_analysis import (
 )
 from dashboard.views.outlier_finder import _breakout_scatter
 from dashboard.views.ytuber import _suggested_topic_angles
+from dashboard.components.visualizations import format_compact_number
 
 
 def _cohort_frame(dates: list[str]) -> pd.DataFrame:
@@ -80,4 +81,10 @@ def test_topic_angles_are_readable_and_ranked_by_daily_reach() -> None:
         "Largest spiderweb",
         "Slowing down",
     ]
+
+
+def test_large_display_numbers_use_compact_units() -> None:
+    assert format_compact_number(659) == "659"
+    assert format_compact_number(316_670) == "316.7K"
+    assert format_compact_number(1_567_659_168) == "1.6B"
 

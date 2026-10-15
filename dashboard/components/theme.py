@@ -519,6 +519,7 @@ section[data-testid="stMain"] > div {
 .feature-description {
     margin: 0 auto;
     max-width: 720px;
+    text-align: center !important;
     font-size: 1.05rem;
     line-height: 1.55;
     color: var(--apple-gray);
