@@ -62,3 +62,31 @@ def test_apply_optional_topic_model_returns_rows(monkeypatch) -> None:
     assert result.bundle_version == "2026.03.27"
     assert result.topic_rows[0]["model_topic_id"] == 18
     assert result.topic_rows[0]["model_topic_label"] == "Packaging / Ctr / Thumbnail / Hooks"
+
+
+def test_low_confidence_topic_assignment_abstains(monkeypatch) -> None:
+    sample_df = pd.DataFrame(
+        [{"video_id": "v1", "video_title": "Specific packaging breakdown for creators", "video_description": "thumbnail hooks and audience promise", "video_tags": "packaging|thumbnail"}]
+    )
+
+    class _FakeTopicModel:
+        def transform(self, texts):
+            return [18], [0.12]
+
+        def get_topic(self, topic_id: int):
+            return []
+
+    monkeypatch.setattr(
+        "src.services.topic_model_runtime.ensure_bertopic_artifact_ready",
+        lambda: ModelArtifactStatus(
+            state="ready", enabled=True, configured=True, ready=True,
+            model_type="bertopic_global", bundle_version="test", local_model_path="/tmp/model.pkl"
+        ),
+    )
+    monkeypatch.setattr("src.services.topic_model_runtime._load_topic_model", lambda path: _FakeTopicModel())
+
+    result = apply_optional_topic_model(sample_df)
+
+    assert result.topic_rows[0]["model_topic_id"] == -1
+    assert result.topic_rows[0]["model_topic_label"] == "Unassigned"
+    assert result.topic_rows[0]["topic_abstained"] is True

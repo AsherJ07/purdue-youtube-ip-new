@@ -171,6 +171,26 @@ def test_score_outlier_candidates_handles_hidden_subscribers_without_nan_scores(
     assert pd.isna(hidden_row["baseline_component"])
 
 
+def test_outlier_score_does_not_reward_recency_twice() -> None:
+    frame = _candidate_frame().iloc[:2].copy()
+    frame.loc[:, "channel_id"] = ["channel-a", "channel-b"]
+    frame.loc[:, "views_per_day"] = 1_000.0
+    frame.loc[:, "engagement_rate"] = 0.05
+    frame.loc[:, "views_per_subscriber"] = float("nan")
+    frame.loc[:, "age_days"] = [3.0, 7.0]
+    frame.loc[:, "age_bucket"] = "3-7d"
+
+    scored = score_outlier_candidates_frame(frame, _request(), baselines={})
+
+    assert scored["outlier_score"].nunique() == 1
+
+
+def test_single_item_peer_group_is_neutral_not_top_percentile() -> None:
+    frame = _candidate_frame().iloc[:1].copy()
+    scored = score_outlier_candidates_frame(frame, _request(), baselines={})
+    assert scored.iloc[0]["peer_percentile"] == 0.5
+
+
 def test_filter_candidates_by_subscriber_bucket_respects_hidden_toggle() -> None:
     frame = _candidate_frame()
 

@@ -51,3 +51,15 @@ def test_topic_metrics_generation() -> None:
     assert not topic_metrics.empty
     assert "topic_label" in topic_metrics.columns
     assert topic_metrics["video_count"].max() >= 1
+
+
+def test_topic_trend_abstains_when_windows_are_too_small() -> None:
+    df = add_channel_video_features(_sample_df())
+    df["primary_topic"] = "packaging"
+    df["performance_score"] = [80, 72]
+    df["is_top_quartile"] = [True, False]
+
+    topic_metrics = build_topic_metrics(df)
+
+    assert topic_metrics.iloc[0]["trend_status"] == "insufficient"
+    assert pd.isna(topic_metrics.iloc[0]["trend_score"])
