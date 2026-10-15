@@ -1261,7 +1261,9 @@ def _ensure_numeric_and_dates(df: pd.DataFrame) -> pd.DataFrame:
     if "video_publishedAt" in out.columns:
         out["video_publishedAt"] = pd.to_datetime(out["video_publishedAt"], errors="coerce", utc=True)
     out["engagement_rate"] = public_interaction_rate(out["views"], out["likes"], out["comments"])
-    out["publish_month"] = out["video_publishedAt"].dt.to_period("M").astype(str)
+    out["publish_month"] = (
+        out["video_publishedAt"].dt.tz_localize(None).dt.to_period("M").astype(str)
+    )
     out["publish_day"] = out["video_publishedAt"].dt.day_name()
     out["publish_hour"] = out["video_publishedAt"].dt.hour
     out["duration_seconds"] = out["duration"].fillna("").astype(str).map(_parse_iso_duration_seconds)

@@ -130,7 +130,9 @@ def _load_data_for_label(label: str) -> pd.DataFrame:
     now = pd.Timestamp.now(tz="UTC")
     df["age_days"] = (now - df["video_publishedAt"]).dt.total_seconds() / 86400
     df["views_per_day"] = lifetime_average_daily_views(df["views"], df["age_days"])
-    df["publish_month"] = df["video_publishedAt"].dt.to_period("M").astype(str)
+    df["publish_month"] = (
+        df["video_publishedAt"].dt.tz_localize(None).dt.to_period("M").astype(str)
+    )
     df["publish_day"] = df["video_publishedAt"].dt.day_name()
     return df
 
