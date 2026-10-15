@@ -420,6 +420,9 @@ section[data-testid="stMain"] > div {
 
 /* —— Global feature hero (glass) —— */
 .glass-page-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-align: center;
     max-width: 920px;
     margin: 0 auto 1.75rem;
@@ -517,6 +520,8 @@ section[data-testid="stMain"] > div {
 }
 
 .feature-description {
+    display: block;
+    width: 100%;
     margin: 0 auto;
     max-width: 720px;
     text-align: center !important;
@@ -524,6 +529,12 @@ section[data-testid="stMain"] > div {
     line-height: 1.55;
     color: var(--apple-gray);
     font-weight: 400;
+}
+
+.glass-page-hero > .feature-description {
+    align-self: center;
+    justify-self: center;
+    text-align: center !important;
 }
 
 .feature-hero-tags {

@@ -38,6 +38,10 @@ This audit treats every chart and interface element as a decision aid. A view pa
 - Removed the dual-axis publish-hour chart; performance and sample size are now communicated without mixing units.
 - Split history measures with different units into separate charts.
 - Reframed BERTopic as an optional semantic-theme beta and moved model/artifact details behind expanders.
+- Centered hero descriptions with a browser-consistent flex layout across every page.
+- Forced dashboard scatter plots to SVG so high-volume comparisons do not fail when WebGL is unavailable.
+- Removed redundant chart-reading expanders from self-explanatory bar charts, heatmaps, and labeled comparisons.
+- Exposed Channel Insights controls directly as `Heuristics (fast keyword rules)` and `BERTopic (semantic clustering · beta)`.
 - Replaced implementation-oriented labels with user-facing theme and snapshot language.
 
 ## Creator Studio

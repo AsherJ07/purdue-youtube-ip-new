@@ -21,7 +21,6 @@ except (ImportError, ModuleNotFoundError, OSError):
 
 from dashboard.components.visualizations import (
     format_compact_number,
-    graph_insight_expander,
     kpi_row,
     plotly_bar_chart,
     plotly_heatmap,
@@ -1708,10 +1707,6 @@ def _render_overview(channel_df: pd.DataFrame) -> None:
         reach_fig.update_xaxes(title="Publication month", type="category", tickangle=-35)
         reach_fig.update_yaxes(title="Median lifetime average daily views")
         show_plotly_chart(reach_fig)
-    graph_insight_expander(
-        "Publishing performance",
-        "The charts separate upload volume from age-normalized reach because the units are not comparable. Hover to check sample size; a month with one upload is weak evidence.",
-    )
 
     section_header("Highest-reach videos", icon="⭐")
     top_videos = channel_df[
@@ -2625,10 +2620,6 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
             },
         ]
     )
-    graph_insight_expander(
-        "Publishing recommendations",
-        f"A day or hour must have at least {minimum_evidence} videos in this channel sample before it can be highlighted. These are observed associations, not posting-time guarantees.",
-    )
 
     day_cols = st.columns(2)
     with day_cols[0]:
@@ -2697,19 +2688,11 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
             title="Video count by weekday and hour",
         )
         show_plotly_chart(heat_uploads)
-    graph_insight_expander(
-        "Weekday and hour heatmaps",
-        "Check the video-count heatmap before interpreting the reach heatmap. Sparse cells are weak evidence.",
-    )
 
     top_topics = _suggested_topic_angles(channel_df, top_n=8)
     if top_topics:
         st.markdown("**Promising themes from top recent videos**")
         styled_keyword_chips(top_topics)
-        graph_insight_expander(
-            "Suggested themes",
-            "These themes come from the sample's highest age-normalized performers. Treat them as creative starting points, not performance predictions.",
-        )
 
     weekday_map = {d: i for i, d in enumerate(weekday_order)}
     target_weekday = weekday_map.get(best_day, 2)

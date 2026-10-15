@@ -70,7 +70,7 @@ def render_page_hero(page: str) -> None:
     {escape(badge)}
   </div>
   <h1 class="feature-headline">{escape(headline)}</h1>
-  <p class="feature-description">{escape(desc)}</p>
+  <div class="feature-description">{escape(desc)}</div>
   {tags_html}
 </div>
 """,

@@ -906,8 +906,8 @@ def _queue_outlier_finder_theme(theme: str, channel_title: str) -> None:
 
 def _topic_mode_label(topic_mode: str) -> str:
     if topic_mode == TOPIC_MODE_BERTOPIC_OPTIONAL:
-        return "Semantic themes (beta)"
-    return "Fast keyword themes"
+        return "BERTopic (semantic clustering · beta)"
+    return "Heuristics (fast keyword rules)"
 
 
 def _artifact_status_label(state: str) -> str:
@@ -943,12 +943,11 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
                 placeholder="https://www.youtube.com/@veritasium or @veritasium",
             )
             connect_clicked = st.form_submit_button("Analyze channel", type="primary", width="stretch")
-            with st.expander("Analysis options", expanded=False):
-                force_refresh = st.toggle(
-                    "Refresh from YouTube",
-                    key="channel_insights_force_refresh",
-                    help="Bypass dataset-backed rows and pull public channel data from the YouTube API again.",
-                )
+            force_refresh = st.toggle(
+                "Refresh from YouTube",
+                key="channel_insights_force_refresh",
+                help="Bypass saved data and pull the latest public channel data from YouTube.",
+            )
 
         if connect_clicked:
             if not channel_input.strip():
@@ -984,14 +983,15 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
             )
             st.session_state["channel_insights_selected_channel"] = choice["channel_id"]
 
-        with st.expander("Theme detection settings", expanded=False):
-            st.write("Fast keyword themes are the dependable default. Semantic themes are optional and experimental.")
-            st.selectbox(
-                "Theme detection method",
-                options=[TOPIC_MODE_HEURISTIC, TOPIC_MODE_BERTOPIC_OPTIONAL],
-                key="channel_insights_topic_mode",
-                format_func=_topic_mode_label,
-            )
+        st.markdown("**Theme detection**")
+        selected_topic_mode = st.radio(
+            "Theme detection method",
+            options=[TOPIC_MODE_HEURISTIC, TOPIC_MODE_BERTOPIC_OPTIONAL],
+            key="channel_insights_topic_mode",
+            format_func=_topic_mode_label,
+            label_visibility="collapsed",
+        )
+        if selected_topic_mode == TOPIC_MODE_BERTOPIC_OPTIONAL:
             st.caption(f"Semantic model status: {_artifact_status_label(artifact_status.state)}")
             if artifact_status.state == "ready":
                 st.success(artifact_status.message or "The semantic theme model is ready.")
@@ -1000,7 +1000,7 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
             elif artifact_status.state == "invalid":
                 st.warning(artifact_status.failure_reason or artifact_status.message or "Semantic theme mode is currently unavailable.")
             else:
-                st.caption(artifact_status.message or "Fast keyword themes remain active.")
+                st.caption(artifact_status.message or "BERTopic is unavailable; heuristics will be used instead.")
 
 
 def _render_summary_action_row(payload: Dict[str, Any]) -> None:

@@ -10,7 +10,6 @@ from src.services.analytics_metrics import lifetime_average_daily_views, public_
 from dashboard.components.visualizations import (
     apply_dashboard_chart_theme,
     format_compact_number,
-    graph_insight_expander,
     kpi_row,
     plotly_bar_chart,
     plotly_scatter,
@@ -334,10 +333,6 @@ def render() -> None:
     )
     fig.update_layout(height=max(360, 42 * len(channel_summary) + 120))
     show_plotly_chart(fig)
-    graph_insight_expander(
-        "View concentration",
-        "A dominant bar means the selected sample contains more views from that channel. It does not mean the channel is universally better.",
-    )
     channel_table = channel_summary.rename(
         columns={
             "channel_title": "Channel",
@@ -357,12 +352,6 @@ def render() -> None:
         st.info("There is not enough dated performance data to compare publication cohorts.")
     else:
         show_plotly_chart(_publication_cohort_chart(cohort_summary, cohort_grain))
-        graph_insight_expander(
-            "Publication-period performance",
-            f"Each bar is the median lifetime average daily views for videos published in that {cohort_grain}. "
-            "Bars are not connected because publication cohorts are separate groups, not a continuous view-growth timeline. "
-            "Hover to see the number of videos behind each bar.",
-        )
 
     section_header("Highest-reach videos", icon="⭐")
     top_videos = filtered[
@@ -435,10 +424,6 @@ def render() -> None:
         )
         fig_eng.update_yaxes(ticksuffix="%")
         show_plotly_chart(fig_eng)
-    graph_insight_expander(
-        "Publish-day performance",
-        "Compare medians with the sample size before testing a weekday. Public interaction includes visible likes and comments, not watch time, shares, saves, or causality.",
-    )
 
     day_table = day_perf.rename(
         columns={
@@ -470,10 +455,6 @@ def render() -> None:
     fig_scatter.add_hline(y=median_interaction, line_dash="dot", line_color="#6E6E73")
     fig_scatter.update_layout(height=520, legend_title_text="Channel")
     show_plotly_chart(fig_scatter)
-    graph_insight_expander(
-        "Reach vs public interaction",
-        "The horizontal axis uses a log scale so small and very large videos remain visible together. Upper-right observations combine higher reach and interaction.",
-    )
 
     section_header("Public interaction distribution", icon="📊")
     bins = []
@@ -507,7 +488,3 @@ def render() -> None:
         fig_donut.update_xaxes(title="Public interaction rate")
         fig_donut.update_yaxes(title="Share of videos", ticksuffix="%")
         show_plotly_chart(fig_donut)
-        graph_insight_expander(
-            "Public interaction distribution",
-            "These neutral ranges describe the selected sample; they are not universal quality grades.",
-        )

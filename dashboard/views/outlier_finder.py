@@ -11,7 +11,6 @@ import streamlit as st
 from dashboard.components.visualizations import (
     apply_dashboard_chart_theme,
     format_compact_number,
-    graph_insight_expander,
     show_plotly_chart,
     styled_dataframe,
     styled_keyword_chips,
@@ -1377,12 +1376,11 @@ def _render_ai_report(report: OutlierAIReport) -> None:
         st.markdown('<div class="outlier-panel-note"><strong>Fallback Summary.</strong> The AI provider returned unstructured output for this run, so the text below is shown as plain summary copy.</div>', unsafe_allow_html=True)
         st.markdown(report.raw_fallback)
 
-    graph_insight_expander(
-        "AI Research output",
-        "**Executive headline** — one-line read of the niche scan. **Key takeaway** — supporting story. "
-        "**Breakout themes / title patterns / angles / anomalies** — evidence-style cards grounded in the table above. "
-        "**Next actions** — concrete tests; treat as hypotheses until validated with your own uploads and analytics.",
-    )
+    with st.expander("About the AI research summary", expanded=False):
+        st.markdown(
+            "The summary groups evidence from the results into themes, title patterns, content angles, anomalies, "
+            "and testable next actions. Treat suggested actions as hypotheses to validate with your own uploads."
+        )
 
 
 def _render_methodology_section() -> None:
@@ -1771,11 +1769,6 @@ def render() -> None:
             breakout_fig = _breakout_scatter(sorted_frame)
             breakout_fig.update_layout(height=400)
             show_plotly_chart(breakout_fig)
-            graph_insight_expander(
-                "Breakout map",
-                "Each point is a surfaced video. Axes combine **outlier score**, **views per day**, and **channel size** (see chart labels). "
-                "Look for clusters away from the bulk — those are unusual performances for their context.",
-            )
     with chart_top[1]:
         with st.container(border=True):
             _render_chart_shell(
@@ -1785,11 +1778,6 @@ def render() -> None:
             age_fig = _age_bucket_chart(sorted_frame)
             age_fig.update_layout(height=400)
             show_plotly_chart(age_fig)
-            graph_insight_expander(
-                "Score by publish age",
-                "Shows whether high scores concentrate on **fresh uploads** vs **older catalog** wins. "
-                "A spike on recent ages can mean a fast-moving trend; spread across ages can mean evergreen demand.",
-            )
 
     chart_bottom = st.columns(2, gap="medium")
     with chart_bottom[0]:
@@ -1801,11 +1789,6 @@ def render() -> None:
             duration_fig = _duration_chart(sorted_frame)
             duration_fig.update_layout(height=320)
             show_plotly_chart(duration_fig)
-            graph_insight_expander(
-                "Winning lengths",
-                "Bars show how **outlier scores** stack up by **duration bucket** in this scan only. "
-                "Use it to guess runtime tests — always validate against your audience and production cost.",
-            )
     with chart_bottom[1]:
         with st.container(border=True):
             _render_chart_shell(
@@ -1815,11 +1798,6 @@ def render() -> None:
             title_pattern_fig = _title_pattern_chart(sorted_frame)
             title_pattern_fig.update_layout(height=320)
             show_plotly_chart(title_pattern_fig)
-            graph_insight_expander(
-                "Title structures",
-                "Summarizes **recurring packaging patterns** (e.g., listicle vs story vs challenge) among top results. "
-                "Pairs well with the keyword chips and the AI **Title Pattern** cards below.",
-            )
     with st.container(border=True):
         _render_chart_shell(
             "Evidence quality",

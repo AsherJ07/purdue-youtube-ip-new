@@ -577,6 +577,7 @@ def plotly_scatter(
         df,
         x=x,
         y=y,
+        render_mode="svg",
         size=size if size in df.columns else None,
         hover_data=hover_cols if hover_cols else None,
         labels={
