@@ -2,16 +2,18 @@ import os
 from datetime import date, datetime
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from src.services.analytics_metrics import lifetime_average_daily_views, public_interaction_rate
 
 from dashboard.components.visualizations import (
+    apply_dashboard_chart_theme,
     kpi_row,
     plotly_bar_chart,
-    plotly_line_chart,
     plotly_scatter,
     section_header,
+    show_plotly_chart,
     styled_dataframe,
 )
 
@@ -134,12 +136,19 @@ def _load_data_for_label(label: str) -> pd.DataFrame:
 
 
 def _render_engagement_formula_block() -> None:
-    st.markdown("#### How public interaction is calculated")
-    st.caption(
-        "Public interaction rate = (public likes + public comments) / views. "
-        "Rows with zero views or unavailable interaction counts are excluded—not imputed. "
-        "This is not total engagement because public data omits watch time, shares, and saves."
-    )
+    with st.container(border=True):
+        st.markdown("#### Public interaction rate")
+        st.markdown("**(Public likes + public comments) ÷ public views × 100**")
+        definition, coverage, limitation = st.columns(3)
+        with definition:
+            st.markdown("**What it answers**")
+            st.write("How often a public view is accompanied by a visible like or comment.")
+        with coverage:
+            st.markdown("**Rows included**")
+            st.write("Only videos with views above zero and available like and comment counts.")
+        with limitation:
+            st.markdown("**What it omits**")
+            st.write("Watch time, shares, saves, impressions, and private engagement signals.")
 
     formula_matrix = pd.DataFrame(
         [
@@ -152,8 +161,59 @@ def _render_engagement_formula_block() -> None:
             },
         ]
     )
-    with st.expander("Open formula matrix", expanded=False):
+    with st.expander("See the calculation fields", expanded=False):
         st.table(formula_matrix)
+
+
+def _publication_cohort_summary(frame: pd.DataFrame) -> tuple[pd.DataFrame, str]:
+    """Aggregate publication cohorts at a readable grain for the selected span."""
+    valid = frame.dropna(subset=["video_publishedAt", "views_per_day"]).copy()
+    if valid.empty:
+        return pd.DataFrame(), "year"
+
+    span_days = (valid["video_publishedAt"].max() - valid["video_publishedAt"].min()).days
+    if span_days <= 36 * 31:
+        valid["cohort"] = (
+            valid["video_publishedAt"].dt.tz_convert(None).dt.to_period("M").astype(str)
+        )
+        grain = "month"
+    else:
+        valid["cohort"] = valid["video_publishedAt"].dt.year.astype(str)
+        grain = "year"
+
+    summary = (
+        valid.groupby("cohort", dropna=False)
+        .agg(
+            videos=("video_id", "count"),
+            median_daily_views=("views_per_day", "median"),
+        )
+        .reset_index()
+        .sort_values("cohort")
+    )
+    return summary, grain
+
+
+def _publication_cohort_chart(summary: pd.DataFrame, grain: str) -> go.Figure:
+    label = "Publication month" if grain == "month" else "Publication year"
+    title = f"Typical daily reach by {grain} published"
+    fig = go.Figure(
+        go.Bar(
+            x=summary["cohort"],
+            y=summary["median_daily_views"],
+            customdata=summary[["videos"]],
+            marker={"color": "#FF0033", "line": {"color": "rgba(255,255,255,.75)", "width": 1}},
+            hovertemplate=(
+                f"{label}: %{{x}}<br>"
+                "Median lifetime average daily views: %{y:,.0f}<br>"
+                "Videos in cohort: %{customdata[0]:,}<extra></extra>"
+            ),
+        )
+    )
+    fig.update_layout(title=title, height=420, showlegend=False, bargap=0.18)
+    fig.update_xaxes(title=label, type="category", tickangle=-35 if grain == "month" else 0)
+    fig.update_yaxes(title="Median lifetime average daily views", tickformat="~s", rangemode="tozero")
+    apply_dashboard_chart_theme(fig)
+    return fig
 
 
 def render() -> None:
@@ -257,66 +317,68 @@ def render() -> None:
         st.markdown("#### What this comparison says")
         st.markdown(
             f"- **Typical reach:** the median video has **{int(filtered['views'].median()):,} views**, which is more representative than the average when a few videos dominate.\n"
-            f"- **Audience concentration:** **{leader_name}** accounts for **{leader_share:.1f}%** of views in the selected sample.\n"
+            f"- **View concentration:** **{leader_name}** accounts for **{leader_share:.1f}%** of views in the selected sample.\n"
             f"- **Interaction evidence:** the typical public interaction rate is **{filtered['engagement_rate'].median() * 100:.2f}%**, supported by **{valid_interactions:,} of {len(filtered):,} videos**."
         )
         st.caption("These are descriptive signals from the selected public-data sample, not causal performance claims.")
 
-    left, right = st.columns(2)
+    section_header(
+        "Where Views Are Concentrated",
+        subtitle="Compare channel scale before interpreting the rest of the sample.",
+        icon="🏆",
+    )
+    channel_summary = (
+        filtered.groupby("channel_title", dropna=False)
+        .agg(
+            videos=("video_id", "count"),
+            total_views=("views", "sum"),
+            median_views=("views", "median"),
+            typical_engagement_rate=("engagement_rate", "median"),
+            valid_interaction_rows=("engagement_rate", "count"),
+        )
+        .sort_values("total_views", ascending=False)
+        .head(15)
+        .reset_index()
+    )
+    channel_summary["typical_public_interaction_pct"] = channel_summary.pop("typical_engagement_rate") * 100
+    fig = plotly_bar_chart(
+        channel_summary.sort_values("total_views"),
+        x="channel_title",
+        y="total_views",
+        title="Total views represented in this comparison",
+        horizontal=True,
+    )
+    fig.update_layout(height=max(360, 42 * len(channel_summary) + 120))
+    show_plotly_chart(fig)
+    st.caption("A dominant bar means the selected sample is weighted toward that channel; it does not mean the channel is universally better.")
+    channel_table = channel_summary.rename(
+        columns={
+            "channel_title": "Channel",
+            "videos": "Videos analyzed",
+            "total_views": "Total views",
+            "median_views": "Median views per video",
+            "valid_interaction_rows": "Videos with interaction data",
+            "typical_public_interaction_pct": "Typical public interaction (%)",
+        }
+    )
+    with st.expander("View channel-level details", expanded=False):
+        styled_dataframe(channel_table, precision=2)
 
-    with left:
-        section_header("Where Reach Is Concentrated", icon="🏆")
-        channel_summary = (
-            filtered.groupby("channel_title", dropna=False)
-            .agg(
-                videos=("video_id", "count"),
-                total_views=("views", "sum"),
-                median_views=("views", "median"),
-                typical_engagement_rate=("engagement_rate", "median"),
-                valid_interaction_rows=("engagement_rate", "count"),
-            )
-            .sort_values("total_views", ascending=False)
-            .head(15)
-            .reset_index()
+    section_header(
+        "Performance by Publication Cohort",
+        subtitle="Compare age-normalized typical reach for videos published in the same period.",
+        icon="📆",
+    )
+    cohort_summary, cohort_grain = _publication_cohort_summary(filtered)
+    if cohort_summary.empty:
+        st.info("There is not enough dated performance data to compare publication cohorts.")
+    else:
+        show_plotly_chart(_publication_cohort_chart(cohort_summary, cohort_grain))
+        st.caption(
+            f"Each bar is the median lifetime average daily views for videos published in that {cohort_grain}. "
+            "Bars are not connected because publication cohorts are separate groups, not a continuous view-growth timeline. "
+            "Hover to see the number of videos behind each bar."
         )
-        channel_summary["typical_public_interaction_pct"] = channel_summary.pop("typical_engagement_rate") * 100
-        fig = plotly_bar_chart(
-            channel_summary.sort_values("total_views"),
-            x="channel_title",
-            y="total_views",
-            title="Total Views in the Selected Sample",
-            horizontal=True,
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        st.caption("Use this chart to see whether the comparison is balanced or dominated by one large channel.")
-        channel_table = channel_summary.rename(
-            columns={
-                "channel_title": "Channel",
-                "videos": "Videos Analyzed",
-                "total_views": "Total Views",
-                "median_views": "Median Views per Video",
-                "valid_interaction_rows": "Videos with Interaction Data",
-                "typical_public_interaction_pct": "Typical Public Interaction (%)",
-            }
-        )
-        styled_dataframe(channel_table, title="Channel comparison", precision=2)
-
-    with right:
-        section_header("How Upload Cohorts Compare", icon="📆")
-        trend = (
-            filtered.groupby("publish_month", dropna=False)
-            .agg(videos=("video_id", "count"), median_lifetime_views=("views", "median"))
-            .reset_index()
-            .sort_values("publish_month")
-        )
-        fig = plotly_line_chart(
-            trend,
-            x="publish_month",
-            y_cols=["median_lifetime_views"],
-            title="Median Lifetime Views by Publication Month",
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        st.caption("Each point is the current median lifetime view count for videos published that month. It compares cohorts; it is not a view-growth timeline.")
 
     section_header("Videos With the Most Reach", subtitle="Review individual winners after understanding the channel-level baseline.", icon="⭐")
     top_videos = filtered[
@@ -378,19 +440,19 @@ def render() -> None:
             day_perf,
             x="publish_day",
             y="median_lifetime_daily_views",
-            title="Median Lifetime Daily Views by Publish Day",
+            title="Typical age-normalized reach by publish day",
         )
-        st.plotly_chart(fig_views, use_container_width=True)
+        show_plotly_chart(fig_views)
         st.caption("Higher bars mean stronger typical age-normalized reach for videos published on that weekday.")
     with col_day2:
         fig_eng = plotly_bar_chart(
             day_perf,
             x="publish_day",
             y="typical_public_interaction_pct",
-            title="Typical Public Interaction by Publish Day",
+            title="Typical public interaction by publish day",
         )
         fig_eng.update_yaxes(ticksuffix="%")
-        st.plotly_chart(fig_eng, use_container_width=True)
+        show_plotly_chart(fig_eng)
         st.caption("This measures public likes and comments per view—not watch time, shares, saves, or causality.")
 
     day_table = day_perf.rename(
@@ -411,12 +473,17 @@ def render() -> None:
         y="public_interaction_pct",
         size=None,
         color="channel_title",
-        title="Video Reach vs Public Interaction",
+        title="Video reach vs public interaction",
     )
     fig_scatter.update_traces(marker={"size": 9, "opacity": 0.65})
     fig_scatter.update_xaxes(type="log", title="Views (log scale)")
     fig_scatter.update_yaxes(title="Public Interaction Rate (%)", ticksuffix="%")
-    st.plotly_chart(fig_scatter, use_container_width=True)
+    median_views = float(scatter_df["views"].median())
+    median_interaction = float(scatter_df["public_interaction_pct"].median())
+    fig_scatter.add_vline(x=median_views, line_dash="dot", line_color="#6E6E73")
+    fig_scatter.add_hline(y=median_interaction, line_dash="dot", line_color="#6E6E73")
+    fig_scatter.update_layout(height=520, legend_title_text="Channel")
+    show_plotly_chart(fig_scatter)
     st.caption("The horizontal axis uses a log scale so small and very large videos remain visible together. Upper-right observations combine higher reach and interaction.")
 
     section_header("How Public Interaction Is Distributed", icon="📊")
@@ -425,14 +492,19 @@ def render() -> None:
         if pd.isna(val):
             continue
         pct = val * 100
-        if pct < 2:
-            bins.append("Low (<2%)")
+        if pct < 1:
+            bins.append("Under 1%")
+        elif pct < 2:
+            bins.append("1–2%")
+        elif pct < 4:
+            bins.append("2–4%")
         elif pct < 8:
-            bins.append("Medium (2–8%)")
+            bins.append("4–8%")
         else:
-            bins.append("High (8%+)")
+            bins.append("8% or more")
     if bins:
-        counts = pd.Series(bins, name="bucket").value_counts().reset_index()
+        bucket_order = ["Under 1%", "1–2%", "2–4%", "4–8%", "8% or more"]
+        counts = pd.Series(bins, name="bucket").value_counts().reindex(bucket_order, fill_value=0).reset_index()
         counts.columns = ["bucket", "count"]
         dist_df = counts
         dist_df["share_pct"] = dist_df["count"] / dist_df["count"].sum() * 100
@@ -440,9 +512,10 @@ def render() -> None:
             dist_df,
             x="bucket",
             y="share_pct",
-            title="Share of Videos by Public Interaction Band",
-            horizontal=True,
+            title="Videos by public interaction range",
+            horizontal=False,
         )
-        fig_donut.update_xaxes(title="Share of Videos (%)", ticksuffix="%")
-        st.plotly_chart(fig_donut, use_container_width=True)
-        st.caption("Bands are descriptive orientation points, not universal quality thresholds.")
+        fig_donut.update_xaxes(title="Public interaction rate")
+        fig_donut.update_yaxes(title="Share of videos", ticksuffix="%")
+        show_plotly_chart(fig_donut)
+        st.caption("These neutral ranges describe the selected sample; they are not universal quality grades.")

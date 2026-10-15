@@ -335,7 +335,11 @@ def _register_thumbnail_artifact(artifact: PreparedThumbnailArtifact) -> None:
 
 
 def _render_generate_tab() -> None:
-    section_header("Thumbnail Generation", icon="🖼️")
+    section_header(
+        "Create Thumbnail Concepts",
+        subtitle="Describe the video and visual direction, then generate a small set of distinct options.",
+        icon="🖼️",
+    )
 
     provider = st.selectbox(
         "Provider",
@@ -351,26 +355,26 @@ def _render_generate_tab() -> None:
     )
     model_meta = _catalog_map(provider)[model]
 
-    default_api_key = get_api_key(provider) or ""
-    api_key = st.text_input(
-        "API Key",
-        value=default_api_key,
+    configured_api_key = get_api_key(provider) or ""
+    manual_api_key = st.text_input(
+        "API key override",
+        value="",
         type="password",
-        help="Leave this as-is if your provider key is already configured in Streamlit secrets.",
+        help="Leave blank to use the key configured in Streamlit secrets. Keys stored in secrets are never displayed here.",
     )
+    api_key = manual_api_key.strip() or configured_api_key
 
-    title = st.text_input("Video Title", value="The Physics of Black Holes in 10 Minutes")
+    title = st.text_input("Video title", value="", placeholder="Enter the working title")
     context = st.text_area(
-        "Creative Context",
-        value=(
-            "Audience: curious students and lifelong learners. "
-            "Goal: make the main concept instantly legible, dramatic, and high-contrast."
-        ),
+        "Creative context",
+        value="",
+        placeholder="Audience, core promise, subject, emotion, and anything the image must communicate",
         height=120,
     )
     style = st.text_area(
-        "Style Direction",
-        value="Bold contrast, one clear subject, cinematic lighting, 16:9 composition, no clutter.",
+        "Visual direction",
+        value="",
+        placeholder="For example: one clear subject, bold contrast, cinematic lighting, clean 16:9 composition",
         height=90,
     )
     negative_prompt = st.text_input(
@@ -382,17 +386,17 @@ def _render_generate_tab() -> None:
     with config_cols[0]:
         count = st.slider("Options", min_value=1, max_value=6, value=3)
     with config_cols[1]:
-        size = st.selectbox("Image Size", model_meta["size_options"])
+        size = st.selectbox("Image size", model_meta["size_options"])
     with config_cols[2]:
-        quality = st.selectbox("Image Quality", model_meta["quality_options"])
+        quality = st.selectbox("Image quality", model_meta["quality_options"])
     with config_cols[3]:
-        key_status = "Configured" if default_api_key else "Manual"
+        key_status = "Ready" if configured_api_key else "Enter a key"
         st.markdown(
             f"""
             <div class="thumb-metric">
-                <div class="thumb-metric-label">Provider Keys</div>
-                <div class="thumb-metric-value">{get_provider_key_count(provider)}</div>
-                <div style="font-size:12px;color:#B8C1DA;margin-top:0.25rem;">Default source: {key_status}</div>
+                <div class="thumb-metric-label">API access</div>
+                <div class="thumb-metric-value">{key_status}</div>
+                <div style="font-size:12px;color:#B8C1DA;margin-top:0.25rem;">{get_provider_key_count(provider)} configured key(s)</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -411,17 +415,17 @@ def _render_generate_tab() -> None:
     st.markdown(
         f"""
         <div class="thumb-card">
-            <div class="thumb-card-title">Estimated Spend</div>
+            <div class="thumb-card-title">Estimated generation cost</div>
             <div class="thumb-card-copy">
                 This run is estimated at about <strong>${estimated_cost:.4f}</strong> for {count} generated concept(s) using {model_meta['label']}.
-                The thumbnail hub stays intentionally focused on image generation only.
+                Actual billing is determined by the selected provider.
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    if st.button("Generate Thumbnails", type="primary", use_container_width=True):
+    if st.button("Generate thumbnail concepts", type="primary", width="stretch"):
         if not api_key:
             st.error("Add a provider API key in the field above or via Streamlit secrets.")
             return
@@ -457,27 +461,27 @@ def _render_generate_tab() -> None:
             (output_dir / file_name).write_bytes(image.image_bytes)
             with gallery_cols[(index - 1) % len(gallery_cols)]:
                 st.markdown("<div class='thumb-gallery-card'>", unsafe_allow_html=True)
-                st.image(image.image_bytes, use_container_width=True)
+                st.image(image.image_bytes, width="stretch")
                 st.download_button(
                     "Download",
                     data=image.image_bytes,
                     file_name=file_name,
                     mime=image.mime_type,
-                    use_container_width=True,
+                    width="stretch",
                     key=f"thumb_generate_{timestamp}_{index}",
                 )
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _render_download_tab() -> None:
-    section_header("Download Public Thumbnail", icon="🔎")
+    section_header("Export an Existing Thumbnail", subtitle="Preview and download a thumbnail already published on YouTube.", icon="🔎")
 
     left, right = st.columns([1.1, 0.9], gap="large")
     with left:
         st.markdown(
             """
             <div class="thumb-card">
-                <div class="thumb-card-title">Preview A Video Thumbnail</div>
+                <div class="thumb-card-title">Preview a video thumbnail</div>
                 <div class="thumb-card-copy">
                     Paste a public watch URL, Short URL, youtu.be URL, or direct video ID to inspect the available thumbnail variants
                     and download the one you want.
@@ -488,11 +492,11 @@ def _render_download_tab() -> None:
         )
         with st.form("thumbnail_lookup_form", clear_on_submit=False):
             lookup_value = st.text_input(
-                "YouTube Video URL Or ID",
+                "YouTube video URL or ID",
                 key="thumbnails_lookup_value",
                 placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/...",
             )
-            lookup_clicked = st.form_submit_button("Preview Thumbnail", type="primary", use_container_width=True)
+            lookup_clicked = st.form_submit_button("Preview thumbnail", type="primary", width="stretch")
 
         if lookup_clicked:
             try:
@@ -526,7 +530,7 @@ def _render_download_tab() -> None:
                     <div class="thumb-card-copy">
                         Channel: {preview.channel or 'Unknown'}<br/>
                         Video ID: {preview.video_id}<br/>
-                        Available Variants: {len(preview.thumbnail_variants)}
+                        Available variants: {len(preview.thumbnail_variants)}
                     </div>
                 </div>
                 """,
@@ -539,7 +543,7 @@ def _render_download_tab() -> None:
 
     variant_options = list(preview.thumbnail_variants.keys())
     selected_variant = st.selectbox(
-        "Thumbnail Variant",
+        "Thumbnail quality",
         variant_options,
         index=variant_options.index(preview.default_variant) if preview.default_variant in variant_options else 0,
         key="thumbnails_variant",
@@ -548,12 +552,12 @@ def _render_download_tab() -> None:
     preview_url = preview.thumbnail_variants[selected_variant]
     preview_cols = st.columns([1.15, 0.85], gap="large")
     with preview_cols[0]:
-        st.image(preview_url, use_container_width=True)
+        st.image(preview_url, width="stretch")
     with preview_cols[1]:
         st.markdown(
             """
             <div class="thumb-card">
-                <div class="thumb-card-title">Variant Details</div>
+                <div class="thumb-card-title">Export details</div>
                 <div class="thumb-card-copy">
                     Use this flow when you want the exact public thumbnail from an existing YouTube video.
                     It stays intentionally narrow: no transcript, audio, video, batch, or playlist tooling lives here anymore.
@@ -562,7 +566,7 @@ def _render_download_tab() -> None:
             """,
             unsafe_allow_html=True,
         )
-        if st.button("Prepare Thumbnail Download", type="primary", use_container_width=True):
+        if st.button("Prepare thumbnail download", type="primary", width="stretch"):
             try:
                 artifact = prepare_thumbnail_download(preview.canonical_url, selected_variant)
             except Exception as exc:
@@ -576,11 +580,11 @@ def _render_download_tab() -> None:
             artifact_path = Path(artifact.file_path)
             if artifact_path.exists():
                 st.download_button(
-                    "Download Thumbnail",
+                    "Download thumbnail",
                     data=artifact_path.read_bytes(),
                     file_name=artifact.file_name,
                     mime=artifact.mime_type,
-                    use_container_width=True,
+                    width="stretch",
                     key=f"thumbnail_download_{artifact.file_name}",
                 )
 
@@ -610,7 +614,7 @@ Public thumbnails come from YouTube’s published assets only; AI generation use
         for_instructions=True,
     )
 
-    tabs = st.tabs(["Generate", "Download From URL"])
+    tabs = st.tabs(["Create concepts", "Export existing thumbnail"])
     with tabs[0]:
         _render_generate_tab()
     with tabs[1]:

@@ -23,8 +23,6 @@ from dashboard.components.visualizations import (
     kpi_row,
     plotly_bar_chart,
     plotly_heatmap,
-    plotly_line_chart,
-    plotly_radar_chart,
     plotly_scatter,
     plotly_treemap,
     section_header,
@@ -61,15 +59,32 @@ POWER_WORDS = {
     "future", "breakthrough", "insane", "new", "critical", "warning", "guide", "explained", "hidden", "top",
 }
 WORKSPACE_MODULES = [
-    "Content Studio",
     "Overview",
     "Channel Audit",
+    "Content Studio",
     "Keyword Intel",
-    "Outliers Finder",
     "Title & SEO Lab",
     "Competitor Benchmark",
     "Content Planner",
 ]
+WORKSPACE_LABELS = {
+    "Overview": "Channel overview",
+    "Channel Audit": "Channel health review",
+    "Content Studio": "Content ideas and drafts",
+    "Keyword Intel": "Topic opportunities",
+    "Title & SEO Lab": "Title and metadata review",
+    "Competitor Benchmark": "Competitor comparison",
+    "Content Planner": "Publishing planner",
+}
+WORKSPACE_DESCRIPTIONS = {
+    "Overview": "Review the channel baseline, publishing cohorts, and highest-reach videos.",
+    "Channel Audit": "Assess publishing consistency, momentum, and repeatable patterns.",
+    "Content Studio": "Turn the channel evidence into editable ideas, titles, descriptions, hooks, and scripts.",
+    "Keyword Intel": "Find recurring topics with strong reach and improving momentum.",
+    "Title & SEO Lab": "Pressure-test a working title and description before publishing.",
+    "Competitor Benchmark": "Compare one-year public performance without mixing incompatible units.",
+    "Content Planner": "Use supported timing and topic patterns to build a practical test calendar.",
+}
 AI_STUDIO_TASKS = [
     "Full Pack (titles + descriptions + scripts + thumbnail concepts)",
     "Video Ideas",
@@ -1625,7 +1640,7 @@ def _render_overview(channel_df: pd.DataFrame) -> None:
     total_views = int(channel_df["views"].fillna(0).sum())
     total_likes = int(channel_df["likes"].fillna(0).sum())
     total_comments = int(channel_df["comments"].fillna(0).sum())
-    avg_views = int(channel_df["views"].fillna(0).mean())
+    median_views = int(channel_df["views"].fillna(0).median())
     med_eng = channel_df["engagement_rate"].median() * 100
 
     kpi_row(
@@ -1634,100 +1649,77 @@ def _render_overview(channel_df: pd.DataFrame) -> None:
             {"label": "Total Views", "value": f"{total_views:,}", "icon": "👁️"},
             {"label": "Total Likes", "value": f"{total_likes:,}", "icon": "❤️"},
             {"label": "Total Comments", "value": f"{total_comments:,}", "icon": "💬"},
-            {"label": "Avg Views / Video", "value": f"{avg_views:,}", "icon": "📊"},
-            {"label": "Median Engagement", "value": f"{med_eng:.2f} %", "icon": "💡"},
+            {"label": "Median Views / Video", "value": f"{median_views:,}", "icon": "📊"},
+            {"label": "Typical Public Interaction", "value": f"{med_eng:.2f}%", "icon": "💡"},
         ]
     )
 
-    left, right = st.columns(2)
-
-    with left:
-        section_header("Monthly Video + Views Trend", icon="📆")
-        trend = (
-            channel_df.groupby("publish_month")
-            .agg(videos=("video_id", "count"), views=("views", "sum"))
-            .reset_index()
-            .sort_values("publish_month")
+    section_header(
+        "Publishing Performance",
+        subtitle="Compare posting volume and age-normalized reach without mixing their units on one axis.",
+        icon="📆",
+    )
+    trend = (
+        channel_df.groupby("publish_month")
+        .agg(
+            videos=("video_id", "count"),
+            median_daily_views=("views_per_day", "median"),
         )
-        fig = plotly_line_chart(
+        .reset_index()
+        .sort_values("publish_month")
+    )
+    trend_cols = st.columns(2, gap="large")
+    with trend_cols[0]:
+        upload_fig = plotly_bar_chart(
             trend,
             x="publish_month",
-            y_cols=["videos", "views"],
-            title="Uploads and Views",
-            secondary_y=["views"],
+            y="videos",
+            title="Uploads by month",
         )
-        # Improve dual-axis readability for non-technical users.
-        fig.update_layout(
-            hovermode="x unified",
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1.0,
-                bgcolor="rgba(255,255,255,0.96)",
-                bordercolor="rgba(0,0,0,0.14)",
-                borderwidth=1,
-                font=dict(size=13, color="#111216"),
-            ),
-            margin=dict(l=72, r=84, t=78, b=72),
+        upload_fig.update_xaxes(title="Publication month", type="category", tickangle=-35)
+        upload_fig.update_yaxes(title="Videos published", dtick=1)
+        show_plotly_chart(upload_fig)
+    with trend_cols[1]:
+        reach_fig = plotly_bar_chart(
+            trend,
+            x="publish_month",
+            y="median_daily_views",
+            title="Typical daily reach by month published",
         )
-        fig.update_xaxes(
-            title_text="Publish Month",
-            tickformat="%Y",
-            hoverformat="%b %Y",
-            showline=True,
-            linewidth=1.2,
-            linecolor="rgba(0,0,0,0.28)",
-            gridcolor="rgba(0,0,0,0.07)",
-            tickfont=dict(size=13, color="#1d1d1f"),
-            title_font=dict(size=15, color="#111216"),
+        reach_fig.data[0].customdata = trend[["videos"]]
+        reach_fig.data[0].hovertemplate = (
+            "Publication month: %{x}<br>"
+            "Median lifetime average daily views: %{y:,.0f}<br>"
+            "Videos published: %{customdata[0]:,}<extra></extra>"
         )
-        fig.update_yaxes(
-            title_text="Videos",
-            secondary_y=False,
-            tickfont=dict(size=13, color="#111216"),
-            title_font=dict(size=15, color="#111216"),
-            gridcolor="rgba(0,0,0,0.11)",
-            rangemode="tozero",
-        )
-        fig.update_yaxes(
-            title_text="Views",
-            secondary_y=True,
-            tickformat="~s",
-            tickfont=dict(size=13, color="#111216"),
-            title_font=dict(size=15, color="#111216"),
-            showgrid=False,
-            rangemode="tozero",
-        )
-        fig.update_traces(
-            selector=dict(name="Videos"),
-            mode="lines",
-            line=dict(color="#FF0033", width=2.6),
-            hovertemplate="Month: %{x|%b %Y}<br>Videos: %{y:~s}<extra></extra>",
-        )
-        fig.update_traces(
-            selector=dict(name="Views"),
-            mode="lines",
-            line=dict(color="#00A6FF", width=2.6),
-            hovertemplate="Month: %{x|%b %Y}<br>Views: %{y:~s}<extra></extra>",
-        )
-        show_plotly_chart(fig)
+        reach_fig.update_xaxes(title="Publication month", type="category", tickangle=-35)
+        reach_fig.update_yaxes(title="Median lifetime average daily views")
+        show_plotly_chart(reach_fig)
+    st.caption(
+        "Each bar represents a publication cohort. Hover to check sample size; a month with one upload is weak evidence."
+    )
 
-    with right:
-        section_header("Top 12 Videos", icon="⭐")
-        top_videos = channel_df[
-            [
-                "video_title",
-                "views",
-                "likes",
-                "comments",
-                "engagement_rate",
-                "video_publishedAt",
-                "video_id",
-            ]
-        ].sort_values("views", ascending=False).head(12)
-        styled_dataframe(top_videos, title=None, precision=2)
+    section_header("Highest-Reach Videos", subtitle="Use individual winners as examples after reviewing the channel baseline.", icon="⭐")
+    top_videos = channel_df[
+        [
+            "video_title",
+            "views",
+            "likes",
+            "comments",
+            "engagement_rate",
+            "video_publishedAt",
+        ]
+    ].sort_values("views", ascending=False).head(12).rename(
+        columns={
+            "video_title": "Video",
+            "views": "Views",
+            "likes": "Public likes",
+            "comments": "Public comments",
+            "engagement_rate": "Public interaction rate",
+            "video_publishedAt": "Published (UTC)",
+        }
+    )
+    styled_dataframe(top_videos, title=None, precision=2)
 
 
 def _render_channel_audit(channel_df: pd.DataFrame) -> None:
@@ -2097,7 +2089,7 @@ def _render_outliers_finder(current_channel_title: str) -> None:
             submitted = st.form_submit_button(
                 "Run Outlier Scan",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 disabled=get_provider_key_count("youtube") <= 0,
             )
 
@@ -2335,14 +2327,14 @@ def _render_title_seo_lab(keyword_hints: List[str]) -> None:
 
     action_cols = st.columns([1.2, 1.2, 1.6])
     with action_cols[0]:
-        if st.button("Prepare Better Titles In Content Studio", use_container_width=True, key="ytuber_title_to_ai"):
+        if st.button("Prepare Better Titles In Content Studio", width="stretch", key="ytuber_title_to_ai"):
             _queue_ai_studio_prefill(
                 "Titles Only",
                 f"Improve this title direction for stronger CTR and search intent: {test_title}. "
                 f"Description context: {test_desc[:400]}",
             )
     with action_cols[1]:
-        if st.button("Prepare Video Ideas In Content Studio", use_container_width=True, key="ytuber_ideas_to_ai"):
+        if st.button("Prepare Video Ideas In Content Studio", width="stretch", key="ytuber_ideas_to_ai"):
             _queue_ai_studio_prefill(
                 "Video Ideas",
                 f"Use this as the seed concept and expand into new video ideas: {test_title}. "
@@ -2485,27 +2477,17 @@ def _render_competitor_benchmark(
     styled_dataframe(bdf, title=None, precision=1)
 
     if not bdf.empty:
-        radar_series = {
-            row["channel_title"]: [
-                row["videos_1y"],
-                row["total_views"],
-                row["avg_views"],
-                row["median_engagement"],
-            ]
-            for _, row in bdf.iterrows()
-        }
-        cats = ["Videos", "Total Views", "Avg Views", "Median Engagement"]
-        radar_fig = plotly_radar_chart(cats, radar_series, "Competitor Shape")
-        show_plotly_chart(radar_fig)
-
         bar_fig = plotly_bar_chart(
-            bdf.head(10),
+            bdf.sort_values("total_views", ascending=True).head(10),
             x="channel_title",
             y="total_views",
-            title="Total Views by Competitor",
+            title="Total views represented in the one-year comparison",
             horizontal=True,
         )
         show_plotly_chart(bar_fig)
+        st.caption(
+            "The previous radar mixed counts, views, and percentages on one scale. This direct comparison keeps one unit at a time; use the table above for the other measures."
+        )
 
     if not competitor_trend_df.empty:
         st.markdown("**Competitor Trend Radar**")
@@ -2581,7 +2563,7 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
     day_perf = (
         channel_df.groupby("publish_day", dropna=False)
         .agg(
-            avg_views=("views", "mean"),
+            median_daily_views=("views_per_day", "median"),
             median_engagement=("engagement_rate", "median"),
             videos=("video_id", "count"),
             total_views=("views", "sum"),
@@ -2596,7 +2578,7 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
     hour_perf = (
         channel_df.groupby("publish_hour", dropna=False)
         .agg(
-            avg_views=("views", "mean"),
+            median_daily_views=("views_per_day", "median"),
             median_engagement=("engagement_rate", "median"),
             videos=("video_id", "count"),
             total_views=("views", "sum"),
@@ -2605,26 +2587,32 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
         .sort_values("publish_hour")
     )
 
+    minimum_evidence = max(2, int(math.ceil(len(channel_df) * 0.05)))
+    supported_days = day_perf[day_perf["videos"] >= minimum_evidence]
+    supported_hours = hour_perf[hour_perf["videos"] >= minimum_evidence]
     best_day = (
-        day_perf.sort_values("avg_views", ascending=False).iloc[0]["publish_day"]
-        if not day_perf.empty
-        else "Wednesday"
+        supported_days.sort_values("median_daily_views", ascending=False).iloc[0]["publish_day"]
+        if not supported_days.empty
+        else "Not enough data"
     )
     best_hour = (
-        int(hour_perf.sort_values("avg_views", ascending=False).iloc[0]["publish_hour"])
-        if not hour_perf.empty
-        else 15
+        int(supported_hours.sort_values("median_daily_views", ascending=False).iloc[0]["publish_hour"])
+        if not supported_hours.empty
+        else None
     )
 
     kpi_row(
         [
-            {"label": "Best Publishing Day", "value": str(best_day), "icon": "📅"},
+            {"label": "Strongest Observed Day", "value": str(best_day), "icon": "📅"},
             {
-                "label": "Best Publishing Hour (UTC)",
-                "value": f"{best_hour:02d}:00",
+                "label": "Strongest Observed Hour (UTC)",
+                "value": f"{best_hour:02d}:00" if best_hour is not None else "Not enough data",
                 "icon": "⏰",
             },
         ]
+    )
+    st.caption(
+        f"A day or hour must have at least {minimum_evidence} videos in this channel sample before it can be highlighted. These are observed associations, not posting-time guarantees."
     )
 
     day_cols = st.columns(2)
@@ -2632,8 +2620,8 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
         fig_day_views = plotly_bar_chart(
             day_perf,
             x="publish_day",
-            y="avg_views",
-            title="Average Views by Day",
+            y="median_daily_views",
+            title="Typical age-normalized reach by weekday",
         )
         show_plotly_chart(fig_day_views)
     with day_cols[1]:
@@ -2641,7 +2629,7 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
             day_perf,
             x="publish_day",
             y="videos",
-            title="Uploads by Day",
+            title="Sample size by weekday",
         )
         show_plotly_chart(fig_day_uploads)
 
@@ -2650,8 +2638,8 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
         fig_hour_views = plotly_bar_chart(
             hour_perf,
             x="publish_hour",
-            y="avg_views",
-            title="Average Views by Hour (UTC)",
+            y="median_daily_views",
+            title="Typical age-normalized reach by hour (UTC)",
         )
         show_plotly_chart(fig_hour_views)
     with hour_cols[1]:
@@ -2659,13 +2647,13 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
             hour_perf,
             x="publish_hour",
             y="videos",
-            title="Uploads by Hour (UTC)",
+            title="Sample size by hour (UTC)",
         )
         show_plotly_chart(fig_hour_uploads)
 
     heatmap_source = (
         channel_df.groupby(["publish_day", "publish_hour"], dropna=False)
-        .agg(avg_views=("views", "mean"), videos=("video_id", "count"))
+        .agg(median_daily_views=("views_per_day", "median"), videos=("video_id", "count"))
         .reset_index()
     )
     heatmap_source["publish_day"] = pd.Categorical(
@@ -2681,8 +2669,8 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
             heatmap_source,
             x="publish_hour",
             y="publish_day",
-            z="avg_views",
-            title="Day x Hour Average Views",
+            z="median_daily_views",
+            title="Typical daily reach by weekday and hour",
         )
         show_plotly_chart(heat_views)
     with heat_cols[1]:
@@ -2691,9 +2679,10 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
             x="publish_hour",
             y="publish_day",
             z="videos",
-            title="Day x Hour Upload Density",
+            title="Video count by weekday and hour",
         )
         show_plotly_chart(heat_uploads)
+    st.caption("Use the video-count heatmap to identify sparse cells before interpreting the reach heatmap.")
 
     top_topics = _top_keywords(channel_df, top_n=12)
     if top_topics:
@@ -2702,6 +2691,7 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
 
     weekday_map = {d: i for i, d in enumerate(weekday_order)}
     target_weekday = weekday_map.get(best_day, 2)
+    calendar_hour = best_hour if best_hour is not None else 15
 
     start = datetime.now(timezone.utc)
     plan_rows = []
@@ -2713,7 +2703,7 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
             {
                 "week": f"Week {i}",
                 "publish_date_utc": cursor.date().isoformat(),
-                "publish_time_utc": f"{best_hour:02d}:00",
+                "publish_time_utc": f"{calendar_hour:02d}:00",
                 "topic_hint": top_topics[(i - 1) % max(len(top_topics), 1)] if top_topics else "core topic",
             }
         )
@@ -2850,7 +2840,7 @@ def _render_content_studio(
         f"Estimated generation cost: ${estimated_cost:.4f} · approximately {input_tokens:,} input and {output_tokens:,} output tokens."
     )
 
-    if not st.button("Generate Content Draft", type="primary", use_container_width=True):
+    if not st.button("Generate Content Draft", type="primary", width="stretch"):
         return
 
     requested_count = script_count if output_type == "Scripts Only" else idea_count
@@ -3230,13 +3220,13 @@ def _render_ai_studio(
                     with open(os.path.join(out_dir, filename), "wb") as fp:
                         fp.write(generated.image_bytes)
                     with thumb_cols[(idx - 1) % len(thumb_cols)]:
-                        st.image(generated.image_bytes, use_container_width=True)
+                        st.image(generated.image_bytes, width="stretch")
                         st.download_button(
                             label="Download",
                             data=generated.image_bytes,
                             file_name=filename,
                             mime=generated.mime_type,
-                            use_container_width=True,
+                            width="stretch",
                             key=f"ytuber_thumb_{idx}_{ts}",
                         )
             except Exception as exc:
@@ -3286,7 +3276,7 @@ def render() -> None:
             analyze = st.button(
                 "Open Workspace",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 disabled=provider_counts["youtube"] <= 0,
             )
         detected_channel = _extract_channel_query(growth_prompt)
@@ -3382,15 +3372,15 @@ def render() -> None:
         "ytuber_active_module" not in st.session_state
         or st.session_state["ytuber_active_module"] not in WORKSPACE_MODULES
     ):
-        st.session_state["ytuber_active_module"] = "Content Studio"
+        st.session_state["ytuber_active_module"] = "Overview"
 
-    active_module = st.segmented_control(
-        "Workspace",
+    active_module = st.selectbox(
+        "Choose a workflow",
         WORKSPACE_MODULES,
         key="ytuber_active_module",
-        selection_mode="single",
-        label_visibility="collapsed",
+        format_func=lambda value: WORKSPACE_LABELS.get(value, value),
     )
+    st.caption(WORKSPACE_DESCRIPTIONS.get(active_module, ""))
 
     if active_module == "Content Studio":
         hints = st.session_state.get("ytuber_keyword_hints") or _top_keywords(channel_df, 20)
@@ -3402,8 +3392,6 @@ def render() -> None:
     elif active_module == "Keyword Intel":
         keyword_hints = _render_keyword_intel(channel_df)
         st.session_state["ytuber_keyword_hints"] = keyword_hints
-    elif active_module == "Outliers Finder":
-        _render_outliers_shortcut(channel_df, channel_title)
     elif active_module == "Title & SEO Lab":
         hints = st.session_state.get("ytuber_keyword_hints") or _top_keywords(channel_df, 20)
         _render_title_seo_lab(hints)

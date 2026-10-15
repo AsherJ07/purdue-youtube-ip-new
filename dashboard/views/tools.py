@@ -394,7 +394,7 @@ def _render_download_button(artifact: PreparedArtifact, *, label: str, key: str)
         data=file_path.read_bytes(),
         file_name=artifact.file_name,
         mime=artifact.mime_type,
-        use_container_width=True,
+        width="stretch",
         key=key,
     )
     st.caption(f"{artifact.file_name} • {(artifact.size_bytes / (1024 * 1024)):.2f} MB")
@@ -542,7 +542,7 @@ def _render_single_tab() -> None:
     left, right = st.columns([1.35, 0.95], gap="large")
     with left:
         with st.container(border=True):
-            st.markdown("### Single Video")
+            st.markdown("### Single video")
             st.caption("Paste one public YouTube video or Short URL to preview metadata and prepare individual assets.")
             with st.form("tools_single_lookup_form", clear_on_submit=False):
                 url = st.text_input(
@@ -550,7 +550,7 @@ def _render_single_tab() -> None:
                     key="tools_single_url",
                     placeholder="https://www.youtube.com/watch?v=...",
                 )
-                submitted = st.form_submit_button("Fetch Metadata", type="primary", use_container_width=True)
+                submitted = st.form_submit_button("Fetch metadata", type="primary", width="stretch")
             if submitted:
                 try:
                     target = validate_youtube_url(url)
@@ -578,7 +578,7 @@ def _render_single_tab() -> None:
 
     with right:
         _summary_card(
-            "Current Run Summary",
+            "Current run summary",
             "Preview one public video or Short at a time. Downloads remain temporary and are cleaned when the page state resets.",
             _single_summary_items(),
         )
@@ -586,7 +586,7 @@ def _render_single_tab() -> None:
     preview: VideoMetadata | None = st.session_state.get("tools_single_preview")
     if not preview:
         st.markdown(
-            '<div class="tools-empty">Start with a public video or Short URL to unlock metadata preview, thumbnail export, transcripts, and exact format choices for single-item downloads.</div>',
+            '<div class="tools-empty">Start with a public video or Short URL to unlock metadata, transcript, audio, and video export options.</div>',
             unsafe_allow_html=True,
         )
         return
@@ -600,37 +600,14 @@ def _render_single_tab() -> None:
         _render_metadata_card(preview, transcripts)
     with preview_cols[1]:
         with st.container(border=True):
-            st.markdown("### Thumbnail Preview")
+            st.markdown("### Video preview")
             if preview.thumbnail_url:
-                st.image(preview.thumbnail_url, use_container_width=True)
+                st.image(preview.thumbnail_url, width="stretch")
             else:
                 st.info("No thumbnail is available for this video.")
             st.markdown('<div class="tools-download-note">Thumbnail quality options depend on the variants exposed by YouTube for this video.</div>', unsafe_allow_html=True)
 
-    thumb_tab, transcript_tab, audio_tab, video_tab = st.tabs(["Thumbnail", "Transcript", "Audio", "Video"])
-
-    with thumb_tab:
-        with st.container(border=True):
-            quality_options = list(preview.thumbnail_variants.keys()) or ["Best Available"]
-            selected_quality = st.selectbox(
-                "Thumbnail Quality",
-                quality_options,
-                index=0,
-                key="tools_single_thumbnail_quality",
-            )
-            if st.button("Prepare Thumbnail Download", type="primary", use_container_width=True, key="tools_prepare_thumbnail"):
-                with st.spinner("Preparing thumbnail..."):
-                    artifact = prepare_thumbnail_download(preview.webpage_url, selected_quality)
-                _register_artifacts([artifact])
-                artifacts["thumbnail"] = artifact
-                st.session_state["tools_single_artifacts"] = artifacts
-            if artifacts.get("thumbnail"):
-                _render_artifact_card(
-                    "Prepared Thumbnail",
-                    artifacts["thumbnail"],
-                    button_label="Download Thumbnail",
-                    key_prefix="tools_single_thumbnail",
-                )
+    transcript_tab, audio_tab, video_tab = st.tabs(["Transcript", "Audio", "Video"])
 
     with transcript_tab:
         with st.container(border=True):
@@ -645,7 +622,7 @@ def _render_single_tab() -> None:
                     key="tools_single_transcript_language",
                 )
                 option = transcripts[transcript_labels.index(selected_label)]
-                if st.button("Prepare Transcript Export", type="primary", use_container_width=True, key="tools_prepare_transcript"):
+                if st.button("Prepare transcript export", type="primary", width="stretch", key="tools_prepare_transcript"):
                     with st.spinner("Fetching transcript..."):
                         transcript_text = fetch_transcript_text(preview.video_id, option.language_code)
                         artifact = prepare_transcript_download(preview.video_id, option.language_code, video_title=preview.title)
@@ -683,7 +660,7 @@ def _render_single_tab() -> None:
                 )
                 if selected_audio.filesize_estimate and selected_audio.filesize_estimate > STREAMLIT_DOWNLOAD_LIMIT_BYTES:
                     st.warning("This audio format may be too large for an in-app download button. You can still try preparing it.")
-                if st.button("Prepare Audio Download", type="primary", use_container_width=True, key="tools_prepare_audio"):
+                if st.button("Prepare audio download", type="primary", width="stretch", key="tools_prepare_audio"):
                     with st.spinner("Preparing audio..."):
                         artifact = prepare_audio_download(preview.webpage_url, selected_audio.selector)
                     _register_artifacts([artifact])
@@ -714,7 +691,7 @@ def _render_single_tab() -> None:
                     st.warning("This format requires FFmpeg for audio/video merging.")
                 if selected_video.filesize_estimate and selected_video.filesize_estimate > STREAMLIT_DOWNLOAD_LIMIT_BYTES:
                     st.warning("This video format may be too large for an in-app download button. You can still try preparing it.")
-                if st.button("Prepare Video Download", type="primary", use_container_width=True, key="tools_prepare_video"):
+                if st.button("Prepare video download", type="primary", width="stretch", key="tools_prepare_video"):
                     with st.spinner("Preparing video..."):
                         artifact = prepare_video_download(preview.webpage_url, selected_video.selector)
                     _register_artifacts([artifact])
@@ -751,7 +728,7 @@ def _render_batch_tab() -> None:
                 operation = OPERATION_OPTIONS[operation_label]
                 options = _batch_options_ui("tools_batch", operation)
                 _render_operation_help(operation)
-                submitted = st.form_submit_button("Run Batch", type="primary", use_container_width=True)
+                submitted = st.form_submit_button("Run batch", type="primary", width="stretch")
             if submitted:
                 urls = _split_url_lines(raw_urls)
                 if not urls:
@@ -775,7 +752,7 @@ def _render_batch_tab() -> None:
         urls = _split_url_lines(st.session_state.get("tools_batch_urls", ""))
         batch_operation = OPERATION_OPTIONS.get(st.session_state.get("tools_batch_operation", "Metadata Preview"), "metadata")
         _summary_card(
-            "Batch Configuration",
+            "Batch configuration",
             "Batch mode is best for metadata, thumbnails, transcripts, and smaller media runs. Results stay itemized so failures do not block the whole batch.",
             [
                 ("URL Count", str(len(urls))),
@@ -797,7 +774,7 @@ def _render_batch_tab() -> None:
         return
 
     section_header("Batch Results", "Review item-level statuses first, then open individual result cards to download artifacts or inspect failures.")
-    _render_results_table(results, title="Batch Status")
+    _render_results_table(results, title="Batch status")
     _render_batch_result_cards(results, key_prefix="tools_batch")
 
 
@@ -821,7 +798,7 @@ def _render_playlist_tab() -> None:
                     step=5,
                     key="tools_playlist_limit",
                 )
-                load_clicked = st.form_submit_button("Load Playlist", type="primary", use_container_width=True)
+                load_clicked = st.form_submit_button("Load playlist", type="primary", width="stretch")
             if load_clicked:
                 try:
                     preview = fetch_playlist_preview(playlist_url, max_items=playlist_limit)
@@ -835,7 +812,7 @@ def _render_playlist_tab() -> None:
     preview: PlaylistPreview | None = st.session_state.get("tools_playlist_preview")
     with right:
         _summary_card(
-            "Playlist Summary",
+            "Playlist summary",
             "Playlist mode previews public entries first, then applies one operation across the selected subset with per-item statuses and downloads.",
             [
                 ("Playlist", preview.title if preview else "Not Loaded"),
@@ -857,7 +834,7 @@ def _render_playlist_tab() -> None:
 
     options = {f"{entry.title} — {entry.channel}": entry.video_id for entry in preview.entries}
     with st.container(border=True):
-        st.markdown("### Playlist Run Configuration")
+        st.markdown("### Playlist run configuration")
         with st.form("tools_playlist_run_form", clear_on_submit=False):
             selected_labels = st.multiselect(
                 "Select Playlist Items",
@@ -875,7 +852,7 @@ def _render_playlist_tab() -> None:
             playlist_options = _batch_options_ui("tools_playlist", operation)
             playlist_options["playlist_max_items"] = st.session_state.get("tools_playlist_limit", PLAYLIST_PREVIEW_LIMIT_DEFAULT)
             _render_operation_help(operation)
-            run_clicked = st.form_submit_button("Run Playlist Operation", type="primary", use_container_width=True)
+            run_clicked = st.form_submit_button("Run playlist operation", type="primary", width="stretch")
         if run_clicked:
             selected_ids = [options[label] for label in selected_labels]
             if not selected_ids:
@@ -905,7 +882,7 @@ def _render_playlist_tab() -> None:
         return
 
     section_header("Playlist Results", "Selected items are processed sequentially so each entry can succeed or fail independently.")
-    _render_results_table(results, title="Playlist Status")
+    _render_results_table(results, title="Playlist status")
     _render_batch_result_cards(results, key_prefix="tools_playlist")
 
 

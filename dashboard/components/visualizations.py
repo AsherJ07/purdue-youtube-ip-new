@@ -22,9 +22,10 @@ YT_COLORWAY: List[str] = [
 ]
 
 PLOTLY_INTERACTIVE_CONFIG: Dict[str, Any] = {
-    "scrollZoom": True,
-    "displayModeBar": True,
+    "scrollZoom": False,
+    "displayModeBar": "hover",
     "displaylogo": False,
+    "responsive": True,
     "doubleClick": "reset",
     "modeBarButtonsToRemove": ["lasso2d", "select2d"],
 }
@@ -76,6 +77,8 @@ def _friendly_label(raw: str) -> str:
         "publish_hour": "Publish Hour (UTC)",
         "video_publishedAt": "Publish Date",
         "views_per_day": "Lifetime Avg. Daily Views",
+        "median_daily_views": "Median Lifetime Avg. Daily Views",
+        "median_views_per_day": "Median Lifetime Avg. Daily Views",
         "engagement_rate": "Public Interaction Rate",
         "engagement_pct": "Public Interaction Rate (%)",
         "public_interaction_pct": "Public Interaction Rate (%)",
@@ -84,6 +87,23 @@ def _friendly_label(raw: str) -> str:
         "outlier_score": "Outlier Score",
         "channel_title": "Channel",
         "video_title": "Video Title",
+        "video_id": "YouTube Video ID",
+        "topic_label": "Theme",
+        "primary_topic": "Primary Theme",
+        "video_count": "Videos",
+        "recent_video_count": "Recent Videos",
+        "previous_video_count": "Earlier Videos",
+        "trend_status": "Momentum",
+        "trend_score": "Momentum Score",
+        "median_public_interaction_rate": "Typical Public Interaction",
+        "interaction_coverage": "Videos With Interaction Data",
+        "duration_bucket": "Video Length",
+        "title_pattern": "Title Structure",
+        "performance_score": "Performance Score",
+        "why_it_worked": "Why It Stood Out",
+        "why_it_lagged": "Why It Lagged",
+        "snapshot_at": "Snapshot Date",
+        "recent_outlier_count": "Recent Outliers",
         "avg_views": "Average Views",
         "total_views": "Total Views",
         "videos": "Videos",
@@ -206,11 +226,11 @@ def apply_dashboard_chart_theme(fig: go.Figure) -> go.Figure:
 
 
 def show_plotly_chart(fig: go.Figure, *, config: Optional[Dict[str, Any]] = None) -> None:
-    """Render Plotly with pan/zoom toolbar and scroll-wheel zoom enabled."""
+    """Render a responsive chart without hijacking normal page scrolling."""
     merged = dict(PLOTLY_INTERACTIVE_CONFIG)
     if config:
         merged.update(config)
-    st.plotly_chart(fig, use_container_width=True, config=merged)
+    st.plotly_chart(fig, width="stretch", config=merged)
 
 
 def graph_insight_expander(chart_title: str, body_md: str, *, for_instructions: bool = False) -> None:
@@ -358,7 +378,7 @@ def plotly_line_chart(
         if any(_needs_compact_units(df[c]) for c in y_cols if c in df.columns):
             fig.update_yaxes(tickformat="~s")
 
-    fig.update_layout(title=title, height=500)
+    fig.update_layout(title=title, height=420)
     apply_dashboard_chart_theme(fig)
     return fig
 
@@ -625,7 +645,7 @@ def styled_dataframe(
     precision: int = 1,
     image_columns: Optional[Sequence[str]] = None,
 ) -> None:
-    """Render a styled dataframe with gradients on numeric columns.
+    """Render a readable dataframe with plain-language column labels.
 
     Args:
         df: DataFrame to render.
@@ -640,9 +660,9 @@ def styled_dataframe(
     if title:
         st.markdown(f"**{title}**", unsafe_allow_html=True)
 
-    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    display_df = df.rename(columns={column: _friendly_label(str(column)) for column in df.columns})
     styler = (
-        df.style.format(precision=precision)
+        display_df.style.format(precision=precision, thousands=",")
         .set_table_styles(
             [
                 {
@@ -672,29 +692,26 @@ def styled_dataframe(
             }
         )
     )
-    if len(numeric_cols) > 0:
-        # Subtle in-cell magnitude cue that keeps the steel-glass background light.
-        styler = styler.bar(subset=numeric_cols, color="#dbe6ff", align="left")
-
     # Use Streamlit's native image column config when requested
     column_config: Dict[str, Any] = {}
     if image_columns:
         for col in image_columns:
             if col in df.columns:
-                column_config[col] = st.column_config.ImageColumn(col)
+                friendly_col = _friendly_label(str(col))
+                column_config[friendly_col] = st.column_config.ImageColumn(friendly_col)
 
     try:
         st.dataframe(
             styler,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             column_config=column_config or None,
         )
     except Exception:
         # Styled DataFrames use Arrow; a broken/missing pyarrow install (common on Windows) still shows data.
         st.dataframe(
-            df,
-            use_container_width=True,
+            display_df,
+            width="stretch",
             hide_index=True,
             column_config=column_config or None,
         )

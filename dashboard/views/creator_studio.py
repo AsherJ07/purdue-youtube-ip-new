@@ -24,7 +24,7 @@ def render() -> None:
     descriptions = {
         "Channel Workspace": "Research a channel, turn evidence into content ideas, and build a practical publishing plan.",
         "Thumbnail Lab": "Generate focused thumbnail options or export the public thumbnail from an existing video.",
-        "Media Export": "Prepare public thumbnails, transcripts, audio, or video assets from URLs and playlists.",
+        "Media Export": "Prepare transcripts, audio, or video assets from individual URLs, batches, and playlists.",
     }
     st.caption(descriptions.get(section or SECTIONS[0], descriptions[SECTIONS[0]]))
 

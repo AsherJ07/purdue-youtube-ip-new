@@ -478,6 +478,23 @@ def _visible_topic_metrics_df(payload: Dict[str, Any]) -> pd.DataFrame:
     return _prompt_topic_metrics_df(payload)
 
 
+def _display_rate_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    """Convert stored 0–1 public-rate fields into clearly labeled percentages."""
+    if frame.empty:
+        return frame
+    display = frame.copy()
+    conversions = {
+        "avg_engagement": "Typical Public Interaction (%)",
+        "median_public_interaction_rate": "Typical Public Interaction (%)",
+        "interaction_coverage": "Interaction Data Coverage (%)",
+    }
+    for source, label in conversions.items():
+        if source in display.columns:
+            display[source] = pd.to_numeric(display[source], errors="coerce") * 100
+            display.rename(columns={source: label}, inplace=True)
+    return display
+
+
 def _stable_topic_metrics_df(payload: Dict[str, Any]) -> pd.DataFrame:
     topic_metrics_df = _visible_topic_metrics_df(payload)
     if topic_metrics_df.empty:
@@ -893,8 +910,8 @@ def _queue_outlier_finder_theme(theme: str, channel_title: str) -> None:
 
 def _topic_mode_label(topic_mode: str) -> str:
     if topic_mode == TOPIC_MODE_BERTOPIC_OPTIONAL:
-        return "Model-Backed Topics (Beta)"
-    return "Heuristic Topics"
+        return "Semantic themes (beta)"
+    return "Fast keyword themes"
 
 
 def _artifact_status_label(state: str) -> str:
@@ -917,7 +934,7 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
         st.markdown(
             """
             <div class="ci-card">
-                <div class="ci-card-title">Connect A Public Channel</div>
+                <div class="ci-card-title">Analyze a public channel</div>
                 <div class="ci-card-copy">
                     Add any public channel by URL, handle, or channel ID. This workflow is intentionally public-only and stores manual snapshots each time you refresh.
                 </div>
@@ -927,16 +944,16 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
         )
         with st.form("channel_insights_connect_form"):
             channel_input = st.text_input(
-                "Channel URL, Handle, Or Channel ID",
+                "Channel URL, handle, or channel ID",
                 key="channel_insights_input",
                 placeholder="https://www.youtube.com/@veritasium or @veritasium",
             )
             action_cols = st.columns([1.35, 1], gap="small")
             with action_cols[0]:
-                connect_clicked = st.form_submit_button("Add Or Analyze Channel", type="primary", use_container_width=True)
+                connect_clicked = st.form_submit_button("Analyze channel", type="primary", width="stretch")
             with action_cols[1]:
                 force_refresh = st.toggle(
-                    "Force Live Refresh",
+                    "Refresh from YouTube",
                     key="channel_insights_force_refresh",
                     help="Bypass dataset-backed rows and pull public channel data from the YouTube API again.",
                 )
@@ -968,35 +985,35 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
 
         if tracked_options:
             choice = st.selectbox(
-                "Tracked Channels",
+                "Saved channels",
                 tracked_options,
                 index=next((i for i, row in enumerate(tracked_options) if row["channel_id"] == selected_channel_id), 0),
                 format_func=lambda row: row["channel_title"],
             )
             st.session_state["channel_insights_selected_channel"] = choice["channel_id"]
         else:
-            st.markdown("<div class='ci-empty'>No tracked channels yet. Add one on the left to unlock persisted snapshots and theme history.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='ci-empty'>No saved channels yet. Analyze one on the left to unlock snapshots and theme history.</div>", unsafe_allow_html=True)
 
         st.markdown(
             f"""
             <div class="ci-card" style="margin-top:0.85rem;">
-                <div class="ci-card-title">Current Workspace</div>
+                <div class="ci-card-title">Current workspace</div>
                 <div class="ci-summary-grid">
                     <div class="ci-summary-item">
-                        <div class="ci-summary-label">Tracked Channels</div>
+                        <div class="ci-summary-label">Saved channels</div>
                         <div class="ci-summary-value">{len(connected_channels)}</div>
                     </div>
                     <div class="ci-summary-item">
-                        <div class="ci-summary-label">Refresh Mode</div>
-                        <div class="ci-summary-value">Manual Snapshots</div>
+                        <div class="ci-summary-label">History</div>
+                        <div class="ci-summary-value">Saved snapshots</div>
                     </div>
                     <div class="ci-summary-item">
-                        <div class="ci-summary-label">Analytics Scope</div>
-                        <div class="ci-summary-value">Public Only</div>
+                        <div class="ci-summary-label">Data scope</div>
+                        <div class="ci-summary-value">Public data</div>
                     </div>
                     <div class="ci-summary-item">
-                        <div class="ci-summary-label">Topic Default</div>
-                        <div class="ci-summary-value">Heuristic</div>
+                        <div class="ci-summary-label">Theme method</div>
+                        <div class="ci-summary-value">Fast keywords</div>
                     </div>
                 </div>
                 <div class="ci-note" style="margin-top:0.85rem;">Public-channel evidence only. Snapshots, topic trends, outliers, and next-topic recommendations use public API data.</div>
@@ -1005,32 +1022,23 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
             unsafe_allow_html=True,
         )
 
-        st.markdown(
-            """
-            <div class="ci-card" style="margin-top:0.85rem;">
-                <div class="ci-card-title">Experimental Topic Model</div>
-                <div class="ci-card-copy">
-                    Keep the default heuristic topic flow for the safest path, or switch to the optional BERTopic beta when artifact settings are configured.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.selectbox(
-            "Topic Analysis Mode",
-            options=[TOPIC_MODE_HEURISTIC, TOPIC_MODE_BERTOPIC_OPTIONAL],
-            key="channel_insights_topic_mode",
-            format_func=_topic_mode_label,
-        )
-        st.caption(f"Artifact Status: {_artifact_status_label(artifact_status.state)}")
-        if artifact_status.state == "ready":
-            st.success(artifact_status.message or "BERTopic bundle is ready.")
-        elif artifact_status.state == "download_required":
-            st.info(artifact_status.message or "The BERTopic bundle will download when you run the beta mode.")
-        elif artifact_status.state == "invalid":
-            st.warning(artifact_status.failure_reason or artifact_status.message or "BERTopic beta mode is currently unavailable.")
-        else:
-            st.caption(artifact_status.message or "The heuristic mode remains the default until artifact configuration is complete.")
+        with st.expander("Theme detection settings", expanded=False):
+            st.write("Fast keyword themes are the dependable default. Semantic themes are optional and experimental.")
+            st.selectbox(
+                "Theme detection method",
+                options=[TOPIC_MODE_HEURISTIC, TOPIC_MODE_BERTOPIC_OPTIONAL],
+                key="channel_insights_topic_mode",
+                format_func=_topic_mode_label,
+            )
+            st.caption(f"Semantic model status: {_artifact_status_label(artifact_status.state)}")
+            if artifact_status.state == "ready":
+                st.success(artifact_status.message or "The semantic theme model is ready.")
+            elif artifact_status.state == "download_required":
+                st.info(artifact_status.message or "The semantic model will download when you run beta mode.")
+            elif artifact_status.state == "invalid":
+                st.warning(artifact_status.failure_reason or artifact_status.message or "Semantic theme mode is currently unavailable.")
+            else:
+                st.caption(artifact_status.message or "Fast keyword themes remain active.")
 
 
 def _render_summary_action_row(payload: Dict[str, Any]) -> None:
@@ -1049,15 +1057,15 @@ def _render_summary_action_row(payload: Dict[str, Any]) -> None:
                 <div class="ci-source-pill">{escape(payload['source'].replace('_', ' ').title())}</div>
                 <div class="ci-card-title" style="margin-top:0.65rem;">{escape(channel['channel_title'])}</div>
                 <div class="ci-card-copy">
-                    Latest Snapshot: {escape(payload['snapshot_at'])}<br/>
-                    Topic Mode Used: {escape(_topic_mode_label(topic_mode_used))}
+                    Latest snapshot: {escape(payload['snapshot_at'])}<br/>
+                    Theme method: {escape(_topic_mode_label(topic_mode_used))}
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
     with action_cols[1]:
-        if st.button("Refresh Analysis", type="primary", use_container_width=True):
+        if st.button("Refresh analysis", type="primary", width="stretch"):
             with st.spinner("Refreshing channel insights and writing a new snapshot..."):
                 try:
                     fresh_payload = refresh_channel_insights(
@@ -1072,35 +1080,16 @@ def _render_summary_action_row(payload: Dict[str, Any]) -> None:
                     st.session_state.pop("channel_insights_error", None)
                     st.rerun()
     with action_cols[2]:
-        st.link_button("Open Channel", channel["canonical_url"], use_container_width=True)
+        st.link_button("Open channel", channel["canonical_url"], width="stretch")
 
-    st.markdown(
-        f"""
-        <div class="ci-card" style="margin-top:0.75rem;">
-            <div class="ci-card-title">Experimental Topic Model</div>
-            <div class="ci-summary-grid">
-                <div class="ci-summary-item">
-                    <div class="ci-summary-label">Requested Mode</div>
-                    <div class="ci-summary-value">{escape(_topic_mode_label(topic_mode_requested))}</div>
-                </div>
-                <div class="ci-summary-item">
-                    <div class="ci-summary-label">Applied Mode</div>
-                    <div class="ci-summary-value">{escape(_topic_mode_label(topic_mode_used))}</div>
-                </div>
-                <div class="ci-summary-item">
-                    <div class="ci-summary-label">Artifact Status</div>
-                    <div class="ci-summary-value">{escape(_artifact_status_label(getattr(artifact_status, 'state', 'disabled')))}</div>
-                </div>
-                <div class="ci-summary-item">
-                    <div class="ci-summary-label">Bundle Version</div>
-                    <div class="ci-summary-value">{escape(str(summary.get('topic_model_bundle_version', '') or 'Not Loaded'))}</div>
-                </div>
-            </div>
-            <div class="ci-note" style="margin-top:0.85rem;">{escape(topic_model_message or 'The heuristic topic flow remains the fallback when BERTopic is unavailable.')}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with st.expander("Theme model details", expanded=False):
+        st.markdown(
+            f"**Requested:** {_topic_mode_label(topic_mode_requested)}  \n"
+            f"**Applied:** {_topic_mode_label(topic_mode_used)}  \n"
+            f"**Semantic model status:** {_artifact_status_label(getattr(artifact_status, 'state', 'disabled'))}  \n"
+            f"**Bundle version:** {escape(str(summary.get('topic_model_bundle_version', '') or 'Not loaded'))}"
+        )
+        st.caption(topic_model_message or "Fast keyword themes remain the fallback when the semantic model is unavailable.")
     if topic_mode_requested == TOPIC_MODE_BERTOPIC_OPTIONAL and topic_mode_used != TOPIC_MODE_BERTOPIC_OPTIONAL:
         st.warning(topic_model_failure_reason or "BERTopic beta mode could not run for this snapshot, so the page fell back to heuristic topics.")
 
@@ -1127,7 +1116,7 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
         st.markdown(
             f"""
             <div class="ci-card">
-                <div class="ci-card-title">What The Channel Is Signaling Right Now</div>
+                <div class="ci-card-title">What the channel is signaling now</div>
                 <div class="ci-card-copy">{escape(recommendations.get('summary', 'Refresh the channel to generate grounded summary signals.'))}</div>
                 <div class="ci-summary-grid">
                     <div class="ci-summary-item">
@@ -1162,13 +1151,13 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
 
         fallback_actions = _fallback_overview_actions(payload)
         if ai_actions:
-            _render_ai_card("Recommended Next Actions", ai_actions)
+            _render_ai_card("Recommended next actions", ai_actions)
         elif fallback_actions:
             action_markup = "<ul class='ci-list'>" + "".join(f"<li>{escape(action)}</li>" for action in fallback_actions) + "</ul>"
             st.markdown(
                 f"""
                 <div class="ci-card">
-                    <div class="ci-card-title">Recommended Next Actions</div>
+                <div class="ci-card-title">Recommended next actions</div>
                     {action_markup}
                 </div>
                 """,
@@ -1183,7 +1172,7 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
                 topic_metrics_df.head(8).sort_values("trend_score", ascending=True),
                 x="topic_label",
                 y="trend_score",
-                title="Rising Themes In The Current Window",
+                title="Themes gaining momentum in the current window",
                 horizontal=True,
             )
             show_plotly_chart(topic_fig)
@@ -1196,7 +1185,7 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
                 duration_metrics_df.sort_values("median_views_per_day", ascending=True),
                 x="duration_bucket",
                 y="median_views_per_day",
-                title="Winning Duration Buckets",
+                title="Typical daily reach by video length",
                 horizontal=True,
             )
             show_plotly_chart(duration_fig)
@@ -1226,9 +1215,10 @@ def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
         "interaction_coverage",
     ]
     available_columns = [column for column in preferred_columns if column in topic_metrics_df.columns]
+    topic_table = _display_rate_columns(topic_metrics_df.loc[:, available_columns])
     styled_dataframe(
-        topic_metrics_df.loc[:, available_columns],
-        title="Topic Cluster Performance",
+        topic_table,
+        title="Theme performance and evidence",
         precision=2,
     )
     if len(available_columns) < len(preferred_columns):
@@ -1241,31 +1231,29 @@ def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
         ]
     )
 
-    chart_cols = st.columns(2, gap="large")
-    with chart_cols[0]:
-        trend_fig = plotly_bar_chart(
-            topic_metrics_df.head(10).sort_values("trend_score", ascending=True),
-            x="topic_label",
-            y="trend_score",
-            title="Theme Momentum",
-            horizontal=True,
-        )
-        show_plotly_chart(trend_fig)
-        _render_metric_note(
-            "Theme Momentum is the same Trend Score from the table, so it highlights relative movement rather than raw view volume."
-        )
-    with chart_cols[1]:
-        views_fig = plotly_bar_chart(
-            topic_metrics_df.head(10).sort_values("median_views_per_day", ascending=True),
-            x="topic_label",
-            y="median_views_per_day",
-            title="Median Lifetime Daily Views By Theme",
-            horizontal=True,
-        )
-        show_plotly_chart(views_fig)
-        _render_metric_note(
-            "Lifetime-average daily views reduces age bias but should not be interpreted as current momentum."
-        )
+    trend_fig = plotly_bar_chart(
+        topic_metrics_df.head(10).sort_values("trend_score", ascending=True),
+        x="topic_label",
+        y="trend_score",
+        title="Which themes are gaining momentum?",
+        horizontal=True,
+    )
+    show_plotly_chart(trend_fig)
+    _render_metric_note(
+        "The trend score compares recent and prior 90-day medians after shrinking small samples. It measures relative movement, not raw popularity."
+    )
+
+    views_fig = plotly_bar_chart(
+        topic_metrics_df.head(10).sort_values("median_views_per_day", ascending=True),
+        x="topic_label",
+        y="median_views_per_day",
+        title="Typical age-normalized reach by theme",
+        horizontal=True,
+    )
+    show_plotly_chart(views_fig)
+    _render_metric_note(
+        "Lifetime-average daily views reduces age bias but is not real-time velocity. Use the video counts in the table to judge evidence strength."
+    )
 
     top_topics = topic_metrics_df["topic_label"].head(10).tolist()
     if top_topics:
@@ -1278,54 +1266,51 @@ def _render_formats_tab(payload: Dict[str, Any]) -> None:
     title_pattern_metrics_df = payload.get("title_pattern_metrics_df", pd.DataFrame())
     publish_day_metrics_df = payload.get("publish_day_metrics_df", pd.DataFrame())
     publish_hour_metrics_df = payload.get("publish_hour_metrics_df", pd.DataFrame())
-    top_cols = st.columns(2, gap="large")
-    with top_cols[0]:
-        if not duration_metrics_df.empty:
-            styled_dataframe(duration_metrics_df, title="Duration Performance", precision=2)
-            _render_metric_note(
-                [
-                    "Videos is the sample size for each duration bucket.",
-                    "Median lifetime-average daily views shows typical age-normalized reach for that length.",
-                    "Public interaction is a median over rows with valid public counts.",
-                ]
-            )
-    with top_cols[1]:
-        if not title_pattern_metrics_df.empty:
-            styled_dataframe(title_pattern_metrics_df, title="Title Pattern Performance", precision=2)
-            _render_metric_note(
-                "Title Pattern groups videos by packaging style, such as How-To or Versus. Use it to compare which headline structures perform best on average."
-            )
+    if not duration_metrics_df.empty:
+        styled_dataframe(_display_rate_columns(duration_metrics_df), title="Performance by video length", precision=2)
+        _render_metric_note(
+            [
+                "Videos is the sample size for each length group.",
+                "Median lifetime-average daily views shows typical age-normalized reach for that length.",
+                "Public interaction is a median over rows with valid public counts.",
+            ]
+        )
+    if not title_pattern_metrics_df.empty:
+        styled_dataframe(_display_rate_columns(title_pattern_metrics_df), title="Performance by title structure", precision=2)
+        _render_metric_note(
+            "Title structure groups videos by packaging style, such as How-to or Versus. Treat differences as testing hypotheses, not causal effects."
+        )
 
-    bottom_cols = st.columns(2, gap="large")
-    with bottom_cols[0]:
-        if not publish_day_metrics_df.empty:
-            day_fig = plotly_bar_chart(
-                publish_day_metrics_df.sort_values("median_views_per_day", ascending=True),
-                x="publish_day",
-                y="median_views_per_day",
-                title="Observed Performance by Publish Day",
-                horizontal=True,
-            )
-            show_plotly_chart(day_fig)
-            _render_metric_note(
-                "Best Publish Days compares the typical views per day for videos published on each weekday. It suggests timing patterns, not guaranteed outcomes."
-            )
-    with bottom_cols[1]:
-        if not publish_hour_metrics_df.empty:
-            hour_fig = plotly_line_chart(
-                publish_hour_metrics_df,
-                x="publish_hour",
-                y_cols=["median_views_per_day", "videos"],
-                title="Publish Hour Signal",
-                secondary_y=["videos"],
-            )
-            show_plotly_chart(hour_fig)
-            _render_metric_note(
-                [
-                    "This chart uses two signals: median views per day for performance and videos for posting volume.",
-                    "A strong hour matters most when it combines solid performance with repeatable volume.",
-                ]
-            )
+    if not publish_day_metrics_df.empty:
+        day_fig = plotly_bar_chart(
+            publish_day_metrics_df.sort_values("median_views_per_day", ascending=True),
+            x="publish_day",
+            y="median_views_per_day",
+            title="Typical age-normalized reach by publish day",
+            horizontal=True,
+        )
+        show_plotly_chart(day_fig)
+        _render_metric_note(
+            "Compare the median with the video count before testing a weekday. This is an observed association, not a guaranteed timing effect."
+        )
+    if not publish_hour_metrics_df.empty:
+        hour_fig = plotly_bar_chart(
+            publish_hour_metrics_df.sort_values("publish_hour"),
+            x="publish_hour",
+            y="median_views_per_day",
+            title="Typical age-normalized reach by publish hour (UTC)",
+        )
+        hour_fig.data[0].customdata = publish_hour_metrics_df.sort_values("publish_hour")[["videos"]]
+        hour_fig.data[0].hovertemplate = (
+            "Publish hour (UTC): %{x}:00<br>"
+            "Median lifetime average daily views: %{y:,.0f}<br>"
+            "Videos published: %{customdata[0]:,}<extra></extra>"
+        )
+        hour_fig.update_xaxes(dtick=2, title="Publish hour (UTC)")
+        show_plotly_chart(hour_fig)
+        _render_metric_note(
+            "Hover to see the sample size for each hour. Sparse hours should be treated as low-confidence observations."
+        )
 
 
 def _render_outliers_tab(payload: Dict[str, Any]) -> None:
@@ -1389,7 +1374,7 @@ def _render_theme_cards(title: str, rows: Iterable[Dict[str, Any]], channel_titl
         )
         theme = str(item.get("theme", "")).strip()
         if theme:
-            if st.button(f"Send '{theme}' To Outlier Finder", key=f"channel_insights_theme_{title}_{theme}", use_container_width=True):
+            if st.button(f"Send '{theme}' To Outlier Finder", key=f"channel_insights_theme_{title}_{theme}", width="stretch"):
                 _queue_outlier_finder_theme(theme, channel_title)
 
 
@@ -1404,7 +1389,7 @@ def _render_next_topics_tab(payload: Dict[str, Any]) -> None:
     with columns[2]:
         _render_theme_cards("Test Next", recommendations.get("test_next", []), channel_title)
 
-    st.markdown("**Suggested Video Directions**")
+    st.markdown("**Suggested video directions**")
     ideas = recommendations.get("video_ideas", [])
     if ideas:
         for item in ideas:
@@ -1422,7 +1407,7 @@ def _render_next_topics_tab(payload: Dict[str, Any]) -> None:
 
     ai_overlay = recommendations.get("ai_overlay", "")
     if ai_overlay:
-        st.markdown("**AI Explanation Layer**")
+        st.markdown("**AI explanation**")
         st.markdown(ai_overlay)
 
 
@@ -1432,7 +1417,7 @@ def _render_history_tab(payload: Dict[str, Any]) -> None:
         st.markdown("<div class='ci-empty'>Refresh the connected channel again later to unlock historical comparison.</div>", unsafe_allow_html=True)
         return
 
-    styled_dataframe(history_df, title="Snapshot History", precision=2)
+    styled_dataframe(history_df, title="Saved snapshot history", precision=2)
     _render_metric_note(
         [
             "Each row is a saved refresh of the channel.",
@@ -1443,19 +1428,26 @@ def _render_history_tab(payload: Dict[str, Any]) -> None:
     if len(history_df) > 1:
         history_line = history_df.sort_values("snapshot_at").copy()
         history_line["snapshot_at"] = pd.to_datetime(history_line["snapshot_at"], errors="coerce")
-        fig = plotly_line_chart(
+        baseline_fig = plotly_line_chart(
             history_line,
             x="snapshot_at",
-            y_cols=["median_views_per_day", "recent_outlier_count"],
-            title="Snapshot Trendline",
-            secondary_y=["recent_outlier_count"],
+            y_cols=["median_views_per_day"],
+            title="Typical daily reach across saved snapshots",
         )
-        show_plotly_chart(fig)
+        show_plotly_chart(baseline_fig)
+        outlier_fig = plotly_line_chart(
+            history_line,
+            x="snapshot_at",
+            y_cols=["recent_outlier_count"],
+            title="Recent outliers across saved snapshots",
+        )
+        outlier_fig.update_yaxes(rangemode="tozero", dtick=1)
+        show_plotly_chart(outlier_fig)
         _render_metric_note(
             [
-                "The history trendline uses two axes.",
-                "Median Views / Day tracks baseline channel performance.",
-                "Recent Outlier Count tracks standout-video volume over time.",
+                "The charts are separated because daily reach and outlier count use different units.",
+                "Typical daily reach tracks the channel baseline at each refresh.",
+                "Recent outliers counts standout videos in each saved snapshot.",
             ]
         )
 
@@ -1473,7 +1465,7 @@ def render() -> None:
     selected_channel_id = st.session_state.get("channel_insights_selected_channel")
     if not selected_channel_id:
         st.markdown(
-            "<div class='ci-empty'>Add a public channel above to build your first persisted insight snapshot. This workflow is designed for recurring manual refreshes now, with true scheduled daily monitoring reserved for a later phase.</div>",
+            "<div class='ci-empty'>Analyze a public channel to create the first snapshot. Return later and analyze it again to compare changes over time.</div>",
             unsafe_allow_html=True,
         )
         return

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 from datetime import datetime, timedelta, timezone
 from html import escape
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -43,11 +42,11 @@ LANGUAGE_OPTIONS = ["Any", "en", "es", "hi", "pt", "de", "fr", "ja"]
 STRICTNESS_OPTIONS = ["Strict", "Balanced", "Loose"]
 DURATION_OPTIONS = ["Any"] + [bucket for bucket in DURATION_BUCKET_ORDER if bucket != "Unknown"]
 SORT_OPTIONS = {
-    "Outlier Score": ("outlier_score", False),
-    "Views Per Day": ("views_per_day", False),
+    "Outlier score": ("outlier_score", False),
+    "Lifetime average daily views": ("views_per_day", False),
     "Views": ("views", False),
     "Newest": ("age_days", True),
-    "Language Confidence": ("language_confidence", False),
+    "Language confidence": ("language_confidence", False),
 }
 AI_PROVIDER_LABELS = {
     "gemini": "Gemini",
@@ -958,7 +957,7 @@ def _render_search_header() -> None:
     st.markdown(
         (
             '<div class="outlier-shell-head">'
-            '<div class="outlier-shell-title">Search A Niche</div>'
+            '<div class="outlier-shell-title">Search a niche</div>'
             '<div class="outlier-shell-copy">Scan any topic, tighten the filters, and surface the videos that are outperforming their likely baseline.</div>'
             "</div>"
         ),
@@ -1093,7 +1092,7 @@ def _render_result_card(row: pd.Series) -> None:
             f"<li>{why}</li>"
             f"<li>{cue}</li>"
             '</ul>'
-            f'<a class="outlier-card-link" href="{escape(str(row.get("video_url", "")))}" target="_blank">Open On YouTube ↗</a>'
+            f'<a class="outlier-card-link" href="{escape(str(row.get("video_url", "")))}" target="_blank">Open on YouTube ↗</a>'
             '</div>'
             '</div>'
         ),
@@ -1122,12 +1121,14 @@ def _render_chart_shell(title: str, copy: str) -> None:
 
 def _breakout_scatter(result_frame: pd.DataFrame):
     chart_df = result_frame.copy()
-    chart_df["subscribers_log10"] = chart_df["channel_subscriber_count"].fillna(0).apply(
-        lambda value: math.log10(float(value) + 1)
+    chart_df["subscriber_axis"] = chart_df["channel_subscriber_count"].fillna(1).clip(lower=1)
+    chart_df["subscriber_display"] = chart_df.apply(
+        lambda row: _format_subscribers(row.get("channel_subscriber_count"), bool(row.get("hidden_subscriber_count"))),
+        axis=1,
     )
     fig = px.scatter(
         chart_df,
-        x="subscribers_log10",
+        x="subscriber_axis",
         y="views_per_day",
         size="outlier_score",
         color="age_bucket",
@@ -1139,13 +1140,15 @@ def _breakout_scatter(result_frame: pd.DataFrame):
             "outlier_score": ":.1f",
             "age_days": ":.1f",
             "language_confidence_label": True,
-            "subscribers_log10": False,
+            "subscriber_display": True,
+            "subscriber_axis": False,
         },
         title="Breakout Map",
         labels={
-            "subscribers_log10": "Channel Size (log scale)",
-            "views_per_day": "Views Per Day",
+            "subscriber_axis": "Channel subscribers (log scale)",
+            "views_per_day": "Lifetime average daily views",
             "age_bucket": "How old the video is",
+            "subscriber_display": "Subscribers",
         },
     )
     fig.update_traces(
@@ -1156,9 +1159,12 @@ def _breakout_scatter(result_frame: pd.DataFrame):
             "Views: %{customdata[1]:,}<br>"
             "Outlier Score: %{customdata[2]:.1f}<br>"
             "Age (Days): %{customdata[3]:.1f}<br>"
-            "Language Confidence: %{customdata[4]}<extra></extra>"
+            "Language Confidence: %{customdata[4]}<br>"
+            "Subscribers: %{customdata[5]}<extra></extra>"
         ),
     )
+    fig.update_xaxes(type="log", tickformat="~s", title="Channel subscribers (log scale)")
+    fig.update_yaxes(tickformat="~s", title="Lifetime average daily views")
     return _style_chart(fig, legend_title="Publish Age Bucket")
 
 
@@ -1168,15 +1174,13 @@ def _age_bucket_chart(result_frame: pd.DataFrame):
         summary,
         x="age_bucket",
         y="median_outlier_score",
-        color="median_views_per_day",
         text="outlier_count",
-        title="Outlier Score By Publish Age",
+        title="Typical outlier score by video age",
         labels={
             "age_bucket": "How old the video is",
             "median_outlier_score": "Median Outlier Score",
-            "median_views_per_day": "Median Views Per Day",
         },
-        color_continuous_scale=YT_CHART_SCALE,
+        color_discrete_sequence=["#FF0033"],
     )
     fig.update_traces(
         textposition="outside",
@@ -1185,7 +1189,6 @@ def _age_bucket_chart(result_frame: pd.DataFrame):
         hovertemplate=(
             "<b>%{x}</b><br>"
             "Median Outlier Score: %{y:.1f}<br>"
-            "Median Views Per Day: %{marker.color:.0f}<br>"
             "Video Count: %{text}<extra></extra>"
         )
     )
@@ -1199,10 +1202,10 @@ def _duration_chart(result_frame: pd.DataFrame):
         x="duration_bucket",
         y="outlier_count",
         color="median_outlier_score",
-        title="Winning Video Lengths",
+        title="Results by video length",
         labels={
             "duration_bucket": "Video Length",
-            "outlier_count": "Number Of Outliers",
+            "outlier_count": "Videos in result set",
             "median_outlier_score": "Median Outlier Score",
         },
         color_continuous_scale=YT_CHART_SCALE,
@@ -1228,10 +1231,10 @@ def _title_pattern_chart(result_frame: pd.DataFrame):
         x="title_pattern",
         y="outlier_count",
         color="median_outlier_score",
-        title="Repeated Title Structures",
+        title="Common title structures in the result set",
         labels={
             "title_pattern": "Title Pattern",
-            "outlier_count": "Number Of Outliers",
+            "outlier_count": "Videos in result set",
             "median_outlier_score": "Median Outlier Score",
         },
         color_continuous_scale=YT_CHART_SCALE,
@@ -1390,10 +1393,10 @@ def _render_ai_report(report: OutlierAIReport) -> None:
 
 def _render_methodology_section() -> None:
     _render_section_intro(
-        "How This Works",
+        "How the score works",
         "Use these notes to understand what the score means, how the filters behave, and what the public-data caveats imply for your research decisions.",
     )
-    with st.expander("Open Metric Definitions, Filter Rules, And Caveats", expanded=False):
+    with st.expander("Metric definitions, filter rules, and limitations", expanded=False):
         left_col, right_col = st.columns(2, gap="medium")
         with left_col:
             st.markdown(
@@ -1444,24 +1447,12 @@ def _render_methodology_section() -> None:
     )
 
 
-def _render_pre_search_methodology_teaser() -> None:
-    st.markdown(
-        (
-            '<div class="outlier-empty-card">'
-            '<div class="outlier-empty-title">Built For Fast Topic Research</div>'
-            '<div class="outlier-empty-copy">The score uses public performance signals, query filters, and channel baseline lift. Search results are cached for one hour, baseline lookups for six hours, and AI research stays optional.</div>'
-            '</div>'
-        ),
-        unsafe_allow_html=True,
-    )
-
-
 def _render_empty_state() -> None:
     st.markdown(
         (
             '<div class="outlier-empty-card">'
-            '<div class="outlier-empty-title">Start With A Niche Query</div>'
-            '<div class="outlier-empty-copy">Enter a topic, tighten the filters if needed, and the page will surface public videos that are outperforming their likely baseline.</div>'
+            '<div class="outlier-empty-title">Start with a niche or topic</div>'
+            '<div class="outlier-empty-copy">Enter a query and adjust only the filters that matter. Results will show the videos, comparison evidence, and the reason each one stands out.</div>'
             '</div>'
         ),
         unsafe_allow_html=True,
@@ -1497,7 +1488,7 @@ def render() -> None:
         query_cols = st.columns([1.8, 1], gap="medium")
         with query_cols[0]:
             niche_query = st.text_input(
-                "Niche Or Keyword",
+                "Niche or keyword",
                 key="outlier_page_query",
                 placeholder="AI automation, documentary storytelling, science shorts, luxury fitness...",
             )
@@ -1506,20 +1497,20 @@ def render() -> None:
             action_cols = st.columns(2, gap="small")
             with action_cols[0]:
                 submitted = st.form_submit_button(
-                    "Find Outliers",
+                    "Find outliers",
                     type="primary",
-                    use_container_width=True,
+                    width="stretch",
                     disabled=provider_counts["youtube"] <= 0,
                 )
             with action_cols[1]:
-                reset_clicked = st.form_submit_button("Reset Filters", use_container_width=True)
+                reset_clicked = st.form_submit_button("Reset filters", width="stretch")
 
         filter_row_one = st.columns(4, gap="medium")
         with filter_row_one[0]:
             timeframe = st.selectbox("Timeframe", TIMEFRAME_OPTIONS, index=1, key="outlier_page_timeframe")
         with filter_row_one[1]:
             match_mode = st.segmented_control(
-                "Match Mode",
+                "Match mode",
                 ["Broad", "Exact Phrase"],
                 key="outlier_page_match_mode",
                 selection_mode="single",
@@ -1534,7 +1525,7 @@ def render() -> None:
             default_end = datetime.now(timezone.utc).date()
             default_start = default_end - timedelta(days=30)
             custom_dates = st.date_input(
-                "Custom Date Range",
+                "Custom date range",
                 value=(default_start, default_end),
                 max_value=default_end,
                 key="outlier_page_custom_dates",
@@ -1545,21 +1536,21 @@ def render() -> None:
         filter_row_two = st.columns(4, gap="medium")
         with filter_row_two[0]:
             freshness_focus = st.selectbox(
-                "Freshness Focus",
+                "Freshness focus",
                 list(FRESHNESS_OPTIONS.keys()),
                 index=0,
                 key="outlier_page_freshness",
             )
         with filter_row_two[1]:
             duration_preference = st.selectbox(
-                "Duration Preference",
+                "Video length",
                 DURATION_OPTIONS,
                 index=0,
                 key="outlier_page_duration",
             )
         with filter_row_two[2]:
             strictness = st.segmented_control(
-                "Language Strictness",
+                "Language matching",
                 STRICTNESS_OPTIONS,
                 key="outlier_page_language_strictness",
                 selection_mode="single",
@@ -1567,7 +1558,7 @@ def render() -> None:
             )
         with filter_row_two[3]:
             min_views = st.selectbox(
-                "Minimum Views",
+                "Minimum views",
                 [0, 1_000, 5_000, 10_000, 50_000, 100_000],
                 index=0,
                 key="outlier_page_min_views",
@@ -1576,11 +1567,11 @@ def render() -> None:
 
         channel_cols = st.columns([1.85, 1], gap="medium")
         with channel_cols[0]:
-            st.markdown('<div class="outlier-row-label">Channel Size</div>', unsafe_allow_html=True)
+            st.markdown('<div class="outlier-row-label">Channel size</div>', unsafe_allow_html=True)
             subscriber_cols = st.columns(2, gap="small")
             with subscriber_cols[0]:
                 min_subscribers = st.number_input(
-                    "Minimum Subscribers",
+                    "Minimum subscribers",
                     min_value=0,
                     value=0,
                     step=1_000,
@@ -1588,7 +1579,7 @@ def render() -> None:
                 )
             with subscriber_cols[1]:
                 max_subscribers = st.number_input(
-                    "Maximum Subscribers",
+                    "Maximum subscribers",
                     min_value=0,
                     value=0,
                     step=1_000,
@@ -1596,10 +1587,10 @@ def render() -> None:
                     help="Leave at 0 to keep the upper bound open.",
                 )
         with channel_cols[1]:
-            st.markdown('<div class="outlier-row-label">Subscriber Visibility</div>', unsafe_allow_html=True)
+            st.markdown('<div class="outlier-row-label">Subscriber visibility</div>', unsafe_allow_html=True)
             with st.container(border=True):
                 include_hidden = st.toggle(
-                    "Include Hidden Subscriber Counts",
+                    "Include hidden subscriber counts",
                     value=True,
                     key="outlier_page_include_hidden",
                 )
@@ -1609,17 +1600,17 @@ def render() -> None:
                 )
 
         exclude_keywords_text = st.text_input(
-            "Exclude Keywords",
+            "Exclude keywords",
             key="outlier_page_exclude_keywords",
             placeholder="news, reaction, podcast clips",
         )
 
         st.markdown('<div class="outlier-form-gap"></div>', unsafe_allow_html=True)
-        with st.expander("More Filters", expanded=False):
+        with st.expander("More filters", expanded=False):
             advanced_cols = st.columns(3, gap="medium")
             with advanced_cols[0]:
                 search_pages = st.slider(
-                    "Search Depth",
+                    "Search depth",
                     min_value=2,
                     max_value=4,
                     value=2,
@@ -1629,7 +1620,7 @@ def render() -> None:
                 )
             with advanced_cols[1]:
                 baseline_channel_limit = st.slider(
-                    "Baseline Channels",
+                    "Channels used for baselines",
                     min_value=10,
                     max_value=20,
                     value=15,
@@ -1638,7 +1629,7 @@ def render() -> None:
                 )
             with advanced_cols[2]:
                 baseline_video_cap = st.slider(
-                    "Baseline Uploads Per Channel",
+                    "Uploads per channel baseline",
                     min_value=10,
                     max_value=30,
                     value=20,
@@ -1706,7 +1697,6 @@ def render() -> None:
     result = st.session_state.get("outlier_page_result")
     if not result:
         _render_empty_state()
-        _render_pre_search_methodology_teaser()
         _render_methodology_section()
         return
 
@@ -1718,19 +1708,18 @@ def render() -> None:
         st.info(
             "No strong matches survived the current filters. Broaden the timeframe, loosen the language strictness, or reduce the minimum views threshold."
         )
-        _render_pre_search_methodology_teaser()
         _render_methodology_section()
         return
 
     sort_cols = st.columns([2.5, 1], gap="medium")
     with sort_cols[0]:
         _render_section_intro(
-            "Top Outliers In This Scan",
+            "Top outliers in this scan",
             f"{len(result_frame):,} results surfaced from {result.scanned_videos:,} scanned uploads across {result.scanned_channels:,} channels.",
         )
     with sort_cols[1]:
         sort_label = st.selectbox(
-            "Sort Results By",
+            "Sort results by",
             list(SORT_OPTIONS.keys()),
             index=0,
             key="outlier_page_sort",
@@ -1773,13 +1762,13 @@ def render() -> None:
     )
     styled_dataframe(
         table_df,
-        title="All Results In This Scan",
+        title="All results in this scan",
         precision=2,
         image_columns=["Thumbnail"],
     )
 
     _render_section_intro(
-        "Breakout Snapshot",
+        "Breakout snapshot",
         "Read the surfaced cohort through score, velocity, packaging, runtime, and signal quality before you hand the research to AI.",
     )
     summary_stats = _build_summary_stats(sorted_frame)
@@ -1812,7 +1801,7 @@ def render() -> None:
     with chart_top[1]:
         with st.container(border=True):
             _render_chart_shell(
-                "Outlier Score By Publish Age",
+                "Typical score by video age",
                 "See whether the niche momentum is being driven by very recent uploads or older releases.",
             )
             age_fig = _age_bucket_chart(sorted_frame)
@@ -1824,12 +1813,12 @@ def render() -> None:
                 "A spike on recent ages can mean a fast-moving trend; spread across ages can mean evergreen demand.",
             )
 
-    chart_bottom = st.columns(3, gap="medium")
+    chart_bottom = st.columns(2, gap="medium")
     with chart_bottom[0]:
         with st.container(border=True):
             _render_chart_shell(
-                "Winning Video Lengths",
-                "Identify which runtime buckets are overperforming in the current result set.",
+                "Results by video length",
+                "Compare how many surfaced videos fall into each runtime group and their typical score.",
             )
             duration_fig = _duration_chart(sorted_frame)
             duration_fig.update_layout(height=320)
@@ -1842,8 +1831,8 @@ def render() -> None:
     with chart_bottom[1]:
         with st.container(border=True):
             _render_chart_shell(
-                "Repeated Title Structures",
-                "Read the packaging patterns that appear repeatedly across the strongest videos.",
+                "Common title structures",
+                "See which packaging patterns repeat within the surfaced result set.",
             )
             title_pattern_fig = _title_pattern_chart(sorted_frame)
             title_pattern_fig.update_layout(height=320)
@@ -1853,13 +1842,12 @@ def render() -> None:
                 "Summarizes **recurring packaging patterns** (e.g., listicle vs story vs challenge) among top results. "
                 "Pairs well with the keyword chips and the AI **Title Pattern** cards below.",
             )
-    with chart_bottom[2]:
-        with st.container(border=True):
-            _render_chart_shell(
-                "Evidence Quality",
-                "Judge how complete and actionable the surfaced comparison set is.",
-            )
-            _render_scan_quality_card(sorted_frame)
+    with st.container(border=True):
+        _render_chart_shell(
+            "Evidence quality",
+            "Judge how complete and actionable the surfaced comparison set is before acting on patterns.",
+        )
+        _render_scan_quality_card(sorted_frame)
 
     st.markdown(
         (
@@ -1905,7 +1893,7 @@ def render() -> None:
                 model = st.selectbox("AI Model", models, key="outlier_page_ai_model")
             with provider_cols[2]:
                 st.markdown('<div class="outlier-inline-field-label">Synthesis Action</div>', unsafe_allow_html=True)
-                trigger_ai = st.button("Generate AI Synthesis", type="primary", use_container_width=True)
+                trigger_ai = st.button("Generate AI Synthesis", type="primary", width="stretch")
 
         fingerprint = _result_fingerprint(sorted_frame, result.request.niche_query)
         if st.session_state.get("outlier_page_ai_fingerprint") != fingerprint:
