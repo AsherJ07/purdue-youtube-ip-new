@@ -11,7 +11,7 @@ from dashboard.components.layout import render_page_hero
 from dashboard.components.sidebar import render_sidebar_footer, render_sidebar_header
 from dashboard.components.intro_animation import inject_intro_animation
 from dashboard.components.theme import inject_shared_theme
-from dashboard.views import channel_analysis, channel_insights, outlier_finder
+from dashboard.views import channel_analysis, channel_insights, download_hub, outlier_finder, ytuber
 
 
 def _render_app_shell(page: str) -> None:
@@ -37,9 +37,19 @@ def _page_channel_insights() -> None:
     channel_insights.render()
 
 
+def _page_download_hub() -> None:
+    _render_app_shell("Download Hub")
+    download_hub.render()
+
+
 def _page_outlier_finder() -> None:
     _render_app_shell("Outlier Finder")
     outlier_finder.render()
+
+
+def _page_ytuber() -> None:
+    _render_app_shell("Ytuber")
+    ytuber.render()
 
 
 PAGE_CHANNEL_ANALYSIS = st.Page(
@@ -49,14 +59,16 @@ PAGE_CHANNEL_ANALYSIS = st.Page(
     default=True,
 )
 PAGE_CHANNEL_INSIGHTS = st.Page(_page_channel_insights, title="Channel Insights", icon="💡")
-PAGE_OUTLIER_FINDER = st.Page(_page_outlier_finder, title="Outlier Research", icon="🔎")
+PAGE_DOWNLOAD_HUB = st.Page(_page_download_hub, title="Download Hub", icon="📥")
+PAGE_OUTLIER_FINDER = st.Page(_page_outlier_finder, title="Outlier Finder", icon="🎯")
+PAGE_YTUBER = st.Page(_page_ytuber, title="Ytuber", icon="🎬")
 
 
 def run() -> None:
     """Execute the multipage router. Must run on every Streamlit script rerun (not only on first import)."""
     st.set_page_config(
-        page_title="VCreator | Evidence-led creator decisions",
-        page_icon="V",
+        page_title="YouTube Creator Insights | Purdue × Google",
+        page_icon="📺",
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -72,7 +84,9 @@ def run() -> None:
         [
             PAGE_CHANNEL_ANALYSIS,
             PAGE_CHANNEL_INSIGHTS,
+            PAGE_DOWNLOAD_HUB,
             PAGE_OUTLIER_FINDER,
+            PAGE_YTUBER,
         ],
         expanded=True,
     )

@@ -1861,13 +1861,95 @@ def render() -> None:
             )
             _render_scan_quality_card(sorted_frame)
 
-    keyword_summary = build_title_keyword_summary(sorted_frame)
-    preview_tokens = keyword_summary["keyword"].tolist()[:8] if not keyword_summary.empty else []
-    if preview_tokens:
-        _render_subsection_label("Repeated Title Keywords")
-        styled_keyword_chips(preview_tokens)
-    st.caption(
-        "Treat recurring words and formats as hypotheses. The scan is a query-result sample, not a causal estimate of audience demand."
+    st.markdown(
+        (
+            '<div class="outlier-ai-section-head">Optional AI Evidence Synthesis</div>'
+            '<p style="color:#5F6368;font-size:14px;line-height:1.55;max-width:780px;margin:0 0 1rem;">'
+            "After reviewing the measured results, turn the same evidence into structured theme, title, angle, anomaly, and next-step cards. "
+            "Treat every output as a hypothesis to test—not a causal claim."
+            "</p>"
+        ),
+        unsafe_allow_html=True,
     )
+
+    available_providers = [provider for provider in ("gemini", "openai") if get_provider_key_count(provider) > 0]
+    if not available_providers:
+        st.markdown(
+            '<div class="outlier-panel-note">Add <code>GEMINI_API_KEYS</code> and/or <code>OPENAI_API_KEYS</code> to enable evidence-grounded AI synthesis.</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        default_provider = "gemini" if "gemini" in available_providers else available_providers[0]
+        if (
+            "outlier_page_ai_provider" not in st.session_state
+            or st.session_state["outlier_page_ai_provider"] not in available_providers
+        ):
+            st.session_state["outlier_page_ai_provider"] = default_provider
+
+        with st.expander("AI controls — provider, model, and generate", expanded=False):
+            provider_cols = st.columns([1.05, 1.2, 0.95], gap="small")
+            with provider_cols[0]:
+                provider = st.selectbox(
+                    "AI Provider",
+                    available_providers,
+                    key="outlier_page_ai_provider",
+                    format_func=lambda value: AI_PROVIDER_LABELS.get(value, value.title()),
+                )
+            models = AI_MODELS[provider]
+            if (
+                "outlier_page_ai_model" not in st.session_state
+                or st.session_state["outlier_page_ai_model"] not in models
+            ):
+                st.session_state["outlier_page_ai_model"] = models[0]
+            with provider_cols[1]:
+                model = st.selectbox("AI Model", models, key="outlier_page_ai_model")
+            with provider_cols[2]:
+                st.markdown('<div class="outlier-inline-field-label">Synthesis Action</div>', unsafe_allow_html=True)
+                trigger_ai = st.button("Generate AI Synthesis", type="primary", use_container_width=True)
+
+        fingerprint = _result_fingerprint(sorted_frame, result.request.niche_query)
+        if st.session_state.get("outlier_page_ai_fingerprint") != fingerprint:
+            st.session_state.pop("outlier_page_ai_report", None)
+
+        if trigger_ai:
+            query_context = {
+                "niche_query": result.request.niche_query,
+                "language": result.request.relevance_language or "Any",
+                "region": result.request.region_code or "Any",
+                "timeframe_start": result.request.published_after_iso,
+                "timeframe_end": result.request.published_before_iso,
+                "match_mode": result.request.match_mode,
+            }
+            summary_payload = {
+                **summary_stats,
+                **build_scan_quality_summary(sorted_frame),
+                "scanned_videos": result.scanned_videos,
+                "scanned_channels": result.scanned_channels,
+                "baseline_channels": result.baseline_channels,
+            }
+            with st.spinner("Synthesizing the surfaced evidence..."):
+                report = generate_outlier_ai_report(
+                    provider=provider,
+                    model=model,
+                    query_context=query_context,
+                    summary_stats=summary_payload,
+                    result_frame=sorted_frame,
+                )
+            st.session_state["outlier_page_ai_report"] = report
+            st.session_state["outlier_page_ai_fingerprint"] = fingerprint
+
+        report = st.session_state.get("outlier_page_ai_report")
+        if report:
+            _render_ai_report(report)
+        else:
+            keyword_summary = build_title_keyword_summary(sorted_frame)
+            preview_tokens = keyword_summary["keyword"].tolist()[:8] if not keyword_summary.empty else []
+            if preview_tokens:
+                _render_subsection_label("Repeated Title Keywords")
+                styled_keyword_chips(preview_tokens)
+            st.markdown(
+                '<div class="outlier-panel-note">The deterministic scan remains the source of truth. Generate synthesis only after validating the cohort and evidence quality above.</div>',
+                unsafe_allow_html=True,
+            )
 
     _render_methodology_section()

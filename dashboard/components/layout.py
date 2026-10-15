@@ -75,7 +75,7 @@ def render_page_hero(page: str) -> None:
     st.markdown(
         f"""
 <div class="glass-page-hero fade-in">
-  <p class="product-eyebrow">VCreator <span class="product-eyebrow-sep">·</span> Evidence-led creator decisions</p>
+  <p class="product-eyebrow">YouTube Creator Insights <span class="product-eyebrow-sep">·</span> Purdue × Google</p>
   <div class="feature-badge">
     <span class="feature-badge-dot" aria-hidden="true"></span>
     {escape(badge)}

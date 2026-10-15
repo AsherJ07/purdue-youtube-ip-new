@@ -1,10 +1,10 @@
-# VCreator Metrics and Decision Logic
+# YouTube Creator Insights Metrics and Decision Logic
 
-This document is the source of truth for every metric shown in the active VCreator product. Rates are stored as decimal fractions in code (`0.05`) and displayed as percentages (`5.00%`). Missing or invalid observations remain unavailable; they are never converted to zero merely to make a formula run.
+This document is the source of truth for every metric shown in YouTube Creator Insights. Rates are stored as decimal fractions in code (`0.05`) and displayed as percentages (`5.00%`). Missing or invalid observations remain unavailable; they are never converted to zero merely to make a formula run.
 
 ## Measurement boundaries
 
-VCreator uses public YouTube data. It can observe views, public likes, public comments, publication time, duration, text metadata, and—when public—current subscriber count. It cannot observe watch time, retention, shares, saves, satisfaction, private interactions, historical subscriber count, or the time series of views.
+YouTube Creator Insights uses public YouTube data. It can observe views, public likes, public comments, publication time, duration, text metadata, and—when public—current subscriber count. It cannot observe watch time, retention, shares, saves, satisfaction, private interactions, historical subscriber count, or the time series of views.
 
 The product therefore reports associations in the observed sample. It does not claim causal effects, current view velocity, total engagement, or guaranteed future performance.
 
@@ -86,7 +86,7 @@ A theme is recommendation-eligible only when it has at least three videos and is
 
 Confidence is `Medium` for 3–9 supporting videos and `High` for 10 or more. Recommendations include sample size and the supporting statistic. They are framed as controlled experiments, not forecasts.
 
-## 7. Outlier Research score
+## 7. Outlier Finder score
 
 The research score uses independent signals:
 

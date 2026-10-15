@@ -1476,14 +1476,16 @@ def render() -> None:
 
     _render_summary_action_row(payload)
 
-    tabs = st.tabs(["Overview", "Evidence", "Outliers", "History"])
+    tabs = st.tabs(["Overview", "Topic Trends", "Formats & Patterns", "Outliers", "Next Topics", "History"])
     with tabs[0]:
         _render_overview_tab(payload)
-        _render_next_topics_tab(payload)
     with tabs[1]:
         _render_topic_trends_tab(payload)
-        _render_formats_tab(payload)
     with tabs[2]:
-        _render_outliers_tab(payload)
+        _render_formats_tab(payload)
     with tabs[3]:
+        _render_outliers_tab(payload)
+    with tabs[4]:
+        _render_next_topics_tab(payload)
+    with tabs[5]:
         _render_history_tab(payload)
