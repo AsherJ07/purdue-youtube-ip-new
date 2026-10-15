@@ -33,7 +33,7 @@ Quick jump:
 ## Current Product In One Minute
 
 - `Benchmarks` uses the committed research datasets and robust, documented public metrics.
-- `Decision Brief` analyzes one public channel, shows confidence and supporting sample sizes, and proposes controlled creator experiments.
+- `Channel Insights` analyzes one public channel, shows confidence and supporting sample sizes, and proposes controlled creator experiments.
 - `Outlier Research` compares channel-relative reach, age-cohort reach, public interaction, and evidence reliability without double-counting freshness or interactions.
 - Heuristic topics are always available; BERTopic remains an optional, confidence-aware model path that can abstain.
 - Generative AI does not automatically manufacture recommendations. The default decision layer is deterministic and evidence-backed.
@@ -124,7 +124,7 @@ flowchart LR
 The current sidebar order is:
 
 1. `Channel Analysis`
-2. `Decision Brief`
+2. `Channel Insights`
 3. `Outlier Research`
 
 This is the high-level page map. The detailed runtime handoffs for each page live in [Architecture](docs/ARCHITECTURE.md).
@@ -132,7 +132,7 @@ This is the high-level page map. The detailed runtime handoffs for each page liv
 | Page | What Problem It Solves | Main Inputs | Main Outputs | Runtime Type |
 | --- | --- | --- | --- | --- |
 | `Channel Analysis` | benchmark bundled datasets and compare portfolio-level performance | committed CSV data in `data/youtube api data/` | KPI cards, trend charts, channel/video rankings | dataset-backed |
-| `Decision Brief` | convert one tracked public channel into a supported experiment | YouTube public data, snapshot history, optional BERTopic | evidence, confidence, supporting samples, next tests | mixed |
+| `Channel Insights` | convert one tracked public channel into a supported experiment | YouTube public data, snapshot history, optional BERTopic | evidence, confidence, supporting samples, next tests | mixed |
 | `Outlier Research` | find unusual performance in a niche | live YouTube API scan and explainable scoring | ranked evidence, score decomposition, cohort caveats | API-backed |
 
 ## Current V7 Workflow Map
@@ -142,7 +142,7 @@ This section is about the live app today, not the historical versions.
 | Page | User Goal | Main Inputs | Main Services Used | Main Outputs | Runtime Type |
 | --- | --- | --- | --- | --- | --- |
 | `Channel Analysis` | compare bundled channel/video benchmarks | committed CSV files, filters, date ranges | pandas transforms, visualization helpers | KPI cards, monthly trends, top channels, top videos | dataset-backed |
-| `Decision Brief` | choose one evidence-backed creator experiment | channel URL/handle/ID, topic mode, snapshot refresh | `public_channel_service`, `channel_insights_service`, `channel_snapshot_store`, `topic_model_runtime` | decision brief, evidence tables, outliers, history | mixed |
+| `Channel Insights` | choose one evidence-backed creator experiment | channel URL/handle/ID, topic mode, snapshot refresh | `public_channel_service`, `channel_insights_service`, `channel_snapshot_store`, `topic_model_runtime` | overview, evidence tables, outliers, history | mixed |
 | `Outlier Research` | surface unusual videos in a niche | niche query and explicit filters | `outliers_finder.py`, canonical metric helpers | ranked results, evidence-quality summaries, transparent methodology | API-backed |
 
 ```mermaid
@@ -187,7 +187,7 @@ These are the main interactive surfaces a user actually navigates once a page is
 | Page | Surface Type | Count | Current Surfaces | What They Do |
 | --- | --- | --- | --- | --- |
 | `Channel Analysis` | main analytics canvas | `1` | dataset filters + charts/tables | benchmark bundled CSV data |
-| `Decision Brief` | tabs | `4` | `Decision Brief`, `Evidence`, `Outliers`, `History` | turn a tracked public-channel snapshot into a testable decision with visible confidence |
+| `Channel Insights` | tabs | `4` | `Overview`, `Evidence`, `Outliers`, `History` | turn a tracked public-channel snapshot into a testable decision with visible confidence |
 | `Outlier Research` | post-search sections | `4` | results, breakout snapshot, repeated evidence, methodology | inspect unusual performance before acting on it |
 
 For the detailed tab-by-tab and module-by-module behavior, see:
@@ -266,7 +266,7 @@ For the deeper API/service explanation, see [Architecture](docs/ARCHITECTURE.md#
 
 ## Channel Insights: Where The Modeling Actually Lives
 
-`Decision Brief` is where the most advanced modeling work lands in V7. Every refresh starts with the same public-channel workspace, then branches into one of two topic assignment modes:
+`Channel Insights` is where the most advanced modeling work lands in V7. Every refresh starts with the same public-channel workspace, then branches into one of two topic assignment modes:
 
 - `Heuristic Topics`
   - default mode
@@ -323,7 +323,7 @@ flowchart LR
 
 Deployment notes in one screen:
 
-- V7 stays **public-only** for `Decision Brief`
+- V7 stays **public-only** for `Channel Insights`
 - the app reads `st.secrets` first, then environment variables
 - BERTopic beta only activates when `MODEL_ARTIFACTS_ENABLED=true` and the manifest URL is configured
 - the GCP-oriented env template is [`.env.gcp.example`](.env.gcp.example), which is meant to be copied into Cloud Run, GCE, or Secret Manager-backed environment configuration rather than committed as a real secret file

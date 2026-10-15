@@ -17,7 +17,7 @@ PAGE_HERO: Dict[str, Tuple[str, str, str, Tuple[str, ...]]] = {
         ("Public data", "Robust statistics", "Transparent limits"),
     ),
     "Channel Insights": (
-        "DECISION BRIEF",
+        "CHANNEL INSIGHTS",
         "Move from channel evidence to one testable content decision.",
         "Analyze a public channel, inspect confidence and supporting samples, then turn the strongest repeated signal into a controlled creator experiment.",
         ("Evidence first", "Confidence shown", "Public API only"),

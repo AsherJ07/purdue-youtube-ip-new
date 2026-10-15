@@ -9,6 +9,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from dashboard.components.layout import render_page_hero
 from dashboard.components.sidebar import render_sidebar_footer, render_sidebar_header
+from dashboard.components.intro_animation import inject_intro_animation
 from dashboard.components.theme import inject_shared_theme
 from dashboard.views import channel_analysis, channel_insights, outlier_finder
 
@@ -47,7 +48,7 @@ PAGE_CHANNEL_ANALYSIS = st.Page(
     icon="📊",
     default=True,
 )
-PAGE_CHANNEL_INSIGHTS = st.Page(_page_channel_insights, title="Decision Brief", icon="📌")
+PAGE_CHANNEL_INSIGHTS = st.Page(_page_channel_insights, title="Channel Insights", icon="💡")
 PAGE_OUTLIER_FINDER = st.Page(_page_outlier_finder, title="Outlier Research", icon="🔎")
 
 
@@ -61,6 +62,7 @@ def run() -> None:
     )
 
     inject_shared_theme()
+    inject_intro_animation()
     _cleanup_retired_session_state()
 
     with st.sidebar:

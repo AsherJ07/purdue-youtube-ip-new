@@ -6,7 +6,7 @@ import streamlit as st
 
 from dashboard.components.theme import NN_BG_LAYER_URL
 
-_INTRO_SESSION_KEY = "_v6_intro_animation_shown"
+_INTRO_SESSION_KEY = "_v7_intro_animation_shown"
 
 # Matches theme.py stAppViewContainer (neural tile + mesh) for a seamless handoff.
 _INTRO_BG = f"""
@@ -192,10 +192,10 @@ def inject_intro_animation() -> None:
       <div class="v6-intro-bar"></div>
     </div>
     <div class="v6-intro-brand">
-      <span class="yt-red">YouTube</span> Creator Insights
+      <span class="yt-red">V</span>Creator
     </div>
     <div class="v6-intro-accent-line" aria-hidden="true"></div>
-    <div class="v6-intro-title">Purdue × Google</div>
+    <div class="v6-intro-title">Evidence-led creator decisions</div>
     <div class="v6-intro-sub">Opening your workspace</div>
   </div>
 </div>

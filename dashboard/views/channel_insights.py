@@ -1476,7 +1476,7 @@ def render() -> None:
 
     _render_summary_action_row(payload)
 
-    tabs = st.tabs(["Decision Brief", "Evidence", "Outliers", "History"])
+    tabs = st.tabs(["Overview", "Evidence", "Outliers", "History"])
     with tabs[0]:
         _render_overview_tab(payload)
         _render_next_topics_tab(payload)
