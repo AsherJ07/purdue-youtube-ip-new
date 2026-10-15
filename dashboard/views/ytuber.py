@@ -54,6 +54,13 @@ STOPWORDS = {
     "the", "a", "an", "to", "of", "in", "for", "with", "on", "and", "or", "at", "is", "are", "was", "were",
     "this", "that", "how", "why", "what", "when", "from", "your", "you", "my", "we", "our", "it", "vs", "into",
 }
+TOPIC_ANGLE_FILLER = STOPWORDS | {
+    "actually", "anything", "been", "being", "can", "could", "didn", "didnt", "don't",
+    "don", "dont", "happen", "happens", "here", "just", "keep", "know", "likely", "made",
+    "make", "making", "more", "most", "one", "only", "people", "playing", "really", "should",
+    "something", "still", "than", "their", "them", "there", "they", "thing", "things", "too",
+    "used", "very", "who", "world", "worlds", "would", "youre", "youve", "you've",
+}
 POWER_WORDS = {
     "secret", "ultimate", "proven", "easy", "fast", "best", "shocking", "truth", "mistake", "science",
     "future", "breakthrough", "insane", "new", "critical", "warning", "guide", "explained", "hidden", "top",
@@ -1275,7 +1282,9 @@ def _ensure_numeric_and_dates(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _tokenize(text: str) -> List[str]:
-    tokens = re.findall(r"[A-Za-z0-9]+", str(text).lower())
+    normalized = str(text).lower().replace("’", "'")
+    tokens = re.findall(r"[A-Za-z0-9]+(?:'[A-Za-z0-9]+)?", normalized)
+    tokens = [token[:-2] if token.endswith("'s") else token for token in tokens]
     return [t for t in tokens if len(t) > 2 and t not in STOPWORDS]
 
 
@@ -1284,6 +1293,37 @@ def _top_keywords(df: pd.DataFrame, top_n: int = 30) -> List[str]:
     for title in df["video_title"].fillna("").astype(str):
         counter.update(_tokenize(title))
     return [k for k, _ in counter.most_common(top_n)]
+
+
+def _suggested_topic_angles(df: pd.DataFrame, top_n: int = 8) -> List[str]:
+    """Return readable, performance-grounded themes instead of isolated word fragments."""
+    if df.empty or "video_title" not in df.columns:
+        return []
+
+    ranked = df.copy()
+    rank_column = "views_per_day" if "views_per_day" in ranked.columns else "views"
+    if rank_column in ranked.columns:
+        ranked[rank_column] = pd.to_numeric(ranked[rank_column], errors="coerce")
+        ranked = ranked.sort_values(rank_column, ascending=False, na_position="last")
+
+    angles: List[str] = []
+    angle_tokens: List[set[str]] = []
+    for title in ranked["video_title"].fillna("").astype(str):
+        tokens = [token for token in _tokenize(title) if token not in TOPIC_ANGLE_FILLER]
+        if not tokens:
+            continue
+        candidate_tokens = tokens[:4]
+        candidate_set = set(candidate_tokens)
+        if any(
+            len(candidate_set & existing) / max(len(candidate_set | existing), 1) >= 0.6
+            for existing in angle_tokens
+        ):
+            continue
+        angles.append(" ".join(candidate_tokens).capitalize())
+        angle_tokens.append(candidate_set)
+        if len(angles) >= top_n:
+            break
+    return angles
 
 
 def _keyword_intel(df: pd.DataFrame, top_n: int = 40) -> pd.DataFrame:
@@ -2559,7 +2599,7 @@ def _render_trend_radar(channel_df: pd.DataFrame) -> None:
 
 
 def _render_content_planner(channel_df: pd.DataFrame) -> None:
-    section_header("Content Planner", icon="🗓️")
+    section_header("Publishing planner", icon="🗓️")
 
     weekday_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     day_perf = (
@@ -2605,9 +2645,9 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
 
     kpi_row(
         [
-            {"label": "Strongest Observed Day", "value": str(best_day), "icon": "📅"},
+            {"label": "Strongest observed day", "value": str(best_day), "icon": "📅"},
             {
-                "label": "Strongest Observed Hour (UTC)",
+                "label": "Strongest observed hour (UTC)",
                 "value": f"{best_hour:02d}:00" if best_hour is not None else "Not enough data",
                 "icon": "⏰",
             },
@@ -2686,10 +2726,14 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
         show_plotly_chart(heat_uploads)
     st.caption("Use the video-count heatmap to identify sparse cells before interpreting the reach heatmap.")
 
-    top_topics = _top_keywords(channel_df, top_n=12)
+    top_topics = _suggested_topic_angles(channel_df, top_n=8)
     if top_topics:
-        st.markdown("**Suggested next content angles**")
-        styled_keyword_chips(top_topics[:8])
+        st.markdown("**Promising themes from top recent videos**")
+        styled_keyword_chips(top_topics)
+        st.caption(
+            "These themes come from the sample's highest age-normalized performers. "
+            "Treat them as creative starting points, not performance predictions."
+        )
 
     weekday_map = {d: i for i, d in enumerate(weekday_order)}
     target_weekday = weekday_map.get(best_day, 2)
@@ -2711,7 +2755,7 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
         )
         cursor += timedelta(days=7)
 
-    st.markdown("**4-Week Suggested Calendar**")
+    st.markdown("**Four-week test calendar**")
     calendar_df = pd.DataFrame(plan_rows)
     cols = st.columns(4)
     for idx, row in calendar_df.iterrows():

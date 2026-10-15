@@ -5,6 +5,7 @@ from dashboard.views.channel_analysis import (
     _publication_cohort_summary,
 )
 from dashboard.views.outlier_finder import _breakout_scatter
+from dashboard.views.ytuber import _suggested_topic_angles
 
 
 def _cohort_frame(dates: list[str]) -> pd.DataFrame:
@@ -60,4 +61,23 @@ def test_breakout_chart_shows_real_subscriber_values_on_log_axis() -> None:
     assert fig.layout.xaxis.type == "log"
     plotted_subscribers = sorted(int(value) for trace in fig.data for value in trace.x)
     assert plotted_subscribers == [1_000, 100_000]
+
+
+def test_topic_angles_are_readable_and_ranked_by_daily_reach() -> None:
+    frame = pd.DataFrame(
+        {
+            "video_title": [
+                "How They Prevented The Citicorp Disaster",
+                "What Happens If You Keep Slowing Down?",
+                "World's Largest Spiderweb",
+            ],
+            "views_per_day": [300, 100, 200],
+        }
+    )
+
+    assert _suggested_topic_angles(frame, top_n=3) == [
+        "Prevented citicorp disaster",
+        "Largest spiderweb",
+        "Slowing down",
+    ]
 
