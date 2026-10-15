@@ -22,11 +22,11 @@ PAGE_HERO: Dict[str, Tuple[str, str, str, Tuple[str, ...]]] = {
         "Analyze a public channel, inspect confidence and supporting samples, then turn the strongest repeated signal into a controlled creator experiment.",
         ("Evidence first", "Confidence shown", "Public API only"),
     ),
-    "Download Hub": (
-        "DOWNLOAD HUB",
-        "One place for thumbnail ideas, exports, and public YouTube media downloads.",
-        "Use the Thumbnails tab to generate concepts with your AI providers or pull the public thumbnail from any video. Switch to Video downloads for single links, batches, or playlists—metadata, transcripts, audio, and video where available.",
-        ("Thumbnails & media", "Single & batch", "Consistent glass UI"),
+    "Creator Studio": (
+        "CREATOR STUDIO",
+        "Turn channel evidence into content people can publish.",
+        "Move through channel strategy, content generation, thumbnail production, and media export in one task-based workspace.",
+        ("Channel strategy", "Content creation", "Asset export"),
     ),
     "Outlier Finder": (
         "OUTLIER RESEARCH",
@@ -38,12 +38,6 @@ PAGE_HERO: Dict[str, Tuple[str, str, str, Tuple[str, ...]]] = {
             "Quota-aware query caching",
             "Confidence-aware ranking",
         ),
-    ),
-    "Ytuber": (
-        "YTUBER",
-        "Your live creator workspace for search, audits, AI studio, and planning.",
-        "Search by handle, name, or channel ID—then move through audits, keyword intel, outliers, title lab, benchmarks, planner, and AI Studio in one continuous flow. Provider pools reflect your configured API keys.",
-        ("YouTube Data API", "Multi-module workspace", "AI Studio"),
     ),
     "Deployment": (
         "DEPLOYMENT",

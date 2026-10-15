@@ -11,7 +11,7 @@ from dashboard.components.layout import render_page_hero
 from dashboard.components.sidebar import render_sidebar_footer, render_sidebar_header
 from dashboard.components.intro_animation import inject_intro_animation
 from dashboard.components.theme import inject_shared_theme
-from dashboard.views import channel_analysis, channel_insights, download_hub, outlier_finder, ytuber
+from dashboard.views import channel_analysis, channel_insights, creator_studio, outlier_finder
 
 
 def _render_app_shell(page: str) -> None:
@@ -37,19 +37,14 @@ def _page_channel_insights() -> None:
     channel_insights.render()
 
 
-def _page_download_hub() -> None:
-    _render_app_shell("Download Hub")
-    download_hub.render()
+def _page_creator_studio() -> None:
+    _render_app_shell("Creator Studio")
+    creator_studio.render()
 
 
 def _page_outlier_finder() -> None:
     _render_app_shell("Outlier Finder")
     outlier_finder.render()
-
-
-def _page_ytuber() -> None:
-    _render_app_shell("Ytuber")
-    ytuber.render()
 
 
 PAGE_CHANNEL_ANALYSIS = st.Page(
@@ -59,9 +54,8 @@ PAGE_CHANNEL_ANALYSIS = st.Page(
     default=True,
 )
 PAGE_CHANNEL_INSIGHTS = st.Page(_page_channel_insights, title="Channel Insights", icon="💡")
-PAGE_DOWNLOAD_HUB = st.Page(_page_download_hub, title="Download Hub", icon="📥")
+PAGE_CREATOR_STUDIO = st.Page(_page_creator_studio, title="Creator Studio", icon="🎬")
 PAGE_OUTLIER_FINDER = st.Page(_page_outlier_finder, title="Outlier Finder", icon="🎯")
-PAGE_YTUBER = st.Page(_page_ytuber, title="Ytuber", icon="🎬")
 
 
 def run() -> None:
@@ -84,9 +78,8 @@ def run() -> None:
         [
             PAGE_CHANNEL_ANALYSIS,
             PAGE_CHANNEL_INSIGHTS,
-            PAGE_DOWNLOAD_HUB,
+            PAGE_CREATOR_STUDIO,
             PAGE_OUTLIER_FINDER,
-            PAGE_YTUBER,
         ],
         expanded=True,
     )

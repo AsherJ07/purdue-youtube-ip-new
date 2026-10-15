@@ -61,7 +61,7 @@ POWER_WORDS = {
     "future", "breakthrough", "insane", "new", "critical", "warning", "guide", "explained", "hidden", "top",
 }
 WORKSPACE_MODULES = [
-    "AI Studio",
+    "Content Studio",
     "Overview",
     "Channel Audit",
     "Keyword Intel",
@@ -80,6 +80,15 @@ AI_STUDIO_TASKS = [
     "Hooks + CTAs",
     "Shorts Ideas",
     "Thumbnail Concepts",
+]
+CONTENT_STUDIO_TASKS = [
+    "Video Ideas",
+    "Niche Expansion",
+    "Titles Only",
+    "Descriptions Only",
+    "Scripts Only",
+    "Hooks + CTAs",
+    "Shorts Ideas",
 ]
 PROVIDER_LABELS = {
     "gemini": "Gemini",
@@ -1435,8 +1444,8 @@ def _render_score_parts(parts: Dict[str, int]) -> None:
 def _queue_ai_studio_prefill(task: str, brief: str) -> None:
     st.session_state["ytuber_ai_task_pending"] = task
     st.session_state["ytuber_ai_brief_pending"] = brief
-    st.session_state["ytuber_active_module_pending"] = "AI Studio"
-    st.session_state["ytuber_ai_notice"] = f"AI Studio is prefilled for {task.lower()}. Open the AI Studio tab."
+    st.session_state["ytuber_active_module_pending"] = "Content Studio"
+    st.session_state["ytuber_ai_notice"] = f"Content Studio is prefilled for {task.lower()}. Open the Content Studio section."
     st.rerun()
 
 
@@ -2326,14 +2335,14 @@ def _render_title_seo_lab(keyword_hints: List[str]) -> None:
 
     action_cols = st.columns([1.2, 1.2, 1.6])
     with action_cols[0]:
-        if st.button("Prepare Better Titles In AI Studio", use_container_width=True, key="ytuber_title_to_ai"):
+        if st.button("Prepare Better Titles In Content Studio", use_container_width=True, key="ytuber_title_to_ai"):
             _queue_ai_studio_prefill(
                 "Titles Only",
                 f"Improve this title direction for stronger CTR and search intent: {test_title}. "
                 f"Description context: {test_desc[:400]}",
             )
     with action_cols[1]:
-        if st.button("Prepare Video Ideas In AI Studio", use_container_width=True, key="ytuber_ideas_to_ai"):
+        if st.button("Prepare Video Ideas In Content Studio", use_container_width=True, key="ytuber_ideas_to_ai"):
             _queue_ai_studio_prefill(
                 "Video Ideas",
                 f"Use this as the seed concept and expand into new video ideas: {test_title}. "
@@ -2341,7 +2350,7 @@ def _render_title_seo_lab(keyword_hints: List[str]) -> None:
             )
     with action_cols[2]:
         st.markdown(
-            "<div style='font-size:12px;color:#AEB8D6;padding-top:0.5rem;'>Use AI Studio when the title direction is weak, the channel needs alternate angles, or you want batch ideas from the same concept.</div>",
+            "<div style='font-size:12px;color:#AEB8D6;padding-top:0.5rem;'>Use Content Studio when the title direction is weak, the channel needs alternate angles, or you want batch ideas from the same concept.</div>",
             unsafe_allow_html=True,
         )
 
@@ -2729,6 +2738,153 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
                 """,
                 unsafe_allow_html=True,
             )
+
+
+def _render_content_studio(
+    channel_df: pd.DataFrame,
+    channel_title: str,
+    channel_id: str,
+    keyword_hints: List[str],
+) -> None:
+    """Generate content strategy outputs; thumbnail generation lives in Thumbnail Lab."""
+    section_header("Content Studio", icon="✍️")
+
+    pending_task = st.session_state.pop("ytuber_ai_task_pending", None)
+    if pending_task in CONTENT_STUDIO_TASKS:
+        st.session_state["ytuber_content_task"] = pending_task
+
+    pending_brief = st.session_state.pop("ytuber_ai_brief_pending", None)
+    if pending_brief is not None:
+        st.session_state["ytuber_creative_brief"] = pending_brief
+
+    available_providers = [
+        provider for provider in ["gemini", "openai"] if get_provider_key_count(provider) > 0
+    ]
+    st.caption("Choose one content task, set the audience and constraints, then generate an editable first draft grounded in this channel's public data.")
+
+    notice = st.session_state.pop("ytuber_ai_notice", None)
+    if notice:
+        st.success(notice)
+    if not available_providers:
+        st.info("Add `GEMINI_API_KEYS` and/or `OPENAI_API_KEYS` in secrets to enable Content Studio.")
+        return
+
+    default_provider = "gemini" if "gemini" in available_providers else available_providers[0]
+    if "ytuber_text_provider" not in st.session_state or st.session_state["ytuber_text_provider"] not in available_providers:
+        st.session_state["ytuber_text_provider"] = default_provider
+
+    provider_col, model_col = st.columns(2)
+    with provider_col:
+        text_provider = st.selectbox(
+            "Text provider",
+            available_providers,
+            key="ytuber_text_provider",
+            format_func=lambda value: PROVIDER_LABELS.get(value, value.title()),
+        )
+    model_options = [item["id"] for item in TEXT_MODEL_CATALOG[text_provider]]
+    if "ytuber_text_model_selection" not in st.session_state or st.session_state["ytuber_text_model_selection"] not in model_options:
+        st.session_state["ytuber_text_model_selection"] = model_options[0]
+    with model_col:
+        text_model = st.selectbox(
+            "Text model",
+            model_options,
+            key="ytuber_text_model_selection",
+            format_func=lambda value: _format_text_model_option(text_provider, value),
+        )
+    model_meta = _catalog_map(TEXT_MODEL_CATALOG[text_provider])[text_model]
+    st.caption(model_meta["summary"])
+
+    if "ytuber_content_task" not in st.session_state or st.session_state["ytuber_content_task"] not in CONTENT_STUDIO_TASKS:
+        st.session_state["ytuber_content_task"] = CONTENT_STUDIO_TASKS[0]
+
+    task_col, audience_col, format_col = st.columns([1.25, 1, 1])
+    with task_col:
+        output_type = st.selectbox("Content task", CONTENT_STUDIO_TASKS, key="ytuber_content_task")
+    with audience_col:
+        audience_profile = st.selectbox("Audience level", AUDIENCE_OPTIONS, index=0)
+    with format_col:
+        format_focus = st.selectbox("Format focus", FORMAT_OPTIONS, index=0)
+
+    quantity_col, script_col = st.columns(2)
+    with quantity_col:
+        idea_count = st.slider("Ideas or options", min_value=1, max_value=12, value=5)
+    with script_col:
+        script_count = st.slider("Scripts or outlines", min_value=1, max_value=6, value=2)
+
+    filter_col, avoid_col = st.columns(2)
+    with filter_col:
+        strategy_filters = st.multiselect(
+            "Strategy filters",
+            STRATEGY_FILTERS,
+            default=["Evergreen", "High CTR"],
+        )
+    with avoid_col:
+        exclude_topics = st.text_input(
+            "Avoid",
+            value="",
+            placeholder="Overused themes, competitors, or claims",
+        )
+
+    prompt_goal = _goal_from_prompt(st.session_state.get("ytuber_growth_prompt", ""))
+    default_brief = (
+        f"Goal: {prompt_goal}. Channel: {channel_title}. Build a focused plan from the current evidence."
+        if prompt_goal
+        else f"Channel: {channel_title}. Create a focused next-month content plan grounded in the current evidence."
+    )
+    creative_brief = st.text_area(
+        "Creative brief",
+        value=default_brief,
+        key="ytuber_creative_brief",
+        height=100,
+    )
+
+    input_tokens, output_tokens, estimated_cost = _estimate_text_cost(
+        text_provider,
+        text_model,
+        output_type,
+        idea_count,
+        script_count,
+        0,
+    )
+    st.caption(
+        f"Estimated generation cost: ${estimated_cost:.4f} · approximately {input_tokens:,} input and {output_tokens:,} output tokens."
+    )
+
+    if not st.button("Generate Content Draft", type="primary", use_container_width=True):
+        return
+
+    requested_count = script_count if output_type == "Scripts Only" else idea_count
+    median_views = int(channel_df["views"].median()) if not channel_df.empty else 0
+    median_interaction = float(channel_df["engagement_rate"].median() * 100) if not channel_df.empty else 0.0
+    prompt = (
+        "You are a YouTube content strategist. Produce concise, editable hypotheses grounded only in the supplied public-channel evidence. "
+        "Separate observed evidence from creative suggestions and do not promise performance.\n\n"
+        f"Channel: {channel_title} ({channel_id})\n"
+        f"Videos analyzed: {len(channel_df)}\n"
+        f"Median views per video: {median_views}\n"
+        f"Median public interaction rate: {median_interaction:.2f}%\n"
+        f"Priority keywords: {', '.join(keyword_hints[:15])}\n"
+        f"Task: {output_type}\n"
+        f"Requested outputs: {requested_count}\n"
+        f"Audience: {audience_profile}\n"
+        f"Format: {format_focus}\n"
+        f"Strategy filters: {', '.join(strategy_filters) if strategy_filters else 'None'}\n"
+        f"Avoid: {exclude_topics or 'None'}\n"
+        f"Brief: {creative_brief}\n"
+    )
+    with st.spinner("Generating an evidence-grounded draft..."):
+        try:
+            output = _generate_text_with_provider_pool(text_provider, text_model.strip(), prompt)
+        except RuntimeError:
+            return
+        except Exception as exc:
+            st.error(f"Content generation failed: {exc}")
+            return
+
+    with st.container(border=True):
+        st.markdown("#### Draft output")
+        st.markdown(output)
+        st.caption("Review claims, voice, and brand fit before publishing. This is a draft, not a performance forecast.")
 
 
 def _render_ai_studio(
@@ -3186,13 +3342,13 @@ def render() -> None:
         st.session_state.pop("ytuber_outliers_error", None)
         st.session_state.pop("ytuber_outliers_summary_output", None)
         st.session_state.pop("ytuber_outliers_angles_output", None)
-        st.session_state["ytuber_active_module"] = "AI Studio"
+        st.session_state["ytuber_active_module"] = "Content Studio"
         st.session_state.pop("ytuber_active_module_pending", None)
         st.session_state.pop("ytuber_ai_notice", None)
 
     if "ytuber_channel_df" not in st.session_state:
         st.markdown(
-            "<div class='ytuber-empty-copy'>Search a channel above to unlock AI Studio, audit, benchmarking, and planning.</div>",
+            "<div class='ytuber-empty-copy'>Search a channel above to unlock content generation, audits, benchmarking, and planning.</div>",
             unsafe_allow_html=True,
         )
         _render_pool_footer(provider_counts)
@@ -3226,7 +3382,7 @@ def render() -> None:
         "ytuber_active_module" not in st.session_state
         or st.session_state["ytuber_active_module"] not in WORKSPACE_MODULES
     ):
-        st.session_state["ytuber_active_module"] = "AI Studio"
+        st.session_state["ytuber_active_module"] = "Content Studio"
 
     active_module = st.segmented_control(
         "Workspace",
@@ -3236,9 +3392,9 @@ def render() -> None:
         label_visibility="collapsed",
     )
 
-    if active_module == "AI Studio":
+    if active_module == "Content Studio":
         hints = st.session_state.get("ytuber_keyword_hints") or _top_keywords(channel_df, 20)
-        _render_ai_studio(channel_df, channel_title, channel_id, hints)
+        _render_content_studio(channel_df, channel_title, channel_id, hints)
     elif active_module == "Overview":
         _render_overview(channel_df)
     elif active_module == "Channel Audit":

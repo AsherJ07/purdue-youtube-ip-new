@@ -586,7 +586,7 @@ def _render_download_tab() -> None:
 
 
 def render_thumbnail_workspace() -> None:
-    """Thumbnail generate + public thumbnail export (used by Download Hub)."""
+    """Thumbnail generation and public-thumbnail export for Creator Studio."""
     _inject_page_css()
     st.markdown('<div class="thumb-page">', unsafe_allow_html=True)
 

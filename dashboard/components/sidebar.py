@@ -4,15 +4,16 @@ import streamlit as st
 PAGE_OPTIONS = [
     "Channel Analysis",
     "Channel Insights",
-    "Download Hub",
+    "Creator Studio",
     "Outlier Finder",
-    "Ytuber",
 ]
 
 _LEGACY_PAGE_MAP = {
-    "Recommendations": "Download Hub",
-    "Thumbnails": "Download Hub",
-    "Tools": "Download Hub",
+    "Recommendations": "Creator Studio",
+    "Thumbnails": "Creator Studio",
+    "Tools": "Creator Studio",
+    "Download Hub": "Creator Studio",
+    "Ytuber": "Creator Studio",
 }
 
 

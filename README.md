@@ -24,7 +24,7 @@ Quick jump:
 | --- | --- |
 | Deployed versions documented here | `7` (`V1`–`V7`) |
 | Live Streamlit app links (including historical) | `7` |
-| Current sidebar destinations | `5` |
+| Current sidebar destinations | `4` |
 | Current primary data paths | `2` |
 | Current Channel Insights topic modes | `2` |
 | Required live provider family | `1` (`YouTube`) |
@@ -34,9 +34,8 @@ Quick jump:
 
 - `Benchmarks` uses the committed research datasets and robust, documented public metrics.
 - `Channel Insights` analyzes one public channel, shows confidence and supporting sample sizes, and proposes controlled creator experiments.
-- `Download Hub` turns analysis into usable thumbnail and media assets.
+- `Creator Studio` combines channel strategy, content generation, thumbnail production, and media export in one task-based workspace.
 - `Outlier Finder` compares channel-relative reach, age-cohort reach, public interaction, and evidence reliability, then offers optional evidence-grounded AI synthesis.
-- `Ytuber` provides a broader creator workspace for search, audits, planning, title work, and AI-assisted creation.
 - Heuristic topics are always available; BERTopic remains an optional, confidence-aware model path that can abstain.
 - Generative AI does not automatically manufacture recommendations. The default decision layer is deterministic and evidence-backed.
 - Every active formula, invalid case, and interpretation limit is documented in [`maths.md`](maths.md).
@@ -127,9 +126,8 @@ The current sidebar order is:
 
 1. `Channel Analysis`
 2. `Channel Insights`
-3. `Download Hub`
+3. `Creator Studio`
 4. `Outlier Finder`
-5. `Ytuber`
 
 This is the high-level page map. The detailed runtime handoffs for each page live in [Architecture](docs/ARCHITECTURE.md).
 
@@ -137,9 +135,8 @@ This is the high-level page map. The detailed runtime handoffs for each page liv
 | --- | --- | --- | --- | --- |
 | `Channel Analysis` | benchmark bundled datasets and compare portfolio-level performance | committed CSV data in `data/youtube api data/` | KPI cards, trend charts, channel/video rankings | dataset-backed |
 | `Channel Insights` | convert one tracked public channel into a supported experiment | YouTube public data, snapshot history, optional BERTopic | evidence, confidence, supporting samples, next tests | mixed |
-| `Download Hub` | move from insights to creative assets and exports | video URLs, prompts, configured AI providers | thumbnails and public media artifacts | mixed |
+| `Creator Studio` | move from evidence to strategy and publishable assets | channel inputs, creative briefs, video URLs, configured providers | content drafts, audits, plans, thumbnails, and exports | mixed |
 | `Outlier Finder` | find unusual performance in a niche | live YouTube API scan and explainable scoring | ranked evidence, score decomposition, optional AI synthesis | mixed |
-| `Ytuber` | support the broader creator workflow | live YouTube data, user inputs, configured AI providers | audits, title ideas, plans, and creator experiments | mixed |
 
 ## Current V7 Workflow Map
 
@@ -149,9 +146,8 @@ This section is about the live app today, not the historical versions.
 | --- | --- | --- | --- | --- | --- |
 | `Channel Analysis` | compare bundled channel/video benchmarks | committed CSV files, filters, date ranges | pandas transforms, visualization helpers | KPI cards, monthly trends, top channels, top videos | dataset-backed |
 | `Channel Insights` | choose one evidence-backed creator experiment | channel URL/handle/ID, topic mode, snapshot refresh | `public_channel_service`, `channel_insights_service`, `channel_snapshot_store`, `topic_model_runtime` | overview, evidence tables, outliers, history | mixed |
-| `Download Hub` | generate or collect usable creator assets | prompts, public URLs, provider configuration | thumbnail and download services | generated and prepared assets | mixed |
+| `Creator Studio` | research, plan, generate, and export without duplicated tools | channel inputs, prompts, public URLs, provider configuration | channel workspace, thumbnail lab, media export services | strategies, drafts, thumbnails, and prepared assets | mixed |
 | `Outlier Finder` | surface unusual videos in a niche | niche query and explicit filters | `outliers_finder.py`, canonical metric helpers, optional AI provider | ranked results, evidence quality, structured synthesis | mixed |
-| `Ytuber` | work across research, planning, and creation | public channel inputs and provider configuration | YouTube and AI provider services | audits, plans, title tests, creative assistance | mixed |
 
 ```mermaid
 flowchart TD
@@ -164,12 +160,12 @@ flowchart TD
 
     Y --> D["Channel Insights"]
     Y --> E["Outlier Finder"]
-    Y --> F["Ytuber"]
-    Y --> H["Tools"]
-    Y --> I["Thumbnails URL export"]
+    Y --> F["Creator Studio channel workspace"]
+    Y --> H["Creator Studio media export"]
+    Y --> I["Creator Studio thumbnail export"]
 
     G --> J["Thumbnails generation"]
-    G --> L["Ytuber AI Studio"]
+    G --> L["Creator Studio content + thumbnail generation"]
     G --> M["Outlier AI research"]
 
     D --> N["Snapshots + topic metrics + recommendations"]
@@ -196,17 +192,16 @@ These are the main interactive surfaces a user actually navigates once a page is
 | --- | --- | --- | --- | --- |
 | `Channel Analysis` | main analytics canvas | `1` | dataset filters + charts/tables | benchmark bundled CSV data |
 | `Channel Insights` | tabs | `6` | `Overview`, `Topic Trends`, `Formats & Patterns`, `Outliers`, `Next Topics`, `History` | move from a tracked snapshot to a supported experiment without burying the evidence |
-| `Download Hub` | tool tabs | `2` | thumbnails, public media downloads | prepare assets without mixing them into analytics pages |
+| `Creator Studio` | task sections | `3` | `Channel Workspace`, `Thumbnail Lab`, `Media Export` | keep strategy, creation, and export together without duplicating thumbnail controls |
 | `Outlier Finder` | post-search sections | `5` | results, breakout snapshot, repeated evidence, optional AI synthesis, methodology | inspect unusual performance before acting on it |
-| `Ytuber` | creator modules | multiple | search, audits, planning, titles, benchmarks, AI Studio | support the end-to-end creator workflow |
 
 For the detailed tab-by-tab and module-by-module behavior, see:
 
 - [Architecture: Channel Insights](docs/ARCHITECTURE.md#channel-insights)
-- [Architecture: Thumbnails](docs/ARCHITECTURE.md#thumbnails)
+- [Architecture: Creator Studio](docs/ARCHITECTURE.md#creator-studio)
 - [Architecture: Outlier Finder](docs/ARCHITECTURE.md#outlier-finder)
-- [Architecture: Ytuber](docs/ARCHITECTURE.md#ytuber)
-- [Architecture: Tools](docs/ARCHITECTURE.md#tools)
+- [Architecture: Channel Workspace](docs/ARCHITECTURE.md#channel-workspace-implementation)
+- [Architecture: Media Export](docs/ARCHITECTURE.md#media-export-implementation)
 
 ## Current V7 Architecture In One View
 
@@ -216,7 +211,7 @@ flowchart TD
     U["User actions in the Streamlit UI"] --> B
     B --> C["dashboard/app.py run + st.navigation"]
     C --> D["sidebar navigation"]
-    D --> E["5 distinct product views"]
+    D --> E["4 distinct product views"]
 
     S["Streamlit secrets / env vars"] --> F["src/utils/api_keys.py"]
     F --> G["YouTube Data API v3"]
@@ -256,8 +251,8 @@ flowchart LR
     C --> D["YouTube Data API"]
     C --> E["Gemini"]
     C --> F["OpenAI"]
-    D --> G["Channel Insights / Outlier Finder / Ytuber / Tools / Thumbnail URL flow"]
-    E --> H["Thumbnails / Ytuber AI Studio / Outlier AI"]
+    D --> G["Channel Insights / Outlier Finder / Creator Studio"]
+    E --> H["Creator Studio generation / Outlier AI synthesis"]
     F --> H
     G --> I["service-layer normalization"]
     H --> I
@@ -268,8 +263,8 @@ flowchart LR
 This is the live V7 runtime path today:
 
 - bundled CSVs power `Channel Analysis`
-- live YouTube API calls power `Channel Insights`, `Outlier Finder`, `Ytuber`, `Tools`, and thumbnail URL export
-- Gemini/OpenAI power thumbnail generation, AI Studio, and Outlier AI research
+- live YouTube API calls power `Channel Insights`, `Outlier Finder`, and all three `Creator Studio` sections
+- Gemini/OpenAI power Content Studio drafts, Thumbnail Lab generation, and optional Outlier AI synthesis
 - the same secret names work in Streamlit secrets or GCP-style injected environment variables
 
 For the deeper API/service explanation, see [Architecture](docs/ARCHITECTURE.md#api-data-pipeline-overview).
@@ -328,7 +323,7 @@ flowchart LR
     C --> D["Secrets / env vars"]
     D --> E["streamlit_app.py"]
     E --> F["dashboard/app.py run + navigation"]
-    F --> G["5-page creator intelligence shell"]
+    F --> G["4-page creator intelligence shell"]
 ```
 
 Deployment notes in one screen:
@@ -364,7 +359,7 @@ What V5 kept on purpose (still true in V6):
 - public tracked-channel insights
 - thumbnail generation and export
 - outlier research
-- the live `Ytuber` workspace
+- the channel workspace now organized inside `Creator Studio`
 - optional BERTopic beta modeling
 
 What V6 adds on top of V5:

@@ -910,7 +910,7 @@ def _render_playlist_tab() -> None:
 
 
 def render_media_workspace() -> None:
-    """Single / batch / playlist public media workflows (used by Download Hub)."""
+    """Single, batch, and playlist media-export workflows for Creator Studio."""
     _inject_tools_css()
     st.markdown('<div class="tools-page">', unsafe_allow_html=True)
 

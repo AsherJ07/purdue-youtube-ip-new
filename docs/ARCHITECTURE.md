@@ -1,15 +1,16 @@
-# YouTube IP V5 Architecture
+# YouTube Creator Insights V7 Architecture
 
-This document is the current-runtime reference for V5. The version-history story lives in the README and project brief; this file focuses on how the deployed app works today, page by page and service by service.
+This document is the current-runtime reference for V7. The version-history story lives in the README and project brief; this file focuses on how the deployed app works today, page by page and service by service.
 
 ## Deep-Dive Guide
 
 - [Channel Analysis](#channel-analysis)
 - [Channel Insights](#channel-insights)
-- [Thumbnails](#thumbnails)
+- [Creator Studio](#creator-studio)
+- [Thumbnail Lab implementation](#thumbnail-lab-implementation)
 - [Outlier Finder](#outlier-finder)
-- [Ytuber](#ytuber)
-- [Tools](#tools)
+- [Channel Workspace implementation](#channel-workspace-implementation)
+- [Media Export implementation](#media-export-implementation)
 - [Deployment](#deployment)
 - [Model-Backed Topic Artifact Flow](#model-backed-topic-artifact-flow)
 
@@ -18,29 +19,27 @@ This document is the current-runtime reference for V5. The version-history story
 | Item | Count | Notes |
 | --- | --- | --- |
 | Streamlit entrypoints | `2` | `streamlit_app.py` and `dashboard/app.py` |
-| Current sidebar destinations | `7` | `Channel Analysis`, `Channel Insights`, `Thumbnails`, `Outlier Finder`, `Ytuber`, `Tools`, `Deployment` |
+| Current sidebar destinations | `4` | `Channel Analysis`, `Channel Insights`, `Creator Studio`, `Outlier Finder` |
 | Primary runtime data paths | `2` | bundled GitHub CSVs and live API-backed requests |
 | Live provider families | `3` | `YouTube`, `Gemini`, `OpenAI` |
 | Channel Insights topic modes | `2` | `Heuristic Topics` and `Model-Backed Topics (Beta)` |
 | Channel Insights tabs | `6` | `Overview`, `Topic Trends`, `Formats & Patterns`, `Outliers`, `Next Topics`, `History` |
 | Thumbnails tabs | `2` | `Generate`, `Download From URL` |
 | Tools tabs | `3` | `Single`, `Batch`, `Playlist` |
-| Ytuber workspace modules | `8` | `AI Studio`, `Overview`, `Channel Audit`, `Keyword Intel`, `Outliers Finder`, `Title & SEO Lab`, `Competitor Benchmark`, `Content Planner` |
+| Creator Studio task sections | `3` | `Channel Workspace`, `Thumbnail Lab`, `Media Export` |
+| Channel Workspace modules | `8` | `Content Studio`, `Overview`, `Channel Audit`, `Keyword Intel`, `Outliers Finder`, `Title & SEO Lab`, `Competitor Benchmark`, `Content Planner` |
 | Main Outlier Finder post-search sections | `4` | `Top Outliers In This Scan`, `Breakout Snapshot`, `AI Research`, `How This Works` |
 
 ## Sidebar Navigation
 
 1. `Channel Analysis`
 2. `Channel Insights`
-3. `Thumbnails`
+3. `Creator Studio`
 4. `Outlier Finder`
-5. `Ytuber`
-6. `Tools`
-7. `Deployment`
 
-V5 removes the sidebar `Assistant` and removes Google OAuth from `Channel Insights`, but keeps the broader AI suite pages.
+V7 keeps analytics and research distinct, while consolidating overlapping creation and export tools into one task-based studio.
 
-## Full V5 Runtime And Data Pipeline
+## Full V7 Runtime And Data Pipeline
 
 ```mermaid
 flowchart TD
@@ -85,8 +84,8 @@ flowchart LR
     C --> E["Gemini"]
     C --> F["OpenAI"]
 
-    D --> G["Channel Insights / Outlier Finder / Ytuber / Tools / Thumbnail URL flow"]
-    E --> H["Thumbnails / Ytuber AI Studio / Outlier AI"]
+    D --> G["Channel Insights / Outlier Finder / Creator Studio"]
+    E --> H["Creator Studio generation / Outlier AI synthesis"]
     F --> H
 
     G --> I["service-layer normalization"]
@@ -102,11 +101,8 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | `Channel Analysis` | benchmark committed cross-channel datasets | CSVs, pandas, visualization helpers | KPI cards, trend charts, ranked tables | dataset-backed |
 | `Channel Insights` | analyze one tracked public channel over time | `public_channel_service`, `channel_snapshot_store`, `channel_insights_service`, `topic_model_runtime`, `model_artifact_service` | topic trends, format analysis, outliers, next-topic ideas, history | mixed |
-| `Thumbnails` | generate and export thumbnails without broader strategy clutter | `thumbnail_generator.py`, `thumbnail_hub_service.py`, provider keys, public thumbnail URLs | generated images, preview cards, downloads | mixed |
+| `Creator Studio` | research a channel, create content and thumbnails, and export public media without duplicated controls | YouTube loaders, AI providers, thumbnail and media services | channel workspace, content drafts, thumbnails, public asset exports | mixed |
 | `Outlier Finder` | find niche winners using explainable scoring | `outliers_finder.py`, `outlier_ai.py`, YouTube API | scored outlier tables, breakout charts, AI research | mixed |
-| `Ytuber` | run a live creator AI workspace for one channel | YouTube API loaders, scoring helpers, thumbnail generator, AI generation | audits, AI Studio, keyword and planner outputs | mixed |
-| `Tools` | inspect and export public YouTube assets | `youtube_tools.py`, `transcript_service.py`, `yt-dlp`, `ffmpeg` | metadata previews, transcript/audio/video/thumbnail downloads | API-backed |
-| `Deployment` | explain setup and deployment in the app shell | static app guidance | setup and deploy notes | static |
 
 ## Channel Analysis
 
@@ -268,9 +264,21 @@ flowchart TD
 | `Next Topics` | turn current strengths and gaps into grounded future ideas | recommendation bundle and theme cards |
 | `History` | compare snapshots over time | persisted channel snapshot store |
 
-## Thumbnails
+## Creator Studio
 
-`Thumbnails` is intentionally a narrow, thumbnail-only workspace in V5. It has two tabs and no broader recommendation clutter.
+`Creator Studio` is the single creation destination. Its top-level selector is organized around three user jobs:
+
+| Section | Purpose |
+| --- | --- |
+| `Channel Workspace` | analyze a channel, generate evidence-grounded content drafts, audit packaging, benchmark competitors, and plan publishing |
+| `Thumbnail Lab` | generate thumbnail options or export the public thumbnail from a video URL |
+| `Media Export` | prepare public thumbnails, transcripts, audio, or video assets from individual URLs, batches, or playlists |
+
+Thumbnail image generation appears only in `Thumbnail Lab`; `Content Studio` inside the channel workspace is text-only. This removes the former duplication between Download Hub and Ytuber.
+
+## Thumbnail Lab implementation
+
+The thumbnail workspace has two focused paths: generation and public-thumbnail export.
 
 ### Generate Tab
 
@@ -376,9 +384,9 @@ flowchart TD
     F --> G["How This Works"]
 ```
 
-## Ytuber
+## Channel Workspace implementation
 
-`Ytuber` is a segmented live creator workspace, not a tabbed analytics page. It starts with a channel search, loads a workspace dataframe, and then lets the user switch across eight modules.
+The underlying channel workspace starts with a channel search, loads a workspace dataframe, and then lets the user switch across eight modules.
 
 ### Channel Load Flow
 
@@ -391,26 +399,26 @@ flowchart TD
     E --> F["active module render"]
 ```
 
-### Current Ytuber modules
+### Current Channel Workspace modules
 
 | Module | Current Role |
 | --- | --- |
-| `AI Studio` | generate titles, descriptions, scripts, hooks, ideas, and thumbnail concepts |
+| `Content Studio` | generate evidence-grounded titles, descriptions, scripts, hooks, and ideas; thumbnail generation lives in Thumbnail Lab |
 | `Overview` | summarize core channel performance and recent activity |
 | `Channel Audit` | show channel consistency and performance quality checks |
 | `Keyword Intel` | derive recent keyword patterns and opportunity cues |
 | `Outliers Finder` | hand off into a channel-contextualized outlier workflow |
-| `Title & SEO Lab` | score titles and descriptions and route weak directions into AI Studio |
+| `Title & SEO Lab` | score titles and descriptions and route weak directions into Content Studio |
 | `Competitor Benchmark` | compare current channel behavior to selected competitors |
 | `Content Planner` | turn current patterns into scheduling and planning suggestions |
 
-### Ytuber workspace flow
+### Channel Workspace flow
 
 ```mermaid
 flowchart LR
     A["Channel search"] --> B["cached/live load"]
     B --> C["workspace dataframe"]
-    C --> D["AI Studio"]
+    C --> D["Content Studio"]
     C --> E["Overview"]
     C --> F["Channel Audit"]
     C --> G["Keyword Intel"]
@@ -424,9 +432,9 @@ flowchart LR
     J --> K
 ```
 
-## Tools
+## Media Export implementation
 
-`Tools` remains the broadest utility page in V5. It prepares public assets into temporary artifacts and keeps them itemized rather than creating a persistent media store.
+The Media Export section prepares public assets into temporary artifacts and keeps them itemized rather than creating a persistent media store.
 
 ### Tools tab structure
 
