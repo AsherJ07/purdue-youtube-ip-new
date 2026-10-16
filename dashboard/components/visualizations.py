@@ -132,6 +132,10 @@ def _friendly_label(raw: str) -> str:
     }
     if text in aliases:
         return aliases[text]
+    # Callers often pass already-curated UI copy. Preserve its casing, including
+    # acronyms such as UTC, rather than title-casing it back to "Utc".
+    if "_" not in text and any(character.isspace() for character in text):
+        return text
     if text.endswith("_pct"):
         text = text[:-4] + " percent"
     text = text.replace("_", " ")
@@ -145,16 +149,19 @@ def _compact_number(value: float) -> str:
         num = float(value)
     except (TypeError, ValueError):
         return str(value)
+    if not math.isfinite(num):
+        return "—"
     sign = "-" if num < 0 else ""
     n = abs(num)
-    if n >= 1_000_000_000_000:
-        return f"{sign}{n / 1_000_000_000_000:.1f}T"
-    if n >= 1_000_000_000:
-        return f"{sign}{n / 1_000_000_000:.1f}B"
-    if n >= 1_000_000:
-        return f"{sign}{n / 1_000_000:.1f}M"
-    if n >= 1_000:
-        return f"{sign}{n / 1_000:.1f}K"
+    for threshold, suffix in (
+        (1_000_000_000_000, "T"),
+        (1_000_000_000, "B"),
+        (1_000_000, "M"),
+        (1_000, "K"),
+    ):
+        if n >= threshold:
+            rendered = f"{n / threshold:.1f}".rstrip("0").rstrip(".")
+            return f"{sign}{rendered}{suffix}"
     if n.is_integer():
         return f"{int(num)}"
     return f"{num:.2f}"
@@ -165,6 +172,46 @@ def _needs_compact_units(series: pd.Series) -> bool:
     if numeric.dropna().empty:
         return False
     return bool(numeric.abs().max() >= 10_000)
+
+
+def compact_axis_ticks(values: Iterable[Any], *, logarithmic: bool = False) -> Dict[str, Any]:
+    """Return explicit K/M/B/T ticks so charts never expose technical SI units such as G."""
+    numeric = pd.to_numeric(pd.Series(list(values)), errors="coerce")
+    numeric = numeric[np.isfinite(numeric)]
+    if numeric.empty:
+        return {}
+
+    if logarithmic:
+        positive = numeric[numeric > 0]
+        if positive.empty:
+            return {}
+        lower = int(math.floor(math.log10(float(positive.min()))))
+        upper = int(math.ceil(math.log10(float(positive.max()))))
+        tick_values = [10.0**power for power in range(lower, upper + 1)]
+        return {
+            "tickmode": "array",
+            "tickvals": tick_values,
+            "ticktext": [_compact_number(value) for value in tick_values],
+        }
+
+    low = min(0.0, float(numeric.min()))
+    high = max(0.0, float(numeric.max()))
+    span = high - low
+    if span <= 0:
+        return {}
+    raw_step = span / 5.0
+    magnitude = 10.0 ** math.floor(math.log10(raw_step))
+    normalized = raw_step / magnitude
+    nice_factor = next(candidate for candidate in (1.0, 2.0, 2.5, 5.0, 10.0) if normalized <= candidate)
+    step = nice_factor * magnitude
+    start = math.floor(low / step) * step
+    stop = math.ceil(high / step) * step
+    tick_values = np.arange(start, stop + step * 0.5, step).tolist()
+    return {
+        "tickmode": "array",
+        "tickvals": tick_values,
+        "ticktext": [_compact_number(value) for value in tick_values],
+    }
 
 
 def apply_dashboard_chart_theme(fig: go.Figure) -> go.Figure:
@@ -398,7 +445,8 @@ def plotly_line_chart(
                     mode="lines+markers",
                     line={"shape": "linear", "color": color, "width": 2.8},
                     marker={"size": 7, "color": "#FFFFFF", "line": {"color": color, "width": 2.2}},
-                    hovertemplate=f"{x_label}: %{{x}}<br>{_friendly_label(col)}: %{{y:~s}}<extra></extra>",
+                    customdata=[_compact_number(value) for value in df[col]],
+                    hovertemplate=f"{x_label}: %{{x}}<br>{_friendly_label(col)}: %{{customdata}}<extra></extra>",
                 ),
                 secondary_y=use_secondary,
             )
@@ -409,9 +457,17 @@ def plotly_line_chart(
         primary_cols = [c for c in y_cols if c not in secondary_y]
         secondary_cols = [c for c in y_cols if c in secondary_y]
         if any(_needs_compact_units(df[c]) for c in primary_cols if c in df.columns):
-            fig.update_yaxes(tickformat="~s", secondary_y=False)
+            primary_values = pd.concat(
+                [pd.to_numeric(df[c], errors="coerce") for c in primary_cols if c in df.columns],
+                ignore_index=True,
+            )
+            fig.update_yaxes(**compact_axis_ticks(primary_values), secondary_y=False)
         if any(_needs_compact_units(df[c]) for c in secondary_cols if c in df.columns):
-            fig.update_yaxes(tickformat="~s", secondary_y=True)
+            secondary_values = pd.concat(
+                [pd.to_numeric(df[c], errors="coerce") for c in secondary_cols if c in df.columns],
+                ignore_index=True,
+            )
+            fig.update_yaxes(**compact_axis_ticks(secondary_values), secondary_y=True)
     else:
         fig = go.Figure()
         for i, col in enumerate(y_cols):
@@ -426,13 +482,18 @@ def plotly_line_chart(
                     marker={"size": 7, "color": "#FFFFFF", "line": {"color": color, "width": 2.2}},
                     fill="tozeroy" if len(y_cols) == 1 else None,
                     fillcolor="rgba(230,0,18,0.08)" if len(y_cols) == 1 else None,
-                    hovertemplate=f"{x_label}: %{{x}}<br>{_friendly_label(col)}: %{{y:~s}}<extra></extra>",
+                    customdata=[_compact_number(value) for value in df[col]],
+                    hovertemplate=f"{x_label}: %{{x}}<br>{_friendly_label(col)}: %{{customdata}}<extra></extra>",
                 )
             )
         fig.update_xaxes(title_text=x_label)
         fig.update_yaxes(title_text=", ".join(_friendly_label(c) for c in y_cols))
         if any(_needs_compact_units(df[c]) for c in y_cols if c in df.columns):
-            fig.update_yaxes(tickformat="~s")
+            chart_values = pd.concat(
+                [pd.to_numeric(df[c], errors="coerce") for c in y_cols if c in df.columns],
+                ignore_index=True,
+            )
+            fig.update_yaxes(**compact_axis_ticks(chart_values))
 
     fig.update_layout(title=title, height=420)
     apply_dashboard_chart_theme(fig)
@@ -488,7 +549,7 @@ def plotly_bar_chart(
         fig.update_yaxes(title_text=None, showgrid=False)
         fig.update_xaxes(showgrid=True, gridcolor=CHART_GRID, rangemode="tozero")
         if _needs_compact_units(numeric_values):
-            fig.update_xaxes(tickformat="~s")
+            fig.update_xaxes(**compact_axis_ticks(numeric_values))
     else:
         fig = go.Figure(
             go.Bar(
@@ -507,7 +568,7 @@ def plotly_bar_chart(
         fig.update_xaxes(title_text=x_label)
         fig.update_yaxes(title_text=y_label, rangemode="tozero")
         if _needs_compact_units(numeric_values):
-            fig.update_yaxes(tickformat="~s")
+            fig.update_yaxes(**compact_axis_ticks(numeric_values))
     fig.update_layout(title=title, showlegend=False)
     apply_dashboard_chart_theme(fig)
     return fig
@@ -529,11 +590,12 @@ def plotly_donut_chart(
         labels={names: _friendly_label(names), values: _friendly_label(values)},
     )
     fig.update_traces(
+        customdata=[_compact_number(value) for value in df[values]],
         textposition="outside",
         texttemplate="%{label}<br>%{percent}",
         textfont=dict(size=12, color=CHART_INK),
         marker=dict(line=dict(color="rgba(255,255,255,0.95)", width=1.2)),
-        hovertemplate=f"{_friendly_label(names)}: %{{label}}<br>{_friendly_label(values)}: %{{value:~s}}<extra></extra>",
+        hovertemplate=f"{_friendly_label(names)}: %{{label}}<br>{_friendly_label(values)}: %{{customdata}}<extra></extra>",
     )
     fig.update_layout(title=title, showlegend=True)
     apply_dashboard_chart_theme(fig)
@@ -546,32 +608,75 @@ def plotly_heatmap(
     y: str,
     z: str,
     title: str,
+    *,
+    colorscale: Optional[Sequence[Any]] = None,
+    value_format: str = "~s",
+    height: int = 410,
 ) -> go.Figure:
-    """Create a heatmap from tall-form data with x, y, z columns."""
+    """Create a legible, theme-aligned heatmap from tall-form data."""
     pivot = df.pivot(index=y, columns=x, values=z)
+    scale = colorscale or [
+        [0.0, "#f3f6fb"],
+        [0.28, "#dbe8fb"],
+        [0.58, "#79aef2"],
+        [0.82, "#3478d4"],
+        [1.0, "#d90429"],
+    ]
+    x_label = _friendly_label(x)
+    y_label = _friendly_label(y)
+    z_label = _friendly_label(z)
+    numeric_values = pd.to_numeric(pd.Series(pivot.values.ravel()), errors="coerce")
+    colorbar_ticks = compact_axis_ticks(numeric_values)
+    if value_format == ",d":
+        display_values = np.array(
+            ["—" if pd.isna(value) else f"{int(round(float(value))):,}" for value in numeric_values],
+            dtype=object,
+        ).reshape(pivot.shape)
+    else:
+        display_values = np.array(
+            ["—" if pd.isna(value) else _compact_number(float(value)) for value in numeric_values],
+            dtype=object,
+        ).reshape(pivot.shape)
     fig = go.Figure(
         data=go.Heatmap(
             z=pivot.values,
             x=pivot.columns,
             y=pivot.index,
-            colorscale=[
-                [0.0, "rgba(230,0,18,0.06)"],
-                [0.45, "rgba(230,0,18,0.42)"],
-                [1.0, YT_RED],
-            ],
+            customdata=display_values,
+            colorscale=scale,
             hoverongaps=False,
+            xgap=2,
+            ygap=2,
+            hovertemplate=(
+                f"{y_label}: %{{y}}<br>"
+                f"{x_label}: %{{x}}:00 UTC<br>"
+                f"{z_label}: %{{customdata}}<extra></extra>"
+            ),
             colorbar=dict(
-                title=_friendly_label(z),
+                title=z_label,
                 thickness=10,
+                len=0.78,
                 outlinewidth=0,
                 tickfont=dict(color=CHART_MUTED),
                 title_font=dict(color=CHART_MUTED, size=11),
+                **colorbar_ticks,
             ),
         )
     )
-    fig.update_layout(title=title)
-    fig.update_xaxes(title_text=_friendly_label(x))
-    fig.update_yaxes(title_text=_friendly_label(y))
+    fig.update_layout(title=title, height=height)
+    fig.update_xaxes(
+        title_text="Hour (UTC)",
+        dtick=3,
+        tickmode="linear",
+        showgrid=False,
+        zeroline=False,
+    )
+    fig.update_yaxes(
+        title_text=y_label,
+        autorange="reversed",
+        showgrid=False,
+        zeroline=False,
+    )
     apply_dashboard_chart_theme(fig)
     return fig
 
@@ -670,9 +775,9 @@ def plotly_scatter(
     fig.update_xaxes(showgrid=True, gridcolor=CHART_GRID)
     fig.update_yaxes(showgrid=True, gridcolor=CHART_GRID)
     if x in df.columns and _needs_compact_units(df[x]):
-        fig.update_xaxes(tickformat="~s")
+        fig.update_xaxes(**compact_axis_ticks(df[x], logarithmic=log_x))
     if y in df.columns and _needs_compact_units(df[y]):
-        fig.update_yaxes(tickformat="~s")
+        fig.update_yaxes(**compact_axis_ticks(df[y]))
     marker_style: Dict[str, Any] = {
         "opacity": 0.72,
         "line": {"width": 1.1, "color": "rgba(255,255,255,0.82)"},
@@ -702,10 +807,14 @@ def plotly_treemap(
         labels={values: _friendly_label(values)},
     )
     fig.update_layout(title=title)
-    fig.update_traces(
-        textfont=dict(size=12, color=CHART_INK),
-        texttemplate="%{label}<br>%{value:~s}",
-    )
+    for trace in fig.data:
+        compact_values = [_compact_number(value) for value in trace.values]
+        trace.update(
+            customdata=np.asarray(compact_values, dtype=object).reshape(-1, 1),
+            textfont=dict(size=12, color=CHART_INK),
+            texttemplate="%{label}<br>%{customdata[0]}",
+            hovertemplate="%{label}<br>Value: %{customdata[0]}<extra></extra>",
+        )
     apply_dashboard_chart_theme(fig)
     return fig
 
@@ -722,8 +831,9 @@ def plotly_funnel_chart(
             x=list(values),
             textinfo="text+percent initial",
             text=[_compact_number(v) for v in values],
+            customdata=[_compact_number(v) for v in values],
             textfont=dict(size=13, color="#1d1d1f"),
-            hovertemplate="Stage: %{y}<br>Value: %{x:~s}<extra></extra>",
+            hovertemplate="Stage: %{y}<br>Value: %{customdata}<extra></extra>",
         )
     )
     fig.update_layout(title=title)

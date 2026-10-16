@@ -585,19 +585,19 @@ def _inject_ytuber_css() -> None:
             margin-bottom: 0.45rem !important;
         }
         div[data-testid="stTextInput"]:has(input[aria-label="Search Channel"]) [data-baseweb="input"] {
-            min-height: 3.5rem !important;
-            border-radius: 999px !important;
-            border: 1px solid rgba(255, 255, 255, 0.14) !important;
-            background: rgba(15, 15, 35, 0.85) !important;
-            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25) !important;
+            min-height: 46px !important;
+            border-radius: 12px !important;
+            border: 1px solid #d9dee7 !important;
+            background: #ffffff !important;
+            box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05) !important;
         }
         div[data-testid="stTextInput"]:has(input[aria-label="Search Channel"]) [data-baseweb="input"]:focus-within {
-            border-color: rgba(0, 212, 255, 0.55) !important;
-            box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2), 0 12px 36px rgba(0, 0, 0, 0.35) !important;
+            border-color: #0071e3 !important;
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.22) !important;
         }
         div[data-testid="stTextInput"]:has(input[aria-label="Search Channel"]) input {
             font-size: 16px !important;
-            color: #FFFFFF !important;
+            color: #1d1d1f !important;
         }
         .stButton > button,
         .stFormSubmitButton > button {
@@ -626,8 +626,9 @@ def _inject_ytuber_css() -> None:
         .ytuber-footer-detail { color: #6e6e73 !important; }
         div[data-testid="stTextInput"]:has(input[aria-label="Search Channel"]) [data-baseweb="input"] {
             background: #ffffff !important;
-            border: 1px solid rgba(0, 0, 0, 0.14) !important;
-            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06) !important;
+            border: 1px solid #d9dee7 !important;
+            border-radius: 12px !important;
+            box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05) !important;
         }
         div[data-testid="stTextInput"]:has(input[aria-label="Search Channel"]) input {
             color: #1d1d1f !important;
@@ -639,41 +640,6 @@ def _inject_ytuber_css() -> None:
         .ytuber-section-surface {
             background: rgba(255, 255, 255, 0.94) !important;
             border: 1px solid rgba(0, 0, 0, 0.1) !important;
-        }
-        /* Ytuber page: ensure help/info icon uses visible bulb style */
-        [data-testid*="stTooltipHoverTarget"] button,
-        button[aria-label*="help" i],
-        button[aria-label*="info" i],
-        [data-testid*="stTooltipIcon"],
-        [data-testid*="stHelpIcon"] {
-            width: 24px !important;
-            height: 24px !important;
-            min-width: 24px !important;
-            min-height: 24px !important;
-            border-radius: 999px !important;
-            background: linear-gradient(165deg, #fffaf0, #fff3d9) !important;
-            border: 1px solid rgba(230, 0, 18, 0.4) !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-            color: transparent !important;
-            position: relative !important;
-        }
-        [data-testid*="stTooltipHoverTarget"] button svg,
-        button[aria-label*="help" i] svg,
-        button[aria-label*="info" i] svg,
-        [data-testid*="stTooltipIcon"] svg,
-        [data-testid*="stHelpIcon"] svg { opacity: 0 !important; }
-        [data-testid*="stTooltipHoverTarget"] button::before,
-        button[aria-label*="help" i]::before,
-        button[aria-label*="info" i]::before,
-        [data-testid*="stTooltipIcon"]::before,
-        [data-testid*="stHelpIcon"]::before {
-            content: "💡";
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -54%);
-            font-size: 13px;
-            line-height: 1;
         }
         @media (max-width: 900px) {
             .ytuber-title {
@@ -2639,24 +2605,6 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
         )
         show_plotly_chart(fig_day_uploads)
 
-    hour_cols = st.columns(2)
-    with hour_cols[0]:
-        fig_hour_views = plotly_bar_chart(
-            hour_perf,
-            x="publish_hour",
-            y="median_daily_views",
-            title="Typical age-normalized reach by hour (UTC)",
-        )
-        show_plotly_chart(fig_hour_views)
-    with hour_cols[1]:
-        fig_hour_uploads = plotly_bar_chart(
-            hour_perf,
-            x="publish_hour",
-            y="videos",
-            title="Sample size by hour (UTC)",
-        )
-        show_plotly_chart(fig_hour_uploads)
-
     heatmap_source = (
         channel_df.groupby(["publish_day", "publish_hour"], dropna=False)
         .agg(median_daily_views=("views_per_day", "median"), videos=("video_id", "count"))
@@ -2669,8 +2617,30 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
     )
     heatmap_source = heatmap_source.sort_values(["publish_day", "publish_hour"])
 
-    heat_cols = st.columns(2)
-    with heat_cols[0]:
+    heatmap_metric = st.segmented_control(
+        "Timing matrix",
+        ["Typical reach", "Video count"],
+        default="Typical reach",
+        key="publishing_planner_heatmap_metric",
+        help="Switch between age-normalized reach and the amount of evidence in each time slot.",
+    )
+    if heatmap_metric == "Video count":
+        heat_uploads = plotly_heatmap(
+            heatmap_source,
+            x="publish_hour",
+            y="publish_day",
+            z="videos",
+            title="Publishing evidence by weekday and hour",
+            colorscale=[
+                [0.0, "#f3f6fb"],
+                [0.35, "#dbe8fb"],
+                [0.72, "#79aef2"],
+                [1.0, "#2468bd"],
+            ],
+            value_format=",d",
+        )
+        show_plotly_chart(heat_uploads)
+    else:
         heat_views = plotly_heatmap(
             heatmap_source,
             x="publish_hour",
@@ -2679,15 +2649,7 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
             title="Typical daily reach by weekday and hour",
         )
         show_plotly_chart(heat_views)
-    with heat_cols[1]:
-        heat_uploads = plotly_heatmap(
-            heatmap_source,
-            x="publish_hour",
-            y="publish_day",
-            z="videos",
-            title="Video count by weekday and hour",
-        )
-        show_plotly_chart(heat_uploads)
+    st.caption("Publication times are shown in UTC. Hover over a cell for the exact value.")
 
     top_topics = _suggested_topic_angles(channel_df, top_n=8)
     if top_topics:

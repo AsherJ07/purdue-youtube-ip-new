@@ -10,6 +10,7 @@ import streamlit as st
 
 from dashboard.components.visualizations import (
     apply_dashboard_chart_theme,
+    compact_axis_ticks,
     format_compact_number,
     show_plotly_chart,
     styled_dataframe,
@@ -621,30 +622,37 @@ def _inject_outlier_css() -> None:
         /* Outlier form actions + segmented controls: high-contrast on white */
         [data-testid="stForm"] .stFormSubmitButton button {
             min-height: 46px !important;
-            border-radius: 999px !important;
+            border-radius: 12px !important;
             font-weight: 700 !important;
             letter-spacing: 0.01em !important;
         }
-        [data-testid="stForm"] .stFormSubmitButton button[kind="primary"] {
-            background: linear-gradient(180deg, #ff2b2b, #e60012) !important;
+        [data-testid="stForm"] [data-testid="stFormSubmitButton"] button {
+            min-height: 46px !important;
+            border-radius: 12px !important;
+            font-weight: 700 !important;
+            box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05) !important;
+        }
+        [data-testid="stForm"] .stFormSubmitButton button[kind^="primary"] {
+            background: #e60012 !important;
             color: #ffffff !important;
-            border: 1px solid rgba(0, 0, 0, 0.16) !important;
-            box-shadow: 0 8px 20px rgba(230, 0, 18, 0.3) !important;
+            border: 1px solid #e60012 !important;
+            box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05) !important;
         }
-        [data-testid="stForm"] .stFormSubmitButton button:not([kind="primary"]) {
-            background: linear-gradient(165deg, rgba(255, 255, 255, 1), rgba(236, 240, 248, 0.96)) !important;
+        [data-testid="stForm"] .stFormSubmitButton button[kind^="primary"]:disabled {
+            background: #e8ebf0 !important;
+            color: #7a818d !important;
+            border-color: #d9dee7 !important;
+            box-shadow: none !important;
+        }
+        [data-testid="stForm"] .stFormSubmitButton button:not([kind^="primary"]) {
+            background: #ffffff !important;
             color: #1d1d1f !important;
-            border: 1px solid rgba(0, 0, 0, 0.22) !important;
-            box-shadow:
-                inset 0 1px 0 rgba(255, 255, 255, 0.98),
-                0 6px 16px rgba(0, 0, 0, 0.12) !important;
+            border: 1px solid #d9dee7 !important;
+            box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05) !important;
         }
-        [data-testid="stForm"] .stFormSubmitButton button:not([kind="primary"]):hover {
-            border-color: rgba(230, 0, 18, 0.45) !important;
-            box-shadow:
-                inset 0 1px 0 rgba(255, 255, 255, 1),
-                0 0 0 2px rgba(0, 113, 227, 0.12),
-                0 8px 20px rgba(0, 0, 0, 0.14) !important;
+        [data-testid="stForm"] .stFormSubmitButton button:not([kind^="primary"]):hover {
+            border-color: #b8c0cc !important;
+            box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05) !important;
         }
         [data-testid="stForm"] [data-testid="stSegmentedControl"] {
             background: rgba(255, 255, 255, 0.98) !important;
@@ -765,16 +773,12 @@ def _inject_outlier_css() -> None:
         /* Number input group shell and +/- controls: always light */
         [data-testid="stForm"] [data-testid="stNumberInput"] [data-baseweb="input"],
         [data-testid="stForm"] [data-testid="stNumberInput"] [data-baseweb="input"] > div {
-            background: linear-gradient(165deg, rgba(255, 255, 255, 0.98), rgba(242, 246, 252, 0.94)) !important;
-            border: 1px solid rgba(173, 186, 205, 0.52) !important;
-            border-color: rgba(173, 186, 205, 0.52) !important;
+            background: #ffffff !important;
+            border: 1px solid #d9dee7 !important;
+            border-color: #d9dee7 !important;
             outline: none !important;
             border-radius: 12px !important;
-            box-shadow:
-                inset 0 1px 0 rgba(255, 255, 255, 0.98),
-                inset 0 -1px 0 rgba(167, 182, 203, 0.32),
-                0 6px 16px rgba(15, 23, 42, 0.10),
-                0 1px 0 rgba(255, 255, 255, 0.92) !important;
+            box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05) !important;
             color: #1d1d1f !important;
         }
         [data-testid="stForm"] [data-testid="stNumberInput"] [data-baseweb="input"] *,
@@ -791,60 +795,19 @@ def _inject_outlier_css() -> None:
         }
         [data-testid="stForm"] [data-testid="stNumberInput"] [data-baseweb="input"]:focus-within,
         [data-testid="stForm"] [data-testid="stNumberInput"] [data-baseweb="input"] > div:focus-within {
-            border-color: rgba(0, 113, 227, 0.34) !important;
-            box-shadow:
-                inset 0 1px 0 rgba(255, 255, 255, 1),
-                inset 0 -1px 0 rgba(0, 113, 227, 0.28),
-                0 0 0 2px rgba(0, 113, 227, 0.14),
-                0 8px 20px rgba(15, 23, 42, 0.14) !important;
+            border-color: #0071e3 !important;
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.22) !important;
         }
         [data-testid="stForm"] [data-testid="stNumberInput"] [data-baseweb="input"] button {
-            background: linear-gradient(165deg, rgba(255, 255, 255, 1), rgba(236, 241, 249, 0.96)) !important;
-            border-left: 1px solid rgba(176, 189, 209, 0.44) !important;
+            background: #f6f8fb !important;
+            border-left: 1px solid #d9dee7 !important;
             color: #111216 !important;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.98) !important;
+            box-shadow: none !important;
         }
         [data-testid="stForm"] [data-testid="stNumberInput"] [data-baseweb="input"] button svg {
             stroke: #111216 !important;
             fill: #111216 !important;
             color: #111216 !important;
-        }
-        /* Outlier Finder help/info icon: replace dark dot with bulb */
-        [data-testid="stForm"] [data-testid*="stTooltipHoverTarget"] button,
-        [data-testid="stForm"] button[aria-label*="help" i],
-        [data-testid="stForm"] button[aria-label*="info" i] {
-            width: 24px !important;
-            height: 24px !important;
-            min-width: 24px !important;
-            min-height: 24px !important;
-            border-radius: 999px !important;
-            background: linear-gradient(165deg, #fffaf0, #fff3d9) !important;
-            border: 1px solid rgba(230, 0, 18, 0.4) !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-            color: transparent !important;
-            position: relative !important;
-        }
-        [data-testid="stForm"] [data-testid*="stTooltipHoverTarget"] button svg,
-        [data-testid="stForm"] button[aria-label*="help" i] svg,
-        [data-testid="stForm"] button[aria-label*="info" i] svg {
-            opacity: 0 !important;
-        }
-        [data-testid="stForm"] [data-testid*="stTooltipHoverTarget"] button::before,
-        [data-testid="stForm"] button[aria-label*="help" i]::before,
-        [data-testid="stForm"] button[aria-label*="info" i]::before {
-            content: "💡";
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -54%);
-            font-size: 13px;
-            line-height: 1;
-        }
-        [data-testid="stForm"] [data-testid*="stTooltipHoverTarget"] button:hover,
-        [data-testid="stForm"] button[aria-label*="help" i]:hover,
-        [data-testid="stForm"] button[aria-label*="info" i]:hover {
-            background: linear-gradient(165deg, #fffbe7, #ffefc6) !important;
-            border-color: rgba(230, 0, 18, 0.58) !important;
         }
         @media (max-width: 980px) {
             .outlier-title {
@@ -1156,8 +1119,15 @@ def _breakout_scatter(result_frame: pd.DataFrame):
             "Subscribers: %{customdata[5]}<extra></extra>"
         ),
     )
-    fig.update_xaxes(type="log", tickformat="~s", title="Channel subscribers (log scale)")
-    fig.update_yaxes(tickformat="~s", title="Lifetime average daily views")
+    fig.update_xaxes(
+        type="log",
+        title="Channel subscribers (log scale)",
+        **compact_axis_ticks(chart_df["subscriber_axis"], logarithmic=True),
+    )
+    fig.update_yaxes(
+        title="Lifetime average daily views",
+        **compact_axis_ticks(chart_df["views_per_day"]),
+    )
     return _style_chart(fig, legend_title="Publish Age Bucket")
 
 

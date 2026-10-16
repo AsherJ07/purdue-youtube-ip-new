@@ -209,13 +209,11 @@ def _inject_page_css() -> None:
         .thumb-page [data-baseweb="textarea"] > div,
         .thumb-page [data-baseweb="select"] > div,
         .thumb-page .stSelectbox > div > div {
-            background: linear-gradient(165deg, rgba(255, 255, 255, 1), rgba(240, 244, 250, 0.98)) !important;
+            background: #ffffff !important;
             color: #1d1d1f !important;
-            border: 1px solid rgba(0, 0, 0, 0.16) !important;
-            border-radius: 14px !important;
-            box-shadow:
-                inset 0 1px 0 rgba(255, 255, 255, 1),
-                0 6px 16px rgba(0, 0, 0, 0.08) !important;
+            border: 1px solid #d9dee7 !important;
+            border-radius: 12px !important;
+            box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05) !important;
         }
         .thumb-page [data-baseweb="input"] input,
         .thumb-page [data-baseweb="textarea"] textarea,
@@ -234,8 +232,8 @@ def _inject_page_css() -> None:
         .thumb-page [data-baseweb="textarea"] textarea:focus,
         .thumb-page .stTextInput input:focus,
         .thumb-page .stTextArea textarea:focus {
-            border-color: rgba(230, 0, 18, 0.35) !important;
-            box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.14) !important;
+            border-color: #0071e3 !important;
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.22) !important;
             outline: none !important;
         }
         /* Fallback (no .thumb-page wrapper in DOM): force light text areas/inputs */
@@ -247,10 +245,10 @@ def _inject_page_css() -> None:
         [data-baseweb="input"] > div,
         .stSelectbox > div > div,
         [data-baseweb="select"] > div {
-            background: linear-gradient(165deg, rgba(255, 255, 255, 1), rgba(240, 244, 250, 0.98)) !important;
+            background: #ffffff !important;
             color: #1d1d1f !important;
-            border: 1px solid rgba(0, 0, 0, 0.16) !important;
-            border-radius: 14px !important;
+            border: 1px solid #d9dee7 !important;
+            border-radius: 12px !important;
             -webkit-text-fill-color: #1d1d1f !important;
         }
         .stTextArea textarea::placeholder,
@@ -259,43 +257,6 @@ def _inject_page_css() -> None:
         [data-baseweb="input"] input::placeholder {
             color: #6e6e73 !important;
             -webkit-text-fill-color: #6e6e73 !important;
-            opacity: 1 !important;
-        }
-        /* Thumbnails page help icon: remove dark dot artifact and show a clean bulb */
-        [data-testid="stWidgetLabel"] [data-testid*="stTooltipHoverTarget"] button,
-        [data-testid="stWidgetLabel"] [data-testid*="stTooltipIcon"],
-        [data-testid="stWidgetLabel"] [data-testid*="stHelpIcon"] {
-            width: 24px !important;
-            height: 24px !important;
-            min-width: 24px !important;
-            min-height: 24px !important;
-            border-radius: 999px !important;
-            background: linear-gradient(165deg, #fffaf0, #fff3d9) !important;
-            border: 1px solid rgba(230, 0, 18, 0.42) !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-            color: transparent !important;
-            position: relative !important;
-            overflow: hidden !important;
-        }
-        [data-testid="stWidgetLabel"] [data-testid*="stTooltipHoverTarget"] button *,
-        [data-testid="stWidgetLabel"] [data-testid*="stTooltipIcon"] *,
-        [data-testid="stWidgetLabel"] [data-testid*="stHelpIcon"] * {
-            opacity: 0 !important;
-            color: transparent !important;
-            background: transparent !important;
-            border: 0 !important;
-            box-shadow: none !important;
-        }
-        [data-testid="stWidgetLabel"] [data-testid*="stTooltipHoverTarget"] button::before,
-        [data-testid="stWidgetLabel"] [data-testid*="stTooltipIcon"]::before,
-        [data-testid="stWidgetLabel"] [data-testid*="stHelpIcon"]::before {
-            content: "💡";
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -54%);
-            font-size: 13px;
-            line-height: 1;
             opacity: 1 !important;
         }
         </style>

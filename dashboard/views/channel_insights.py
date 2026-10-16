@@ -323,43 +323,6 @@ def _inject_channel_insights_css() -> None:
             background: rgba(255, 255, 255, 0.8) !important;
             color: #6e6e73 !important;
         }
-        /* Channel Insights help/info icon: replace dark dot with clear bulb */
-        [data-testid*="stTooltipHoverTarget"] button,
-        button[aria-label*="help" i],
-        button[aria-label*="info" i] {
-            width: 24px !important;
-            height: 24px !important;
-            min-width: 24px !important;
-            min-height: 24px !important;
-            border-radius: 999px !important;
-            background: linear-gradient(165deg, #fffaf0, #fff3d9) !important;
-            border: 1px solid rgba(230, 0, 18, 0.38) !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-            color: transparent !important;
-            position: relative !important;
-        }
-        [data-testid*="stTooltipHoverTarget"] button svg,
-        button[aria-label*="help" i] svg,
-        button[aria-label*="info" i] svg {
-            opacity: 0 !important;
-        }
-        [data-testid*="stTooltipHoverTarget"] button::before,
-        button[aria-label*="help" i]::before,
-        button[aria-label*="info" i]::before {
-            content: "💡";
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -54%);
-            font-size: 13px;
-            line-height: 1;
-        }
-        [data-testid*="stTooltipHoverTarget"] button:hover,
-        button[aria-label*="help" i]:hover,
-        button[aria-label*="info" i]:hover {
-            background: linear-gradient(165deg, #fffbe7, #ffefc6) !important;
-            border-color: rgba(230, 0, 18, 0.55) !important;
-        }
         </style>
         """,
         unsafe_allow_html=True,

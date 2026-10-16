@@ -1473,6 +1473,516 @@ div[role="option"]:hover {
     background: rgba(255, 255, 255, 0.9) !important;
     border-radius: 10px !important;
 }
+
+/* —— 2026 product-system consolidation: calm surfaces, clear controls, visible focus —— */
+:root {
+    --ui-surface: rgba(255, 255, 255, 0.92);
+    --ui-surface-solid: #ffffff;
+    --ui-surface-subtle: #f6f8fb;
+    --ui-border: #d9dee7;
+    --ui-border-strong: #b8c0cc;
+    --ui-text: #17181b;
+    --ui-muted: #636a75;
+    --ui-focus: rgba(0, 113, 227, 0.22);
+    --ui-shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.05);
+    --ui-shadow-md: 0 10px 30px rgba(17, 24, 39, 0.07);
+    --ui-radius: 12px;
+    --ui-radius-lg: 18px;
+}
+
+html, body, [class*="css"] {
+    color: var(--ui-text) !important;
+    line-height: 1.5;
+}
+
+[data-testid="stAppViewContainer"] {
+    background-image:
+        {NN_BG_LAYER},
+        radial-gradient(ellipse 85% 65% at 50% -25%, rgba(0, 113, 227, 0.08), transparent 58%),
+        radial-gradient(ellipse 55% 45% at 100% 18%, rgba(230, 0, 18, 0.045), transparent 55%),
+        repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0, 0, 0, 0.035) 39px, rgba(0, 0, 0, 0.035) 40px),
+        repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0, 0, 0, 0.035) 39px, rgba(0, 0, 0, 0.035) 40px),
+        linear-gradient(180deg, #fbfcfd 0%, #f5f6f8 54%, #eef1f5 100%) !important;
+    background-size: 220px 220px, auto, auto, auto, auto, auto !important;
+    background-repeat: repeat, no-repeat, no-repeat, repeat, repeat, no-repeat !important;
+}
+
+/* Keep decoration subordinate to the work. */
+.yt-page-hero {
+    padding: clamp(2.4rem, 5vw, 4.6rem) clamp(1.25rem, 4vw, 3.25rem) !important;
+    border-radius: var(--ui-radius-lg) !important;
+    border-color: rgba(255, 255, 255, 0.86) !important;
+    box-shadow: var(--ui-shadow-md) !important;
+}
+
+.yt-page-hero h1,
+.yt-page-title {
+    max-width: 980px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    text-wrap: balance;
+}
+
+.yt-page-hero p,
+.yt-page-description {
+    max-width: 760px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    text-align: center !important;
+    color: #4f5661 !important;
+    text-wrap: pretty;
+}
+
+.yt-section-header {
+    margin-top: 2rem !important;
+    margin-bottom: 0.15rem !important;
+}
+
+.yt-section-header span {
+    font-size: clamp(1.25rem, 1.5vw, 1.55rem) !important;
+    letter-spacing: -0.02em !important;
+}
+
+.yt-section-underline {
+    width: 44px !important;
+    height: 3px !important;
+    border-radius: 3px !important;
+    background: linear-gradient(90deg, var(--apple-red), var(--apple-blue)) !important;
+    margin-bottom: 1rem !important;
+}
+
+/* Static information should not impersonate a clickable card. */
+.metric-card {
+    border: 1px solid rgba(17, 24, 39, 0.10) !important;
+    border-radius: var(--ui-radius-lg) !important;
+    background: var(--ui-surface) !important;
+    box-shadow: var(--ui-shadow-sm) !important;
+    transition: border-color 160ms ease, box-shadow 160ms ease !important;
+}
+
+.metric-card:hover {
+    transform: none !important;
+    border-color: rgba(17, 24, 39, 0.16) !important;
+    box-shadow: var(--ui-shadow-sm) !important;
+}
+
+.metric-label {
+    color: var(--ui-muted) !important;
+    letter-spacing: 0.055em !important;
+}
+
+.metric-value {
+    color: var(--ui-text);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Bordered Streamlit containers serve as deliberate filter / task panels. */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    background: rgba(255, 255, 255, 0.74) !important;
+    border: 1px solid rgba(17, 24, 39, 0.10) !important;
+    border-radius: var(--ui-radius-lg) !important;
+    box-shadow: var(--ui-shadow-sm) !important;
+}
+
+.filter-panel-heading {
+    color: var(--ui-text);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.7rem;
+}
+
+/* Inputs: one neutral shape, explicit boundaries, and a consistent focus ring. */
+[data-testid="stWidgetLabel"] p {
+    color: #30343a !important;
+    font-size: 0.82rem !important;
+    font-weight: 650 !important;
+    letter-spacing: 0.005em !important;
+}
+
+[data-baseweb="input"] > div,
+[data-baseweb="select"] > div,
+[data-baseweb="textarea"],
+[data-testid="stDateInput"] [data-baseweb="input"] > div,
+.stTextInput > div > div,
+.stNumberInput > div > div,
+.stSelectbox > div > div,
+.stMultiSelect > div > div {
+    min-height: 46px !important;
+    color: var(--ui-text) !important;
+    background: var(--ui-surface-solid) !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: var(--ui-radius) !important;
+    box-shadow: var(--ui-shadow-sm) !important;
+    transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease !important;
+}
+
+[data-baseweb="input"] > div:hover,
+[data-baseweb="select"] > div:hover,
+[data-baseweb="textarea"]:hover,
+.stTextInput > div > div:hover,
+.stNumberInput > div > div:hover,
+.stSelectbox > div > div:hover,
+.stMultiSelect > div > div:hover {
+    border-color: var(--ui-border-strong) !important;
+}
+
+[data-baseweb="input"] > div:focus-within,
+[data-baseweb="select"] > div:focus-within,
+[data-baseweb="textarea"]:focus-within,
+.stTextInput > div > div:focus-within,
+.stNumberInput > div > div:focus-within,
+.stSelectbox > div > div:focus-within,
+.stMultiSelect > div > div:focus-within {
+    border-color: var(--apple-blue) !important;
+    box-shadow: 0 0 0 3px var(--ui-focus) !important;
+}
+
+[data-baseweb="input"] input,
+[data-baseweb="select"] input,
+[data-baseweb="textarea"] textarea,
+.stTextInput input,
+.stTextArea textarea {
+    color: var(--ui-text) !important;
+    font-size: 0.94rem !important;
+    line-height: 1.45 !important;
+    background: transparent !important;
+}
+
+[data-baseweb="textarea"] textarea,
+.stTextArea textarea {
+    min-height: 112px !important;
+    padding-top: 0.7rem !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #7a818d !important;
+    opacity: 1 !important;
+}
+
+/* Restore the native, recognizable help icon; remove decorative emoji replacement. */
+[data-testid="stWidgetLabel"] [data-testid*="stTooltipHoverTarget"] button,
+[data-testid="stWidgetLabel"] [data-testid*="stTooltipIcon"],
+[data-testid="stWidgetLabel"] [data-testid*="stHelpIcon"] {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    color: #626a75 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+[data-testid="stWidgetLabel"] [data-testid*="stTooltipHoverTarget"] button *,
+[data-testid="stWidgetLabel"] [data-testid*="stTooltipIcon"] *,
+[data-testid="stWidgetLabel"] [data-testid*="stHelpIcon"] * {
+    opacity: 1 !important;
+    color: currentColor !important;
+    fill: currentColor !important;
+}
+
+[data-testid="stWidgetLabel"] [data-testid*="stTooltipHoverTarget"] button::before,
+[data-testid*="stTooltipIcon"]::before,
+[data-testid*="stHelpIcon"]::before {
+    content: none !important;
+}
+
+/* Menus and calendars behave like anchored product surfaces, not modal artwork. */
+[data-baseweb="popover"],
+[data-baseweb="menu"],
+[role="listbox"] {
+    background: var(--ui-surface-solid) !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 16px 42px rgba(17, 24, 39, 0.14) !important;
+    overflow: hidden !important;
+}
+
+[role="option"],
+li[role="option"] {
+    min-height: 42px !important;
+    color: var(--ui-text) !important;
+    background: var(--ui-surface-solid) !important;
+    border-radius: 8px !important;
+    margin: 2px 4px !important;
+}
+
+[role="option"]:hover,
+li[role="option"]:hover {
+    background: #f0f5fc !important;
+}
+
+[role="option"][aria-selected="true"],
+li[role="option"][aria-selected="true"] {
+    color: #8f0010 !important;
+    background: #fff0f2 !important;
+    font-weight: 650 !important;
+}
+
+/* Actions use shape and hierarchy instead of gloss. */
+.stButton > button,
+.stDownloadButton > button,
+[data-testid="stFormSubmitButton"] > button,
+[data-testid="stBaseButton-primary"],
+[data-testid="stBaseButton-secondary"] {
+    min-height: 44px !important;
+    border-radius: var(--ui-radius) !important;
+    font-weight: 650 !important;
+    box-shadow: var(--ui-shadow-sm) !important;
+    transform: none !important;
+    transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease !important;
+}
+
+[data-testid="stBaseButton-primary"],
+.stButton > button[kind="primary"],
+[data-testid="stFormSubmitButton"] > button[kind^="primary"] {
+    color: #ffffff !important;
+    background: #e60012 !important;
+    border: 1px solid #e60012 !important;
+}
+
+[data-testid="stBaseButton-primary"] [data-testid="stMarkdownContainer"] p,
+.stButton > button[kind="primary"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stFormSubmitButton"] > button[kind^="primary"] [data-testid="stMarkdownContainer"] p {
+    color: #ffffff !important;
+}
+
+[data-testid="stBaseButton-primary"] p,
+.stButton > button[kind="primary"] p,
+[data-testid="stFormSubmitButton"] > button[kind^="primary"] p {
+    color: #ffffff !important;
+}
+
+[data-testid="stBaseButton-primary"]:disabled p,
+.stButton > button[kind="primary"]:disabled p,
+[data-testid="stFormSubmitButton"] > button[kind^="primary"]:disabled p {
+    color: #7a818d !important;
+}
+
+[data-testid="stBaseButton-primary"]:disabled,
+.stButton > button[kind="primary"]:disabled,
+[data-testid="stFormSubmitButton"] > button[kind^="primary"]:disabled {
+    color: #7a818d !important;
+    background: #e8ebf0 !important;
+    border-color: #d9dee7 !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+}
+
+[data-testid="stBaseButton-primary"]:hover,
+.stButton > button[kind="primary"]:hover,
+[data-testid="stFormSubmitButton"] > button[kind^="primary"]:hover {
+    background: #c90010 !important;
+    border-color: #c90010 !important;
+}
+
+[data-testid="stBaseButton-secondary"],
+.stButton > button[kind="secondary"],
+.stDownloadButton > button {
+    color: var(--ui-text) !important;
+    background: var(--ui-surface-solid) !important;
+    border: 1px solid var(--ui-border) !important;
+}
+
+[data-testid="stBaseButton-secondary"]:hover,
+.stButton > button[kind="secondary"]:hover,
+.stDownloadButton > button:hover {
+    background: #f5f7fa !important;
+    border-color: var(--ui-border-strong) !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 3px solid var(--ui-focus) !important;
+    outline-offset: 2px !important;
+}
+
+/* Segmented controls and tabs are navigation controls, not floating pills. */
+[data-testid="stSegmentedControl"] [data-baseweb="button-group"] {
+    width: fit-content !important;
+    max-width: 100% !important;
+    padding: 4px !important;
+    gap: 3px !important;
+    background: #edf1f6 !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+}
+
+[data-testid="stSegmentedControl"] button {
+    min-height: 40px !important;
+    padding: 0.45rem 0.9rem !important;
+    color: #4e5560 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+}
+
+[data-testid="stSegmentedControl"] button[aria-pressed="true"],
+[data-testid="stSegmentedControl"] button[data-active="true"] {
+    color: var(--ui-text) !important;
+    background: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.12) !important;
+}
+
+[data-testid="stSegmentedControl"] {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+[data-testid="stSegmentedControl"] [role="radiogroup"] {
+    padding: 4px !important;
+    gap: 3px !important;
+    background: #edf1f6 !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: 14px !important;
+}
+
+[data-testid="stSegmentedControl"] [aria-checked="false"],
+[data-testid="stSegmentedControl"] [data-selected="false"] {
+    color: #4e5560 !important;
+    background: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+[data-testid="stSegmentedControl"] [aria-checked="true"],
+[data-testid="stSegmentedControl"] [data-selected="true"] {
+    color: var(--ui-text) !important;
+    background: #ffffff !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.12) !important;
+}
+
+[data-testid="stSegmentedControl"] [aria-checked="true"] *,
+[data-testid="stSegmentedControl"] [data-selected="true"] * {
+    color: var(--ui-text) !important;
+}
+
+/* Streamlit 1.5x renders segmented controls as stButtonGroup. */
+[data-testid="stButtonGroup"] [data-baseweb="button-group"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 4px !important;
+    gap: 4px !important;
+    background: #edf1f6 !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: 14px !important;
+}
+
+[data-testid="stButtonGroup"] button[data-testid="stBaseButton-segmented_control"],
+[data-testid="stButtonGroup"] button[data-testid="stBaseButton-segmented_controlActive"] {
+    min-height: 40px !important;
+    color: #4e5560 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+}
+
+[data-testid="stButtonGroup"] button[data-testid="stBaseButton-segmented_controlActive"] {
+    color: var(--ui-text) !important;
+    background: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.12) !important;
+}
+
+[data-testid="stButtonGroup"] button[data-testid="stBaseButton-segmented_controlActive"] p {
+    color: var(--ui-text) !important;
+    font-weight: 650 !important;
+}
+
+[data-baseweb="tab-list"] {
+    gap: 4px !important;
+    padding: 4px !important;
+    background: rgba(237, 241, 246, 0.92) !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: 14px !important;
+    overflow-x: auto !important;
+}
+
+[data-baseweb="tab"] {
+    min-height: 42px !important;
+    padding: 0.5rem 0.9rem !important;
+    color: #515863 !important;
+    background: transparent !important;
+    border-radius: 10px !important;
+    white-space: nowrap !important;
+}
+
+[data-baseweb="tab"][aria-selected="true"] {
+    color: var(--ui-text) !important;
+    background: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.10) !important;
+}
+
+[data-baseweb="tab-highlight"] {
+    display: none !important;
+}
+
+/* Progressive disclosure stays quiet until requested. */
+[data-testid="stExpander"] {
+    border: 1px solid var(--ui-border) !important;
+    border-radius: var(--ui-radius) !important;
+    background: rgba(255, 255, 255, 0.70) !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+}
+
+[data-testid="stExpander"] summary {
+    min-height: 46px !important;
+    padding: 0.6rem 0.8rem !important;
+    color: var(--ui-text) !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+}
+
+[data-testid="stExpander"] summary:hover {
+    background: #f5f7fa !important;
+}
+
+/* Charts and tables share the same quiet analytical surface. */
+[data-testid="stPlotlyChart"],
+[data-testid="stDataFrame"],
+[data-testid="stTable"] {
+    overflow: hidden !important;
+    background: rgba(255, 255, 255, 0.88) !important;
+    border: 1px solid rgba(17, 24, 39, 0.09) !important;
+    border-radius: var(--ui-radius-lg) !important;
+    box-shadow: var(--ui-shadow-sm) !important;
+}
+
+@media (max-width: 700px) {
+    .yt-page-hero {
+        padding: 2rem 1rem !important;
+    }
+    .metric-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    [data-baseweb="tab-list"] {
+        border-radius: 12px !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
 </style>
 """
 

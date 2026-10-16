@@ -50,12 +50,24 @@ def _page_outlier_finder() -> None:
 PAGE_CHANNEL_ANALYSIS = st.Page(
     _page_channel_analysis,
     title="Channel Analysis",
-    icon="📊",
+    icon=":material/analytics:",
     default=True,
 )
-PAGE_CHANNEL_INSIGHTS = st.Page(_page_channel_insights, title="Channel Insights", icon="💡")
-PAGE_CREATOR_STUDIO = st.Page(_page_creator_studio, title="Creator Studio", icon="🎬")
-PAGE_OUTLIER_FINDER = st.Page(_page_outlier_finder, title="Outlier Finder", icon="🎯")
+PAGE_CHANNEL_INSIGHTS = st.Page(
+    _page_channel_insights,
+    title="Channel Insights",
+    icon=":material/lightbulb:",
+)
+PAGE_CREATOR_STUDIO = st.Page(
+    _page_creator_studio,
+    title="Creator Studio",
+    icon=":material/video_library:",
+)
+PAGE_OUTLIER_FINDER = st.Page(
+    _page_outlier_finder,
+    title="Outlier Finder",
+    icon=":material/track_changes:",
+)
 
 
 def run() -> None:

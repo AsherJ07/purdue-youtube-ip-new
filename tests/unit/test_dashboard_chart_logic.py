@@ -8,8 +8,10 @@ from dashboard.views.channel_analysis import (
 from dashboard.views.outlier_finder import _breakout_scatter
 from dashboard.views.ytuber import _suggested_topic_angles
 from dashboard.components.visualizations import (
+    compact_axis_ticks,
     format_compact_number,
     plotly_bar_chart,
+    plotly_heatmap,
     plotly_scatter,
 )
 
@@ -92,6 +94,38 @@ def test_large_display_numbers_use_compact_units() -> None:
     assert format_compact_number(659) == "659"
     assert format_compact_number(316_670) == "316.7K"
     assert format_compact_number(1_567_659_168) == "1.6B"
+
+
+def test_chart_axes_use_human_units_instead_of_si_giga() -> None:
+    ticks = compact_axis_ticks([0, 2_000_000_000, 8_000_000_000])
+
+    assert any(label.endswith("B") for label in ticks["ticktext"])
+    assert all(not label.endswith("G") for label in ticks["ticktext"])
+
+
+def test_heatmap_has_ordered_tiles_and_human_readable_hover_values() -> None:
+    frame = pd.DataFrame(
+        {
+            "publish_day": ["Monday", "Monday", "Tuesday", "Tuesday"],
+            "publish_hour": [0, 3, 0, 3],
+            "median_daily_views": [1_200, 2_400_000, 4_800, 7_200],
+        }
+    )
+
+    fig = plotly_heatmap(
+        frame,
+        x="publish_hour",
+        y="publish_day",
+        z="median_daily_views",
+        title="Publishing matrix",
+    )
+
+    trace = fig.data[0]
+    assert trace.xgap == 2
+    assert trace.ygap == 2
+    assert trace.customdata[0][0] == "1.2K"
+    assert trace.customdata[0][1] == "2.4M"
+    assert fig.layout.yaxis.autorange == "reversed"
 
 
 def test_dashboard_scatter_uses_browser_safe_svg_renderer() -> None:

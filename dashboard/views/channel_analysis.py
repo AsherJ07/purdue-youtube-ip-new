@@ -10,6 +10,7 @@ from src.services.analytics_metrics import lifetime_average_daily_views, public_
 
 from dashboard.components.visualizations import (
     apply_dashboard_chart_theme,
+    compact_axis_ticks,
     format_compact_number,
     kpi_row,
     plotly_bar_chart,
@@ -208,7 +209,11 @@ def _publication_cohort_chart(summary: pd.DataFrame, grain: str) -> go.Figure:
     )
     fig.update_layout(title=title, height=420, showlegend=False, bargap=0.18)
     fig.update_xaxes(title=label, type="category", tickangle=-35 if grain == "month" else 0)
-    fig.update_yaxes(title="Median lifetime average daily views", tickformat="~s", rangemode="tozero")
+    fig.update_yaxes(
+        title="Median lifetime average daily views",
+        rangemode="tozero",
+        **compact_axis_ticks(summary["median_daily_views"]),
+    )
     apply_dashboard_chart_theme(fig)
     return fig
 
@@ -249,7 +254,11 @@ def _reach_interaction_chart(frame: pd.DataFrame) -> tuple[go.Figure, dict[str, 
                 hovertemplate="Views: %{x:,.0f}<br>Public interaction: %{y:.2f}%<extra></extra>",
             )
         )
-        fig.update_xaxes(type="log", title="Views (log scale)", tickformat="~s")
+        fig.update_xaxes(
+            type="log",
+            title="Views (log scale)",
+            **compact_axis_ticks(valid["views"], logarithmic=True),
+        )
         fig.update_yaxes(title="Public interaction", ticksuffix="%", rangemode="tozero")
         mode = "scatter"
         overflow = 0
@@ -352,39 +361,43 @@ def _reach_interaction_chart(frame: pd.DataFrame) -> tuple[go.Figure, dict[str, 
 
 def render() -> None:
     categories = _available_categories()
-    selected_category = st.selectbox("Category", categories, index=0)
+    with st.container(border=True):
+        st.markdown('<div class="filter-panel-heading">Filter comparison</div>', unsafe_allow_html=True)
+        filter_columns = st.columns([1.05, 1.9, 1.25], gap="medium")
+        with filter_columns[0]:
+            selected_category = st.selectbox("Category", categories, index=0)
 
-    df = _load_data_for_label(selected_category)
-    if df.empty:
-        st.warning(
-            "No data available for the selected category. Check that the CSV files exist."
-        )
-        return
+        df = _load_data_for_label(selected_category)
+        if df.empty:
+            st.warning(
+                "No data available for the selected category. Check that the CSV files exist."
+            )
+            return
 
-    channels = sorted(df["channel_title"].dropna().unique().tolist())
-    selected_channels = st.multiselect(
-        "Filter channels",
-        channels,
-        default=[],
-        placeholder="All channels",
-        help="Leave empty to include every channel in the selected category.",
-    )
+        channels = sorted(df["channel_title"].dropna().unique().tolist())
+        with filter_columns[1]:
+            selected_channels = st.multiselect(
+                "Channels",
+                channels,
+                default=[],
+                placeholder="All channels",
+                help="Leave empty to include every channel in this category.",
+            )
 
-    ts_min = df["video_publishedAt"].min()
-    ts_max = df["video_publishedAt"].max()
-    min_date = ts_min.date() if pd.notna(ts_min) else date.today()
-    max_date = ts_max.date() if pd.notna(ts_max) else date.today()
-    # Do not set max_value to the latest video date: choosing any window past that (e.g. next month)
-    # would fail Streamlit validation and snap the widget back to the full range, so charts ignore the
-    # user's range. min_value stays the dataset floor; upper bound defaults to last default +10y in Streamlit.
-    date_range = st.date_input(
-        "Publication window",
-        value=(min_date, max_date),
-        min_value=min_date,
-        max_value=None,
-        key=f"channel_analysis_pub_range:{selected_category}",
-        help="UTC publish date of each video. Narrow ranges with no uploads in this dataset will empty the charts until you widen the window.",
-    )
+        ts_min = df["video_publishedAt"].min()
+        ts_max = df["video_publishedAt"].max()
+        min_date = ts_min.date() if pd.notna(ts_min) else date.today()
+        max_date = ts_max.date() if pd.notna(ts_max) else date.today()
+        # Keep the upper bound open so a future-facing range does not reset the widget.
+        with filter_columns[2]:
+            date_range = st.date_input(
+                "Publication window",
+                value=(min_date, max_date),
+                min_value=min_date,
+                max_value=None,
+                key=f"channel_analysis_pub_range:{selected_category}",
+                help="UTC publication dates included in this comparison.",
+            )
     filtered = df.copy()
     if selected_channels:
         filtered = filtered[filtered["channel_title"].isin(selected_channels)]
