@@ -3,7 +3,11 @@ from __future__ import annotations
 import pandas as pd
 
 from src.services.model_artifact_service import ModelArtifactStatus
-from src.services.topic_model_runtime import apply_optional_topic_model, build_bertopic_inference_text
+from src.services.topic_model_runtime import (
+    _topic_label_from_model,
+    apply_optional_topic_model,
+    build_bertopic_inference_text,
+)
 
 
 def test_build_bertopic_inference_text_applies_cleaning() -> None:
@@ -15,10 +19,35 @@ def test_build_bertopic_inference_text_applies_cleaning() -> None:
 
     assert "subscribe" not in text
     assert "https" not in text
+    assert "how" not in text
+    assert "this" not in text
     assert "thumbnail" in text
     assert "3" not in text
     assert token_count >= 5
     assert is_sparse is False
+
+
+def test_build_bertopic_inference_text_ignores_contaminated_legacy_tags() -> None:
+    text, _, _ = build_bertopic_inference_text(
+        "Arc Raiders update changed the economy",
+        "Blueprint prices and loot progression explained for the new patch.",
+        "fortnite|battle royale|victory royale|ninja",
+    )
+
+    assert "arc" in text
+    assert "economy" in text
+    assert "fortnite" not in text
+    assert "victory" not in text
+
+
+def test_topic_labels_drop_stopword_only_terms() -> None:
+    class _FakeTopicModel:
+        def get_topic(self, topic_id: int):
+            return [("need", 0.5), ("after", 0.4), ("back", 0.3), ("economy", 0.2), ("blueprints", 0.1)]
+
+    _, label = _topic_label_from_model(_FakeTopicModel(), 4)
+
+    assert label == "Economy / Blueprints"
 
 
 def test_apply_optional_topic_model_returns_rows(monkeypatch) -> None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from html import escape
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 import plotly.express as px
@@ -14,7 +14,6 @@ from dashboard.components.visualizations import (
     format_compact_number,
     show_plotly_chart,
     styled_dataframe,
-    styled_keyword_chips,
 )
 from src.services.outlier_ai import InsightCard, OutlierAIReport, generate_outlier_ai_report
 from src.services.outliers_finder import (
@@ -23,7 +22,6 @@ from src.services.outliers_finder import (
     build_age_bucket_summary,
     build_duration_summary,
     build_scan_quality_summary,
-    build_title_keyword_summary,
     build_title_pattern_summary,
     score_band_for_value,
     search_outlier_videos,
@@ -995,8 +993,8 @@ def _build_filter_tags(result) -> List[Tuple[str, str]]:
 def _build_state_tags(result, result_frame: pd.DataFrame) -> List[Tuple[str, str]]:
     return [
         ("Results", f"{len(result_frame):,}"),
-        ("Cache", result.cache_policy),
-        ("Quota", result.quota_profile),
+        ("Scanned", f"{result.scanned_videos:,} videos"),
+        ("Coverage", f"{result.scanned_channels:,} channels"),
     ]
 
 
@@ -1058,7 +1056,7 @@ def _render_result_card(row: pd.Series) -> None:
 
 def _render_result_cards(result_frame: pd.DataFrame) -> None:
     cols = st.columns(3, gap="medium")
-    for idx, (_, row) in enumerate(result_frame.head(9).iterrows()):
+    for idx, (_, row) in enumerate(result_frame.head(6).iterrows()):
         with cols[idx % 3]:
             _render_result_card(row)
 
@@ -1259,83 +1257,52 @@ def _render_ai_card(card: InsightCard) -> None:
     )
 
 
-def _render_ai_card_grid(title: str, cards: Sequence[InsightCard], columns: int = 2) -> None:
-    if not cards:
-        return
-    _render_subsection_label(title)
-    pair_size = max(1, columns)
-    for start in range(0, len(cards), pair_size):
-        batch = cards[start:start + pair_size]
-        if len(batch) == 1:
-            _render_ai_card(batch[0])
-            continue
-        cols = st.columns(len(batch), gap="medium")
-        for col, card in zip(cols, batch):
-            with col:
-                _render_ai_card(card)
-
-
 def _render_ai_report(report: OutlierAIReport) -> None:
-    top_cols = st.columns([1.7, 1], gap="medium")
-    with top_cols[0]:
-        st.markdown(
-            (
-                '<div class="outlier-ai-hero">'
-                f'<div class="outlier-ai-title">{escape(report.executive_headline)}</div>'
-                f'<div class="outlier-ai-copy">{escape(report.key_takeaway)}</div>'
-                f'<div class="outlier-ai-meta">Provider: {escape(report.provider.title())} • Model: {escape(report.model)} • Confidence: {escape(report.confidence_label)}</div>'
-                '</div>'
-            ),
-            unsafe_allow_html=True,
-        )
-    with top_cols[1]:
-        notes_html = "".join(f"<li>{escape(note)}</li>" for note in (report.confidence_notes or ("Confidence is based on the quality of the surfaced public signals.",)))
-        st.markdown(
-            (
-                '<div class="outlier-ai-card">'
-                '<div class="outlier-ai-card-title">Confidence And Caveats</div>'
-                f'<div class="outlier-ai-card-body"><ul class="outlier-bullets">{notes_html}</ul></div>'
-                '<div class="outlier-ai-card-support">Treat this as research guidance, not a prediction guarantee.</div>'
-                '</div>'
-            ),
-            unsafe_allow_html=True,
-        )
+    st.markdown(
+        (
+            '<div class="outlier-ai-hero">'
+            f'<div class="outlier-ai-title">{escape(report.executive_headline)}</div>'
+            f'<div class="outlier-ai-copy">{escape(report.key_takeaway)}</div>'
+            f'<div class="outlier-ai-meta">{escape(report.provider.title())} · {escape(report.model)} · {escape(report.confidence_label)} confidence</div>'
+            '</div>'
+        ),
+        unsafe_allow_html=True,
+    )
 
-    _render_ai_card_grid("Breakout Themes", report.breakout_themes, columns=2)
-    _render_ai_card_grid("Title Pattern Observations", report.title_patterns, columns=2)
-    _render_ai_card_grid("Repeatable Content Angles", report.repeatable_angles, columns=2)
-    _render_ai_card_grid("Notable Anomalies", report.notable_anomalies, columns=2)
-
+    decision_cards: list[tuple[str, str, str]] = []
+    if report.breakout_themes:
+        card = report.breakout_themes[0]
+        decision_cards.append(("What is breaking out", card.body, card.support))
+    packaging_cards = report.title_patterns or report.repeatable_angles
+    if packaging_cards:
+        card = packaging_cards[0]
+        decision_cards.append(("Packaging pattern", card.body, card.support))
     if report.next_steps:
-        _render_subsection_label("What To Test Next")
-        for start in range(0, len(report.next_steps), 2):
-            batch = report.next_steps[start:start + 2]
-            if len(batch) == 1:
-                step = batch[0]
-                st.markdown(
-                    (
-                        '<div class="outlier-ai-card">'
-                        f'<div class="outlier-ai-card-title">Action {start + 1}</div>'
-                        f'<div class="outlier-ai-card-body">{escape(step)}</div>'
-                        '<div class="outlier-ai-card-support">Use this as the next concrete experiment to test against your current packaging and publishing rhythm.</div>'
-                        '</div>'
-                    ),
-                    unsafe_allow_html=True,
-                )
-                continue
-            cols = st.columns(2, gap="medium")
-            for idx, (col, step) in enumerate(zip(cols, batch), start=start + 1):
-                with col:
-                    st.markdown(
-                        (
-                            '<div class="outlier-ai-card">'
-                            f'<div class="outlier-ai-card-title">Action {idx}</div>'
-                            f'<div class="outlier-ai-card-body">{escape(step)}</div>'
-                            '<div class="outlier-ai-card-support">Use this as the next concrete experiment to test against your current packaging and publishing rhythm.</div>'
-                            '</div>'
-                        ),
-                        unsafe_allow_html=True,
-                    )
+        decision_cards.append(("Next experiment", report.next_steps[0], "Measure it against the current cohort baseline."))
+
+    if decision_cards:
+        cols = st.columns(len(decision_cards), gap="medium")
+        for col, (title, body, support) in zip(cols, decision_cards):
+            with col:
+                _render_ai_card(InsightCard(title=title, body=body, support=support))
+
+    remaining_packaging_cards = (
+        tuple(report.title_patterns[1:]) + tuple(report.repeatable_angles)
+        if report.title_patterns
+        else tuple(report.repeatable_angles[1:])
+    )
+    supporting_cards = (
+        tuple(report.breakout_themes[1:])
+        + remaining_packaging_cards
+        + tuple(report.notable_anomalies)
+    )
+    with st.expander("Supporting AI evidence", expanded=False):
+        for card in supporting_cards:
+            st.markdown(f"**{escape(card.title)}** — {escape(card.body)}  \n{escape(card.support)}")
+        for step in report.next_steps[1:]:
+            st.markdown(f"**Next test** — {escape(step)}")
+        for note in report.confidence_notes:
+            st.markdown(f"**Confidence note** — {escape(note)}")
 
     if report.warnings:
         st.markdown(
@@ -1345,13 +1312,6 @@ def _render_ai_report(report: OutlierAIReport) -> None:
     if report.raw_fallback:
         st.markdown('<div class="outlier-panel-note"><strong>Fallback Summary.</strong> The AI provider returned unstructured output for this run, so the text below is shown as plain summary copy.</div>', unsafe_allow_html=True)
         st.markdown(report.raw_fallback)
-
-    with st.expander("About the AI research summary", expanded=False):
-        st.markdown(
-            "The summary groups evidence from the results into themes, title patterns, content angles, anomalies, "
-            "and testable next actions. Treat suggested actions as hypotheses to validate with your own uploads."
-        )
-
 
 def _render_methodology_section() -> None:
     with st.expander("How scoring and filters work", expanded=False):
@@ -1706,24 +1666,25 @@ def render() -> None:
         },
         inplace=True,
     )
-    styled_dataframe(
-        table_df,
-        title="All results in this scan",
-        precision=2,
-        image_columns=["Thumbnail"],
-    )
+    with st.expander(f"View all {len(table_df):,} results", expanded=False):
+        styled_dataframe(
+            table_df,
+            title="Complete result set",
+            precision=2,
+            image_columns=["Thumbnail"],
+        )
 
     _render_section_intro(
-        "Breakout snapshot",
-        "Read the surfaced cohort through score, velocity, packaging, runtime, and signal quality before you hand the research to AI.",
+        "What is breaking out",
+        "Compare reach against channel size, then inspect one supporting view for context.",
     )
     summary_stats = _build_summary_stats(sorted_frame)
     summary_cols = st.columns(4, gap="medium")
     summary_cards = [
-        ("Median Outlier Score", f"{summary_stats.get('median_outlier_score', 0):.1f}", "The middle-performing winner in this scan."),
-        ("Median Lifetime Avg. Daily Views", _format_int(summary_stats.get("median_views_per_day")), "Typical age-normalized reach in the surfaced sample."),
-        ("Scanned Videos / Channels", f"{result.scanned_videos:,} / {result.scanned_channels:,}", "Coverage of the scanned cohort after filters."),
-        ("High-Confidence Language Match", f"{summary_stats.get('high_language_share', 0):.1f}%", "Share of results with a high-confidence language match."),
+        ("Median Outlier Score", f"{summary_stats.get('median_outlier_score', 0):.1f}", "Typical strength in this result set."),
+        ("Median Daily Views", _format_int(summary_stats.get("median_views_per_day")), "Age-normalized reach."),
+        ("Videos Scanned", f"{result.scanned_videos:,}", f"Across {result.scanned_channels:,} channels."),
+        ("Strong Language Match", f"{summary_stats.get('high_language_share', 0):.1f}%", "Confidence in query relevance."),
     ]
     for idx, (label, value, detail) in enumerate(summary_cards):
         with summary_cols[idx]:
@@ -1741,46 +1702,32 @@ def render() -> None:
             show_plotly_chart(breakout_fig)
     with chart_top[1]:
         with st.container(border=True):
-            _render_chart_shell(
-                "Typical score by video age",
-                "See whether the niche momentum is being driven by very recent uploads or older releases.",
+            supporting_view = st.segmented_control(
+                "Supporting view",
+                ["Video age", "Video length", "Title structure"],
+                default="Video age",
+                key="outlier_supporting_view",
             )
-            age_fig = _age_bucket_chart(sorted_frame)
-            age_fig.update_layout(height=400)
-            show_plotly_chart(age_fig)
+            if supporting_view == "Video length":
+                _render_chart_shell("Performance by length", "Compare result volume and typical score by runtime.")
+                supporting_fig = _duration_chart(sorted_frame)
+            elif supporting_view == "Title structure":
+                _render_chart_shell("Title structures", "See which packaging patterns repeat in this result set.")
+                supporting_fig = _title_pattern_chart(sorted_frame)
+            else:
+                _render_chart_shell("Performance by age", "See whether recent or established uploads drive the signal.")
+                supporting_fig = _age_bucket_chart(sorted_frame)
+            supporting_fig.update_layout(height=345)
+            show_plotly_chart(supporting_fig)
 
-    chart_bottom = st.columns(2, gap="medium")
-    with chart_bottom[0]:
-        with st.container(border=True):
-            _render_chart_shell(
-                "Results by video length",
-                "Compare how many surfaced videos fall into each runtime group and their typical score.",
-            )
-            duration_fig = _duration_chart(sorted_frame)
-            duration_fig.update_layout(height=320)
-            show_plotly_chart(duration_fig)
-    with chart_bottom[1]:
-        with st.container(border=True):
-            _render_chart_shell(
-                "Common title structures",
-                "See which packaging patterns repeat within the surfaced result set.",
-            )
-            title_pattern_fig = _title_pattern_chart(sorted_frame)
-            title_pattern_fig.update_layout(height=320)
-            show_plotly_chart(title_pattern_fig)
-    with st.container(border=True):
-        _render_chart_shell(
-            "Evidence quality",
-            "Judge how complete and actionable the surfaced comparison set is before acting on patterns.",
-        )
+    with st.expander("Scan quality", expanded=False):
         _render_scan_quality_card(sorted_frame)
 
     st.markdown(
         (
-            '<div class="outlier-ai-section-head">Optional AI Evidence Synthesis</div>'
+            '<div class="outlier-ai-section-head">AI evidence synthesis</div>'
             '<p style="color:#5F6368;font-size:14px;line-height:1.55;max-width:780px;margin:0 0 1rem;">'
-            "After reviewing the measured results, turn the same evidence into structured theme, title, angle, anomaly, and next-step cards. "
-            "Treat every output as a hypothesis to test—not a causal claim."
+            "Turn the measured cohort into one breakout signal, one packaging pattern, and one next experiment."
             "</p>"
         ),
         unsafe_allow_html=True,
@@ -1800,26 +1747,25 @@ def render() -> None:
         ):
             st.session_state["outlier_page_ai_provider"] = default_provider
 
-        with st.expander("AI controls — provider, model, and generate", expanded=False):
-            provider_cols = st.columns([1.05, 1.2, 0.95], gap="small")
-            with provider_cols[0]:
-                provider = st.selectbox(
-                    "AI Provider",
-                    available_providers,
-                    key="outlier_page_ai_provider",
-                    format_func=lambda value: AI_PROVIDER_LABELS.get(value, value.title()),
-                )
-            models = AI_MODELS[provider]
-            if (
-                "outlier_page_ai_model" not in st.session_state
-                or st.session_state["outlier_page_ai_model"] not in models
-            ):
-                st.session_state["outlier_page_ai_model"] = models[0]
-            with provider_cols[1]:
-                model = st.selectbox("AI Model", models, key="outlier_page_ai_model")
-            with provider_cols[2]:
-                st.markdown('<div class="outlier-inline-field-label">Synthesis Action</div>', unsafe_allow_html=True)
-                trigger_ai = st.button("Generate AI Synthesis", type="primary", width="stretch")
+        provider_cols = st.columns([1.05, 1.2, 0.95], gap="small")
+        with provider_cols[0]:
+            provider = st.selectbox(
+                "AI Provider",
+                available_providers,
+                key="outlier_page_ai_provider",
+                format_func=lambda value: AI_PROVIDER_LABELS.get(value, value.title()),
+            )
+        models = AI_MODELS[provider]
+        if (
+            "outlier_page_ai_model" not in st.session_state
+            or st.session_state["outlier_page_ai_model"] not in models
+        ):
+            st.session_state["outlier_page_ai_model"] = models[0]
+        with provider_cols[1]:
+            model = st.selectbox("AI Model", models, key="outlier_page_ai_model")
+        with provider_cols[2]:
+            st.markdown('<div class="outlier-inline-field-label">Action</div>', unsafe_allow_html=True)
+            trigger_ai = st.button("Generate synthesis", type="primary", width="stretch")
 
         fingerprint = _result_fingerprint(sorted_frame, result.request.niche_query)
         if st.session_state.get("outlier_page_ai_fingerprint") != fingerprint:
@@ -1855,15 +1801,5 @@ def render() -> None:
         report = st.session_state.get("outlier_page_ai_report")
         if report:
             _render_ai_report(report)
-        else:
-            keyword_summary = build_title_keyword_summary(sorted_frame)
-            preview_tokens = keyword_summary["keyword"].tolist()[:8] if not keyword_summary.empty else []
-            if preview_tokens:
-                _render_subsection_label("Repeated Title Keywords")
-                styled_keyword_chips(preview_tokens)
-            st.markdown(
-                '<div class="outlier-panel-note">The deterministic scan remains the source of truth. Generate synthesis only after validating the cohort and evidence quality above.</div>',
-                unsafe_allow_html=True,
-            )
 
     _render_methodology_section()

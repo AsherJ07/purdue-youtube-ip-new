@@ -76,12 +76,13 @@ _DISPLAY_ACRONYMS = {
 }
 _PLACEHOLDER_TOPICS = {"", "n/a", "no theme yet", "no pattern yet", "unassigned"}
 _NINJA_SHOWCASE_TOPICS = {
-    "Ranked & Competitive Fortnite",
-    "Fortnite Gameplay Highlights",
-    "Tips, Loadouts & Strategy",
+    "Arc Raiders Progression & Economy",
+    "Arc Raiders Updates & Meta",
+    "Arc Raiders PvP & High-Stakes Plays",
+    "Fortnite Competitive & Seasonal",
     "Collaborations & Creator Challenges",
-    "Fortnite Updates & New Seasons",
-    "Streaming & Community",
+    "Reactions & Viral Moments",
+    "Other Games & Variety",
 }
 
 
@@ -822,6 +823,12 @@ def _formats_prompt(payload: Dict[str, Any]) -> str:
 
 
 def _render_summary_kpi_cards(summary: Dict[str, Any], deltas: Dict[str, Any], payload: Dict[str, Any]) -> None:
+    repackage_rows = payload.get("recommendations", {}).get("avoid", [])
+    repackage_theme = (
+        str(repackage_rows[0].get("theme", "")).strip()
+        if repackage_rows and isinstance(repackage_rows[0], dict)
+        else ""
+    )
     cards = [
         {
             "label": "Upload Cadence",
@@ -839,8 +846,8 @@ def _render_summary_kpi_cards(summary: Dict[str, Any], deltas: Dict[str, Any], p
             "delta": None,
         },
         {
-            "label": "Weakest Theme",
-            "value": _best_display_theme(payload, "weakest"),
+            "label": "Repackage Opportunity",
+            "value": repackage_theme or _best_display_theme(payload, "weakest"),
             "delta": None,
         },
         {
@@ -855,7 +862,7 @@ def _render_summary_kpi_cards(summary: Dict[str, Any], deltas: Dict[str, Any], p
         delta_text = card.get("delta")
         delta_class = "ci-kpi-delta"
         value_class = "ci-kpi-value"
-        if card["label"] in {"Strongest Theme", "Weakest Theme"}:
+        if card["label"] in {"Strongest Theme", "Repackage Opportunity"}:
             value_class += " ci-kpi-value-theme"
         if delta_text:
             if str(delta_text).startswith("+"):
@@ -942,7 +949,7 @@ def _artifact_status_label(state: str) -> str:
         "invalid": "Failed / Fallback Active",
         "load_failed": "Failed / Fallback Active",
         "transform_failed": "Failed / Fallback Active",
-        "showcase_fixture": "Curated Semantic Map",
+        "showcase_fixture": "Ready · Channel-Aware",
     }
     return mapping.get(str(state or "").strip().lower(), "Unavailable")
 

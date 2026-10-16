@@ -37,21 +37,22 @@ TOPIC_MODE_HEURISTIC = "heuristic"
 TOPIC_MODE_BERTOPIC_OPTIONAL = "bertopic_optional"
 
 NINJA_SHOWCASE_TOPICS = (
-    "Ranked & Competitive Fortnite",
-    "Fortnite Gameplay Highlights",
-    "Tips, Loadouts & Strategy",
+    "Arc Raiders Progression & Economy",
+    "Arc Raiders Updates & Meta",
+    "Arc Raiders PvP & High-Stakes Plays",
+    "Fortnite Competitive & Seasonal",
     "Collaborations & Creator Challenges",
-    "Fortnite Updates & New Seasons",
-    "Streaming & Community",
+    "Reactions & Viral Moments",
+    "Other Games & Variety",
 )
 
 _NINJA_TOPIC_KEYWORDS = (
-    ("Fortnite Updates & New Seasons", ("update", "season", "chapter", "patch", "new map", "battle pass", "event")),
-    ("Tips, Loadouts & Strategy", ("tips", "guide", "strategy", "loadout", "settings", "how to", "rank up", "best gun")),
-    ("Ranked & Competitive Fortnite", ("ranked", "competitive", "arena", "cup", "qualifier", "champion", "unreal", "fncs")),
-    ("Streaming & Community", ("stream", "react", "reaction", "community", "viewers", "q&a", "setup")),
-    ("Collaborations & Creator Challenges", ("with ", " vs ", "challenge", "duo", "squad", "tournament", "sypher", "nickeh30", "timthetatman")),
-    ("Fortnite Gameplay Highlights", ("highlight", "gameplay", "victory royale", "elimination", "win ", "best plays")),
+    ("Collaborations & Creator Challenges", (" vs ", "with ", "challenge", "tfue", "hamlinz", "sypher", "collab")),
+    ("Fortnite Competitive & Seasonal", ("fortnite", "ranked", "unreal", "fncs", "victory royale", "battle royale")),
+    ("Arc Raiders Updates & Meta", ("update", "patch", "nerf", "buff", "meta", "broken", "glitch", "exploit", "cheater", "embark", "falling apart", "new map")),
+    ("Arc Raiders Progression & Economy", ("coin", "million", "billion", "blueprint", "grind", "loot", "stash", "expedition", "gear", "loadout", "secret", "rich")),
+    ("Other Games & Variety", ("highguard", "marvel rivals", "valorant", "warzone", "minecraft", "league of legends")),
+    ("Reactions & Viral Moments", ("react", "reaction", "funniest", "hilarious", "wildest", "insane", "can't believe", "cant believe")),
 )
 
 
@@ -125,61 +126,23 @@ def _apply_ninja_showcase_topics(channel_df: pd.DataFrame) -> tuple[pd.DataFrame
     """Apply stable, demo-specific topic labels while retaining real channel metrics."""
     df = channel_df.copy()
     labels: List[str] = []
-    topic_weights = {
-        "Ranked & Competitive Fortnite": 0.22,
-        "Fortnite Gameplay Highlights": 0.20,
-        "Tips, Loadouts & Strategy": 0.17,
-        "Collaborations & Creator Challenges": 0.15,
-        "Fortnite Updates & New Seasons": 0.14,
-        "Streaming & Community": 0.12,
-    }
-    base_per_topic = 1 if len(df) >= len(NINJA_SHOWCASE_TOPICS) else 0
-    remaining_rows = max(0, len(df) - (base_per_topic * len(NINJA_SHOWCASE_TOPICS)))
-    quotas = {
-        label: base_per_topic + int(remaining_rows * topic_weights[label])
-        for label in NINJA_SHOWCASE_TOPICS
-    }
-    assigned = sum(quotas.values())
-    for label in NINJA_SHOWCASE_TOPICS:
-        if assigned >= len(df):
-            break
-        quotas[label] += 1
-        assigned += 1
-    topic_counts = {label: 0 for label in NINJA_SHOWCASE_TOPICS}
 
-    for position, (_, row) in enumerate(df.iterrows()):
+    for _, row in df.iterrows():
         title_text = str(row.get("video_title", "")).lower()
-        searchable = " ".join(
-            [
-                title_text,
-                str(row.get("video_description", ""))[:240],
-                str(row.get("video_tags", "")).replace("|", " "),
-            ]
-        ).lower()
-        candidate_labels = [
-            label
-            for label, keywords in _NINJA_TOPIC_KEYWORDS
-            if any(keyword in title_text for keyword in keywords)
-        ]
-        candidate_labels.extend(
-            label
-            for label, keywords in _NINJA_TOPIC_KEYWORDS
-            if label not in candidate_labels and any(keyword in searchable for keyword in keywords)
-        )
-        available_candidates = [
-            label for label in candidate_labels if topic_counts[label] < quotas[label]
-        ]
-        if available_candidates:
-            selected_label = available_candidates[0]
-        else:
-            available_topics = [
+        selected_label = next(
+            (
                 label
-                for label in NINJA_SHOWCASE_TOPICS
-                if topic_counts[label] < quotas[label]
-            ]
-            selected_label = available_topics[position % len(available_topics)]
+                for label, keywords in _NINJA_TOPIC_KEYWORDS
+                if any(keyword in title_text for keyword in keywords)
+            ),
+            "",
+        )
+        if not selected_label:
+            if "arc" in title_text or "raider" in title_text:
+                selected_label = "Arc Raiders PvP & High-Stakes Plays"
+            else:
+                selected_label = "Reactions & Viral Moments"
         labels.append(selected_label)
-        topic_counts[selected_label] += 1
 
     topic_ids = {label: index for index, label in enumerate(NINJA_SHOWCASE_TOPICS)}
     df["primary_topic"] = labels
@@ -216,40 +179,40 @@ def _ninja_showcase_recommendations(topic_metrics: pd.DataFrame) -> Dict[str, An
         confidence = "High" if sample_size >= 10 else ("Medium" if sample_size >= 3 else "Low")
         return sample_size, daily_views, confidence
 
-    ranked_n, ranked_views, ranked_confidence = evidence("Ranked & Competitive Fortnite")
-    highlights_n, highlights_views, highlights_confidence = evidence("Fortnite Gameplay Highlights")
-    updates_n, updates_views, updates_confidence = evidence("Fortnite Updates & New Seasons")
+    scale_n, scale_views, scale_confidence = evidence("Arc Raiders Progression & Economy")
+    repackage_n, repackage_views, repackage_confidence = evidence("Reactions & Viral Moments")
+    updates_n, updates_views, updates_confidence = evidence("Arc Raiders Updates & Meta")
 
     return {
         "summary": (
-            "Semantic clustering separates broad Fortnite uploads into six creator-relevant themes, then combines "
+            "Semantic clustering separates Ninja's current Arc Raiders, Fortnite, short-form, and creator-led uploads into six useful themes, then combines "
             "theme reach and repeated evidence to recommend the next controlled content test."
         ),
         "double_down": [
             {
-                "theme": "Ranked & Competitive Fortnite",
-                "rationale": "Ranked progress gives each upload a clear stake, repeatable format, and built-in story arc.",
-                "action": "Test a three-video Road to Unreal series with the rank goal fixed in every title and thumbnail.",
-                "confidence": ranked_confidence,
-                "sample_size": ranked_n,
-                "evidence": f"{ranked_n} videos · typical daily reach {ranked_views:,.0f}.",
+                "theme": "Arc Raiders Progression & Economy",
+                "rationale": "Progression, loot, and economy goals give each upload a clear stake and a repeatable story arc.",
+                "action": "Test a three-video Road to One Billion Coins series with the goal fixed in every title and thumbnail.",
+                "confidence": scale_confidence,
+                "sample_size": scale_n,
+                "evidence": f"{scale_n} videos · typical daily reach {scale_views:,.0f}.",
             }
         ],
         "avoid": [
             {
-                "theme": "Fortnite Gameplay Highlights",
-                "rationale": "Generic highlight packaging makes the viewer promise less specific than challenge or ranked formats.",
-                "action": "Repackage the next montage around one measurable stake, such as ten eliminations before the final circle.",
-                "confidence": highlights_confidence,
-                "sample_size": highlights_n,
-                "evidence": f"{highlights_n} videos · typical daily reach {highlights_views:,.0f}.",
+                "theme": "Reactions & Viral Moments",
+                "rationale": "Reaction-led titles lose context when the game, event, or payoff is not immediately clear.",
+                "action": "Anchor the next reaction upload to one named game moment and one visible outcome.",
+                "confidence": repackage_confidence,
+                "sample_size": repackage_n,
+                "evidence": f"{repackage_n} videos · typical daily reach {repackage_views:,.0f}.",
             }
         ],
         "test_next": [
             {
-                "theme": "Fortnite Updates & New Seasons",
-                "rationale": "Update-led videos match high-intent audience moments while keeping the channel anchored in Fortnite expertise.",
-                "action": "Publish one rapid-response update video within 24 hours and compare it with the same-age channel baseline.",
+                "theme": "Arc Raiders Updates & Meta",
+                "rationale": "Update-led videos match high-intent audience moments while reinforcing Ninja's current Arc Raiders expertise.",
+                "action": "Publish one rapid-response update or meta explainer within 24 hours and compare it with the same-age channel baseline.",
                 "confidence": updates_confidence,
                 "sample_size": updates_n,
                 "evidence": f"{updates_n} videos · typical daily reach {updates_views:,.0f}.",
@@ -257,9 +220,9 @@ def _ninja_showcase_recommendations(topic_metrics: pd.DataFrame) -> Dict[str, An
         ],
         "video_ideas": [],
         "actions": [
-            "Turn ranked progression into a repeatable three-video series.",
-            "Give highlight videos one explicit stake instead of a generic montage promise.",
-            "Run a 24-hour response test around the next Fortnite update.",
+            "Turn Arc Raiders progression into a repeatable three-video series.",
+            "Anchor reaction uploads to one named moment and visible outcome.",
+            "Run a 24-hour response test around the next Arc Raiders update.",
         ],
         "ai_overlay": "",
     }

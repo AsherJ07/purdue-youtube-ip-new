@@ -6,6 +6,11 @@ from typing import Any, Dict, List
 
 import pandas as pd
 
+try:
+    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+except ImportError:  # pragma: no cover - sklearn is part of the production image
+    ENGLISH_STOP_WORDS = frozenset()
+
 from src.services.model_artifact_service import ModelArtifactStatus, ensure_bertopic_artifact_ready
 
 
@@ -24,7 +29,38 @@ _BOILERPLATE_PATTERNS = [
     r"business.*",
     r"contact.*",
     r"link(s)? in (the )?description.*",
+    r"click (the |this )?link.*",
+    r"join my.*",
+    r"grab some.*",
+    r"live on twitch.*",
+    r"hang with me.*",
+    r"thanks for watching.*",
 ]
+
+# Remove grammatical filler and channel-promotion language before embeddings.
+# Creator names are excluded because they identify the channel, not the subject
+# of an individual video. Game and product names remain intact.
+_CORPUS_STOPWORDS = frozenset(ENGLISH_STOP_WORDS).union(
+    {
+        "channel",
+        "back",
+        "check",
+        "click",
+        "creator",
+        "follow",
+        "gaming",
+        "like",
+        "ninja",
+        "need",
+        "official",
+        "subscribe",
+        "twitch",
+        "video",
+        "videos",
+        "watch",
+        "youtube",
+    }
+)
 
 _URL_RE = re.compile(r"https?://\S+|www\.\S+")
 _MENTION_RE = re.compile(r"[@#][A-Za-z0-9_]+")
@@ -50,8 +86,8 @@ def _normalize_text(text: str) -> str:
     cleaned = _URL_RE.sub(" ", str(text))
     cleaned = _MENTION_RE.sub(" ", cleaned)
     cleaned = _PUNCT_RE.sub(" ", cleaned)
-    cleaned = _MULTISPACE_RE.sub(" ", cleaned)
-    return cleaned.strip().lower()
+    cleaned = _MULTISPACE_RE.sub(" ", cleaned).strip().lower()
+    return " ".join(token for token in cleaned.split() if token not in _CORPUS_STOPWORDS)
 
 
 def _strip_boilerplate(description: str) -> str:
@@ -72,10 +108,12 @@ def _strip_boilerplate(description: str) -> str:
 def build_bertopic_inference_text(title: str, description: str = "", tags: str = "") -> tuple[str, int, bool]:
     title_clean = _normalize_text(title)
     description_clean = _normalize_text(_strip_boilerplate(description))[:DESCRIPTION_CHAR_LIMIT]
-    tag_items = [item.strip() for item in str(tags or "").replace("|", " ").split() if item.strip()]
-    tags_clean = _normalize_text(" ".join(tag_items))
 
-    combined = " ".join(part for part in [title_clean, title_clean, description_clean, tags_clean] if part)
+    # Tags are intentionally excluded. The source export frequently carries
+    # stale tag blocks from older uploads (for example Fortnite tags on an Arc
+    # Raiders video), which creates false semantic clusters. Weight the concise,
+    # creator-written title and retain cleaned description context instead.
+    combined = " ".join(part for part in [title_clean, title_clean, title_clean, description_clean] if part)
     combined = _STANDALONE_DIGITS_RE.sub(" ", combined)
     combined = _MULTISPACE_RE.sub(" ", combined).strip()
     token_count = len(combined.split()) if combined else 0
@@ -99,7 +137,12 @@ def _topic_label_from_model(topic_model: Any, topic_id: int) -> tuple[str, str]:
     keywords: List[str] = []
     for term, _score in topic_terms:
         cleaned = str(term).strip().lower().replace("_", " ")
-        if not cleaned or cleaned in keywords or len(cleaned) < 3:
+        if (
+            not cleaned
+            or cleaned in keywords
+            or len(cleaned) < 3
+            or all(token in _CORPUS_STOPWORDS for token in cleaned.split())
+        ):
             continue
         keywords.append(cleaned)
         if len(keywords) == 4:

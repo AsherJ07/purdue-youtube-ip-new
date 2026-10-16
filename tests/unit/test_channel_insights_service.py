@@ -204,12 +204,13 @@ def test_refresh_channel_insights_uses_optional_topic_model_when_available(monke
 def test_ninja_showcase_topics_are_stable_and_relevant() -> None:
     sample_df = pd.DataFrame(
         [
-            {"video_id": "v1", "video_title": "Road to Unreal Ranked", "video_description": "", "video_tags": "fortnite"},
-            {"video_id": "v2", "video_title": "My Best Fortnite Loadout", "video_description": "", "video_tags": "tips"},
-            {"video_id": "v3", "video_title": "New Fortnite Season Update", "video_description": "", "video_tags": "chapter"},
-            {"video_id": "v4", "video_title": "Ninja vs SypherPK Challenge", "video_description": "", "video_tags": "duo"},
-            {"video_id": "v5", "video_title": "Fortnite Win Highlights", "video_description": "", "video_tags": "gameplay"},
-            {"video_id": "v6", "video_title": "Reacting With Viewers", "video_description": "", "video_tags": "stream"},
+            {"video_id": "v1", "video_title": "I Made One Billion Coins in Arc Raiders", "is_short": False},
+            {"video_id": "v2", "video_title": "The New Arc Raiders Patch Is Broken", "is_short": False},
+            {"video_id": "v3", "video_title": "My Wildest Arc Raiders PvP Fight", "is_short": False},
+            {"video_id": "v4", "video_title": "Road to Unreal in Fortnite", "is_short": False},
+            {"video_id": "v5", "video_title": "Reacting to the Luckiest Win", "is_short": True},
+            {"video_id": "v6", "video_title": "Ninja vs SypherPK Challenge", "is_short": False},
+            {"video_id": "v7", "video_title": "Trying Highguard for the First Time", "is_short": False},
         ]
     )
 
@@ -222,39 +223,37 @@ def test_ninja_showcase_topics_are_stable_and_relevant() -> None:
     assert metadata["topic_mode_used"] == TOPIC_MODE_BERTOPIC_OPTIONAL
 
 
-def test_ninja_showcase_topics_prevent_one_cluster_from_swallowing_the_channel() -> None:
+def test_ninja_showcase_topics_ignore_polluted_legacy_tags() -> None:
     sample_df = pd.DataFrame(
         [
             {
                 "video_id": f"v{index}",
-                "video_title": f"Fortnite Season Event {index}",
-                "video_description": "new season event update",
-                "video_tags": "fortnite|season|event",
+                "video_title": f"Arc Raiders Patch Update {index}",
+                "video_description": "subscribe for more",
+                "video_tags": "fortnite|season|victory royale|battle pass",
+                "is_short": False,
             }
             for index in range(100)
         ]
     )
 
     result, _ = _apply_ninja_showcase_topics(sample_df)
-    topic_share = result["primary_topic"].value_counts(normalize=True)
-
-    assert result["primary_topic"].nunique() == len(NINJA_SHOWCASE_TOPICS)
-    assert topic_share.max() <= 0.22
+    assert result["primary_topic"].eq("Arc Raiders Updates & Meta").all()
 
 
 def test_ninja_showcase_recommendations_are_specific_and_metric_backed() -> None:
     topic_metrics = pd.DataFrame(
         [
-            {"topic_label": "Ranked & Competitive Fortnite", "video_count": 18, "median_views_per_day": 12450},
-            {"topic_label": "Fortnite Gameplay Highlights", "video_count": 31, "median_views_per_day": 7200},
-            {"topic_label": "Fortnite Updates & New Seasons", "video_count": 12, "median_views_per_day": 9800},
+            {"topic_label": "Arc Raiders Progression & Economy", "video_count": 18, "median_views_per_day": 12450},
+            {"topic_label": "Reactions & Viral Moments", "video_count": 31, "median_views_per_day": 7200},
+            {"topic_label": "Arc Raiders Updates & Meta", "video_count": 12, "median_views_per_day": 9800},
         ]
     )
 
     recommendations = _ninja_showcase_recommendations(topic_metrics)
 
-    assert recommendations["double_down"][0]["theme"] == "Ranked & Competitive Fortnite"
-    assert recommendations["avoid"][0]["theme"] == "Fortnite Gameplay Highlights"
-    assert recommendations["test_next"][0]["theme"] == "Fortnite Updates & New Seasons"
+    assert recommendations["double_down"][0]["theme"] == "Arc Raiders Progression & Economy"
+    assert recommendations["avoid"][0]["theme"] == "Reactions & Viral Moments"
+    assert recommendations["test_next"][0]["theme"] == "Arc Raiders Updates & Meta"
     assert recommendations["double_down"][0]["sample_size"] == 18
     assert "12,450" in recommendations["double_down"][0]["evidence"]
