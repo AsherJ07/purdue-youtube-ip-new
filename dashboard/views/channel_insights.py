@@ -73,6 +73,14 @@ _DISPLAY_ACRONYMS = {
     "ux": "UX",
 }
 _PLACEHOLDER_TOPICS = {"", "n/a", "no theme yet", "no pattern yet", "unassigned"}
+_NINJA_SHOWCASE_TOPICS = {
+    "Ranked & Competitive Fortnite",
+    "Fortnite Gameplay Highlights",
+    "Tips, Loadouts & Strategy",
+    "Collaborations & Creator Challenges",
+    "Fortnite Updates & New Seasons",
+    "Streaming & Community",
+}
 
 
 def _inject_channel_insights_css() -> None:
@@ -305,8 +313,20 @@ def _inject_channel_insights_css() -> None:
         .ci-card-copy,
         .ci-list,
         .ci-note { color: #424245 !important; }
+        .ci-summary-item,
+        .ci-theme-card {
+            background: #f8fafc !important;
+            border: 1px solid #d9dee7 !important;
+        }
+        .ci-summary-label,
+        .ci-theme-copy { color: #424245 !important; }
         .ci-summary-value,
         .ci-theme-title { color: #1d1d1f !important; }
+        .ci-source-pill {
+            background: #f3e8ff !important;
+            border: 1px solid #d8b4fe !important;
+            color: #6b21a8 !important;
+        }
         .ci-kpi-card {
             background: rgba(255, 255, 255, 0.96) !important;
             border: 1px solid rgba(0, 0, 0, 0.11) !important;
@@ -322,6 +342,25 @@ def _inject_channel_insights_css() -> None:
             border: 1px dashed rgba(0, 0, 0, 0.15) !important;
             background: rgba(255, 255, 255, 0.8) !important;
             color: #6e6e73 !important;
+        }
+        [data-testid="stWidgetLabel"] p,
+        [data-testid="stWidgetLabel"] label,
+        [data-testid="stWidgetLabel"] span {
+            color: #1d1d1f !important;
+            opacity: 1 !important;
+        }
+        .stTextInput input,
+        [data-baseweb="input"] input,
+        [data-baseweb="select"] > div,
+        .stSelectbox > div > div {
+            background: #ffffff !important;
+            color: #1d1d1f !important;
+            -webkit-text-fill-color: #1d1d1f !important;
+        }
+        .stTextInput input::placeholder {
+            color: #6e6e73 !important;
+            -webkit-text-fill-color: #6e6e73 !important;
+            opacity: 1 !important;
         }
         </style>
         """,
@@ -381,6 +420,8 @@ def _format_topic_token(token: str) -> str:
 def _compact_topic_label(label: str) -> str:
     text = str(label or "").strip()
     if not text or text in {"N/A", "No Theme Yet", "No Pattern Yet", "Unassigned"}:
+        return text
+    if text in _NINJA_SHOWCASE_TOPICS:
         return text
 
     tokens = _normalize_topic_tokens(text)
@@ -882,6 +923,7 @@ def _artifact_status_label(state: str) -> str:
         "invalid": "Failed / Fallback Active",
         "load_failed": "Failed / Fallback Active",
         "transform_failed": "Failed / Fallback Active",
+        "showcase_fixture": "Showcase Fixture",
     }
     return mapping.get(str(state or "").strip().lower(), "Unavailable")
 
@@ -903,7 +945,7 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
             channel_input = st.text_input(
                 "Channel URL, handle, or channel ID",
                 key="channel_insights_input",
-                placeholder="https://www.youtube.com/@veritasium or @veritasium",
+                placeholder="https://www.youtube.com/@Ninja or @Ninja",
             )
             connect_clicked = st.form_submit_button("Analyze channel", type="primary", width="stretch")
             force_refresh = st.toggle(
@@ -955,14 +997,25 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
             label_visibility="collapsed",
         )
         if selected_topic_mode == TOPIC_MODE_BERTOPIC_OPTIONAL:
-            st.caption(f"Semantic model status: {_artifact_status_label(artifact_status.state)}")
-            if artifact_status.state == "ready":
+            is_ninja_showcase = str(channel_input).strip().lower() in {
+                "ninja",
+                "@ninja",
+                "https://www.youtube.com/@ninja",
+            }
+            if is_ninja_showcase:
+                st.caption("Semantic model status: Showcase Fixture Ready")
+                st.caption("Stable Ninja clusters; performance metrics use the loaded public video rows.")
+            elif artifact_status.state == "ready":
+                st.caption(f"Semantic model status: {_artifact_status_label(artifact_status.state)}")
                 st.success(artifact_status.message or "The semantic theme model is ready.")
             elif artifact_status.state == "download_required":
+                st.caption(f"Semantic model status: {_artifact_status_label(artifact_status.state)}")
                 st.info(artifact_status.message or "The semantic model will download when you run beta mode.")
             elif artifact_status.state == "invalid":
+                st.caption(f"Semantic model status: {_artifact_status_label(artifact_status.state)}")
                 st.warning(artifact_status.failure_reason or artifact_status.message or "Semantic theme mode is currently unavailable.")
             else:
+                st.caption(f"Semantic model status: {_artifact_status_label(artifact_status.state)}")
                 st.caption(artifact_status.message or "BERTopic is unavailable; heuristics will be used instead.")
 
 
@@ -1008,10 +1061,15 @@ def _render_summary_action_row(payload: Dict[str, Any]) -> None:
         st.link_button("Open channel", channel["canonical_url"], width="stretch")
 
     with st.expander("Theme model details", expanded=False):
+        semantic_status = (
+            summary.get("topic_model_status", "")
+            if summary.get("topic_model_status") == "showcase_fixture"
+            else getattr(artifact_status, "state", "disabled")
+        )
         st.markdown(
             f"**Requested:** {_topic_mode_label(topic_mode_requested)}  \n"
             f"**Applied:** {_topic_mode_label(topic_mode_used)}  \n"
-            f"**Semantic model status:** {_artifact_status_label(getattr(artifact_status, 'state', 'disabled'))}  \n"
+            f"**Semantic model status:** {_artifact_status_label(semantic_status)}  \n"
             f"**Bundle version:** {escape(str(summary.get('topic_model_bundle_version', '') or 'Not loaded'))}"
         )
         st.caption(topic_model_message or "Fast keyword themes remain the fallback when the semantic model is unavailable.")
@@ -1379,6 +1437,11 @@ def _render_history_tab(payload: Dict[str, Any]) -> None:
 
 def render() -> None:
     _inject_channel_insights_css()
+
+    if "channel_insights_input" not in st.session_state:
+        st.session_state["channel_insights_input"] = "@Ninja"
+    if "channel_insights_topic_mode" not in st.session_state:
+        st.session_state["channel_insights_topic_mode"] = TOPIC_MODE_BERTOPIC_OPTIONAL
 
     connected_channels = list_connected_channels()
     _render_connect_card(connected_channels)

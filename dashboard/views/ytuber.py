@@ -52,8 +52,21 @@ DATASET_PATH = os.path.join("data", "youtube api data", "research_science_channe
 DEFAULT_CATEGORY = "research_science"
 THUMB_KEYS = ["default", "medium", "high", "standard", "maxres"]
 STOPWORDS = {
-    "the", "a", "an", "to", "of", "in", "for", "with", "on", "and", "or", "at", "is", "are", "was", "were",
-    "this", "that", "how", "why", "what", "when", "from", "your", "you", "my", "we", "our", "it", "vs", "into",
+    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't",
+    "around", "as", "at", "away", "back", "be", "because", "been", "before", "being", "below", "between",
+    "both", "but", "by", "can", "can't", "come", "could", "couldn't", "did", "didn't", "do", "does",
+    "doesn't", "doing", "don't", "during", "each", "ever", "every", "few", "first", "for", "from",
+    "further", "get", "gets", "getting", "go", "goes", "going", "got", "had", "hadn't", "has", "hasn't",
+    "have", "haven't", "having", "he", "her", "here", "hers", "herself", "him", "himself", "his", "how",
+    "i", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "just", "last", "let", "like",
+    "made", "make", "many", "may", "me", "might", "more", "most", "much", "must", "my", "myself", "need",
+    "new", "no", "nor", "not", "now", "of", "off", "on", "once", "only", "or", "other", "our", "ours",
+    "ourselves", "out", "over", "own", "same", "she", "should", "shouldn't", "so", "some", "such", "than",
+    "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these",
+    "they", "they're", "this", "those", "through", "to", "too", "under", "until", "up", "very", "video",
+    "videos", "vs", "was", "wasn't", "we", "we're", "were", "weren't", "what", "what's", "when", "where",
+    "which", "while", "who", "why", "will", "with", "won't", "would", "wouldn't", "you", "you're", "your",
+    "yours", "yourself", "yourselves",
 }
 TOPIC_ANGLE_FILLER = STOPWORDS | {
     "actually", "anything", "been", "being", "can", "could", "didn", "didnt", "don't",
@@ -66,6 +79,21 @@ POWER_WORDS = {
     "secret", "ultimate", "proven", "easy", "fast", "best", "shocking", "truth", "mistake", "science",
     "future", "breakthrough", "insane", "new", "critical", "warning", "guide", "explained", "hidden", "top",
 }
+DEMO_CHANNEL_QUERY = "@Ninja"
+DEMO_COMPETITORS = "@SypherPK,@NickEh30,@TypicalGamer"
+DEMO_VIDEO_TITLE = "Ninja Eliminated 10 Players in One Fortnite Match — Here’s How"
+DEMO_VIDEO_DESCRIPTION = (
+    "Watch Ninja break down a 10-elimination Fortnite match—from the opening drop and loadout choices "
+    "to late-game positioning, aim, and the final Victory Royale. We highlight the decisions viewers can "
+    "practice in their own ranked matches, including rotations, high-ground control, and when to take a fight.\n\n"
+    "Comment with the play you would try first, subscribe for more Ninja Fortnite analysis, and watch the next "
+    "gameplay breakdown for another practical strategy test. #Fortnite #Ninja #Gaming"
+)
+DEMO_CREATIVE_BRIEF = (
+    "Create five Fortnite video concepts for Ninja. Focus on high-skill gameplay, a clear improvement promise, "
+    "and one testable hook per concept. Keep the tone energetic and credible for competitive gaming fans."
+)
+DEMO_AVOID = "generic reaction videos, unverified claims, graphic violence"
 WORKSPACE_MODULES = [
     "Overview",
     "Channel Audit",
@@ -617,6 +645,40 @@ def _inject_ytuber_css() -> None:
         .ytuber-empty-copy,
         .ytuber-search-meta { color: #424245 !important; }
         .ytuber-kicker { color: #b3000c !important; }
+        .ytuber-banner {
+            background: rgba(255, 255, 255, 0.94) !important;
+            border: 1px solid rgba(0, 0, 0, 0.10) !important;
+            border-left: 4px solid #cc0000 !important;
+            box-shadow: 0 12px 36px rgba(17, 24, 39, 0.10) !important;
+        }
+        .ytuber-banner-meta { color: #424245 !important; }
+        .ytuber-score-card,
+        .ytuber-part-card,
+        .outlier-card {
+            background: rgba(255, 255, 255, 0.94) !important;
+            border: 1px solid rgba(0, 0, 0, 0.10) !important;
+            box-shadow: 0 12px 36px rgba(17, 24, 39, 0.10) !important;
+        }
+        .ytuber-score-label,
+        .ytuber-part-label,
+        .outlier-score-label { color: #424245 !important; }
+        .ytuber-score-value,
+        .ytuber-part-value,
+        .outlier-card-title { color: #1d1d1f !important; }
+        .ytuber-score-note,
+        .outlier-reasons { color: #424245 !important; }
+        .ytuber-score-bar { background: #e5e7eb !important; }
+        .outlier-card-channel { color: #005ea8 !important; }
+        .outlier-metric-pill {
+            background: #f3f4f6 !important;
+            border: 1px solid #d9dee7 !important;
+            color: #1d1d1f !important;
+        }
+        .outlier-score-badge {
+            background: #fff1f2 !important;
+            border-color: #fecdd3 !important;
+            color: #b3000c !important;
+        }
         .ytuber-footer-card {
             background: rgba(255, 255, 255, 0.96) !important;
             border: 1px solid rgba(0, 0, 0, 0.1) !important;
@@ -636,6 +698,29 @@ def _inject_ytuber_css() -> None:
         [data-testid="stToggle"] label p,
         [data-testid="stToggle"] small {
             color: #1d1d1f !important;
+        }
+        [data-testid="stWidgetLabel"] p,
+        [data-testid="stWidgetLabel"] label,
+        [data-testid="stWidgetLabel"] span {
+            color: #1d1d1f !important;
+            opacity: 1 !important;
+        }
+        .stTextInput input,
+        .stTextArea textarea,
+        [data-baseweb="input"] input,
+        [data-baseweb="textarea"] textarea,
+        [data-baseweb="select"] > div,
+        .stSelectbox > div > div,
+        .stMultiSelect > div > div {
+            background: #ffffff !important;
+            color: #1d1d1f !important;
+            -webkit-text-fill-color: #1d1d1f !important;
+        }
+        .stTextInput input::placeholder,
+        .stTextArea textarea::placeholder {
+            color: #6e6e73 !important;
+            -webkit-text-fill-color: #6e6e73 !important;
+            opacity: 1 !important;
         }
         .ytuber-section-surface {
             background: rgba(255, 255, 255, 0.94) !important;
@@ -817,10 +902,41 @@ def _generate_competitor_recommendations(
     competitor_trend_df: pd.DataFrame,
     keyword_gap_df: pd.DataFrame,
 ) -> str:
-    if get_provider_key_count("gemini") <= 0:
-        return "Add a Gemini API key pool to generate benchmark recommendations."
+    valid_benchmarks = benchmark_df.copy()
+    if "source" in valid_benchmarks.columns:
+        valid_benchmarks = valid_benchmarks[valid_benchmarks["source"].ne("error")].copy()
 
-    top_competitors = benchmark_df.head(5).to_dict(orient="records")
+    if valid_benchmarks.empty:
+        return (
+            "### Benchmark unavailable\n"
+            "- None of the competitor channels returned usable public data.\n"
+            "- Check the handles or retry after the YouTube API quota resets."
+        )
+
+    leader = valid_benchmarks.sort_values("total_views", ascending=False).iloc[0]
+    rising_topics = []
+    if {"momentum_delta", "keyword"}.issubset(competitor_trend_df.columns):
+        rising_topics = competitor_trend_df.loc[
+            competitor_trend_df["momentum_delta"].gt(0), "keyword"
+        ].head(3).tolist()
+    gap_topics = (
+        keyword_gap_df["keyword"].head(3).tolist()
+        if "keyword" in keyword_gap_df.columns
+        else []
+    )
+
+    fallback = (
+        "### Evidence-based benchmark summary\n"
+        f"- **Reach leader:** {leader.get('channel_title', 'Top competitor')} has the highest represented one-year views in this comparison.\n"
+        f"- **Topics gaining momentum:** {', '.join(rising_topics) if rising_topics else 'No topic has enough recent lift yet.'}\n"
+        f"- **Topics to investigate:** {', '.join(gap_topics) if gap_topics else 'No clear competitor-only keyword gap was detected.'}\n"
+        f"- **Next test:** choose one relevant gap, publish one controlled variation, and compare it with {channel_title}'s age-matched baseline."
+    )
+
+    if get_provider_key_count("gemini") <= 0:
+        return fallback
+
+    top_competitors = valid_benchmarks.head(5).to_dict(orient="records")
     trend_rows = competitor_trend_df.head(8).to_dict(orient="records")
     gap_rows = keyword_gap_df.head(8).to_dict(orient="records")
 
@@ -840,11 +956,15 @@ def _generate_competitor_recommendations(
         "4. Risks to avoid\n"
         "Use short bullets and plain language."
     )
-    return run_with_provider_keys(
-        "gemini",
-        lambda key: _gemini_generate_text(key, "gemini-2.5-flash", prompt),
-        retryable_error=_is_ai_retryable_error,
-    )
+    try:
+        return run_with_provider_keys(
+            "gemini",
+            lambda key: _gemini_generate_text(key, "gemini-2.5-flash", prompt),
+            retryable_error=_is_ai_retryable_error,
+        )
+    except Exception:
+        # Benchmarking is a data feature. Optional AI copy must never take down the page.
+        return fallback
 
 
 def _is_youtube_retryable_error(exc: Exception) -> bool:
@@ -1462,11 +1582,11 @@ def _render_outliers_shortcut(channel_df: pd.DataFrame, channel_title: str) -> N
     st.markdown(
         """
         <div class="yt-card" style="padding:1.15rem 1.2rem;">
-            <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#B8C1DA;margin-bottom:0.3rem;">Standalone Research Tool</div>
-            <div style="font-size:24px;font-weight:800;color:#f8fafc;line-height:1.15;margin-bottom:0.45rem;">
+            <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#6e6e73;margin-bottom:0.3rem;">Standalone Research Tool</div>
+            <div style="font-size:24px;font-weight:800;color:#1d1d1f;line-height:1.15;margin-bottom:0.45rem;">
                 Discover Breakout Videos In A Dedicated Research Workspace.
             </div>
-            <div style="font-size:14px;color:#B0B0B0;max-width:760px;">
+            <div style="font-size:14px;color:#424245;max-width:760px;">
                 Search any niche, tighten the filters, and move into a standalone page built for result-first scanning, breakout snapshots, structured AI research, and methodology notes.
             </div>
         </div>
@@ -1743,7 +1863,7 @@ def _render_channel_audit(channel_df: pd.DataFrame) -> None:
         st.markdown(
             f"""
             <div class="yt-card" style="padding:0.5rem 0.75rem;margin-bottom:0.35rem;">
-                <span style="font-size:12px;color:#d0d0e0;">{item}</span>
+                <span style="font-size:12px;color:#424245;">{item}</span>
             </div>
             """,
             unsafe_allow_html=True,
@@ -2256,10 +2376,10 @@ def _render_outliers_finder(current_channel_title: str) -> None:
 def _render_title_seo_lab(keyword_hints: List[str]) -> None:
     section_header("Title & SEO Lab", icon="🧪")
     st.caption("Scores update as the title or description changes. Use this editor to pressure-test hooks before you generate more ideas.")
-    test_title = st.text_input("Test title", value="The Hidden Physics Trick That Changes Everything")
+    test_title = st.text_input("Test title", value=DEMO_VIDEO_TITLE)
     test_desc = st.text_area(
         "Test description",
-        value="In this video we break down the science, show real examples, and explain how to apply this idea. Subscribe for more! #science #learning",
+        value=DEMO_VIDEO_DESCRIPTION,
         height=120,
     )
 
@@ -2317,7 +2437,7 @@ def _render_title_seo_lab(keyword_hints: List[str]) -> None:
             )
     with action_cols[2]:
         st.markdown(
-            "<div style='font-size:12px;color:#AEB8D6;padding-top:0.5rem;'>Use Content Studio when the title direction is weak, the channel needs alternate angles, or you want batch ideas from the same concept.</div>",
+            "<div style='font-size:12px;color:#424245;padding-top:0.5rem;'>Use Content Studio when the title direction is weak, the channel needs alternate angles, or you want batch ideas from the same concept.</div>",
             unsafe_allow_html=True,
         )
 
@@ -2330,7 +2450,7 @@ def _render_competitor_benchmark(
     section_header("Competitor Benchmark", icon="📊")
     handles = st.text_area(
         "Competitor handles (comma separated)",
-        value="@3blue1brown,@veritasium,@smartereveryday",
+        value=DEMO_COMPETITORS,
         height=90,
     )
 
@@ -2778,16 +2898,11 @@ def _render_content_studio(
     with avoid_col:
         exclude_topics = st.text_input(
             "Avoid",
-            value="",
+            value=DEMO_AVOID,
             placeholder="Overused themes, competitors, or claims",
         )
 
-    prompt_goal = _goal_from_prompt(st.session_state.get("ytuber_growth_prompt", ""))
-    default_brief = (
-        f"Goal: {prompt_goal}. Channel: {channel_title}. Build a focused plan from the current evidence."
-        if prompt_goal
-        else f"Channel: {channel_title}. Create a focused next-month content plan grounded in the current evidence."
-    )
+    default_brief = DEMO_CREATIVE_BRIEF
     creative_brief = st.text_area(
         "Creative brief",
         value=default_brief,
@@ -3008,16 +3123,11 @@ def _render_ai_studio(
         )
         exclude_topics = st.text_input(
             "Exclude / avoid",
-            value="",
+            value=DEMO_AVOID,
             placeholder="Overused themes, competitors, claims to avoid",
         )
 
-    prompt_goal = _goal_from_prompt(st.session_state.get("ytuber_growth_prompt", ""))
-    default_brief = (
-        f"Goal: {prompt_goal}. Channel: {channel_title}. Build a sharp plan based on the current stats."
-        if prompt_goal
-        else f"Channel: {channel_title}. Create a high-performing next-month content plan grounded in the current stats."
-    )
+    default_brief = DEMO_CREATIVE_BRIEF
     creative_brief = st.text_area(
         "Creative brief",
         value=default_brief,
@@ -3132,7 +3242,7 @@ def _render_ai_studio(
                 st.markdown(
                     f"""
                     <div class="yt-card" style="margin-top:0.8rem;">
-                        <div style="font-size:13px;color:#B0B0B0;margin-bottom:0.35rem;">AI Output</div>
+                        <div style="font-size:13px;color:#424245;margin-bottom:0.35rem;">AI Output</div>
                         <pre style="white-space:pre-wrap;font-size:13px;color:#d0d0e0;background:rgba(15,15,35,0.92);padding:0.75rem;border-radius:10px;border:1px solid rgba(255,255,255,0.12);max-height:520px;overflow:auto;font-family:IBM Plex Mono,ui-monospace,monospace;">{output}</pre>
                     </div>
                     """,
@@ -3213,7 +3323,7 @@ def render() -> None:
     _inject_ytuber_css()
 
     if "ytuber_growth_prompt" not in st.session_state:
-        st.session_state["ytuber_growth_prompt"] = "@veritasium"
+        st.session_state["ytuber_growth_prompt"] = DEMO_CHANNEL_QUERY
     provider_counts = {
         "youtube": get_provider_key_count("youtube"),
         "gemini": get_provider_key_count("gemini"),

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
 from dashboard.components.visualizations import graph_insight_expander, section_header
@@ -66,6 +67,19 @@ IMAGE_MODEL_CATALOG = {
         },
     ],
 }
+
+DEMO_THUMBNAIL_TITLE = "Ninja Eliminated 10 Players in One Fortnite Match — Here’s How"
+DEMO_THUMBNAIL_CONTEXT = (
+    "Competitive Fortnite highlight for Ninja. Show the tension of a final-circle fight and the payoff of a "
+    "10-elimination Victory Royale. The primary emotion is shocked confidence: Ninja realizes the risky play worked."
+)
+DEMO_THUMBNAIL_DIRECTION = (
+    "One expressive close-up of Ninja on the left, a bright Fortnite endgame scene on the right, strong red/cyan "
+    "contrast, cinematic rim light, generous negative space, and a clean 16:9 composition readable on mobile."
+)
+DEMO_THUMBNAIL_AVOID = (
+    "tiny text, low contrast, more than two focal subjects, busy background, graphic violence, fake game UI"
+)
 
 
 def _inject_page_css() -> None:
@@ -295,6 +309,19 @@ def _register_thumbnail_artifact(artifact: PreparedThumbnailArtifact) -> None:
     st.session_state["thumbnails_temp_paths"] = sorted(paths)
 
 
+def _default_thumbnail_lookup() -> str:
+    """Use the loaded Ninja workspace's strongest public video for a no-typing demo."""
+    channel_df = st.session_state.get("ytuber_channel_df")
+    if not isinstance(channel_df, pd.DataFrame) or channel_df.empty or "video_id" not in channel_df.columns:
+        return ""
+    ranked = channel_df.copy()
+    if "views" in ranked.columns:
+        ranked["views"] = pd.to_numeric(ranked["views"], errors="coerce")
+        ranked = ranked.sort_values("views", ascending=False, na_position="last")
+    video_id = str(ranked.iloc[0].get("video_id", "")).strip()
+    return f"https://www.youtube.com/watch?v={video_id}" if video_id else ""
+
+
 def _render_generate_tab() -> None:
     section_header(
         "Create Thumbnail Concepts",
@@ -325,22 +352,22 @@ def _render_generate_tab() -> None:
     )
     api_key = manual_api_key.strip() or configured_api_key
 
-    title = st.text_input("Video title", value="", placeholder="Enter the working title")
+    title = st.text_input("Video title", value=DEMO_THUMBNAIL_TITLE)
     context = st.text_area(
         "Creative context",
-        value="",
+        value=DEMO_THUMBNAIL_CONTEXT,
         placeholder="Audience, core promise, subject, emotion, and anything the image must communicate",
         height=120,
     )
     style = st.text_area(
         "Visual direction",
-        value="",
+        value=DEMO_THUMBNAIL_DIRECTION,
         placeholder="For example: one clear subject, bold contrast, cinematic lighting, clean 16:9 composition",
         height=90,
     )
     negative_prompt = st.text_input(
         "Avoid",
-        value="tiny text, low contrast, too many subjects, busy background",
+        value=DEMO_THUMBNAIL_AVOID,
     )
 
     config_cols = st.columns(4)
@@ -357,7 +384,7 @@ def _render_generate_tab() -> None:
             <div class="thumb-metric">
                 <div class="thumb-metric-label">API access</div>
                 <div class="thumb-metric-value">{key_status}</div>
-                <div style="font-size:12px;color:#B8C1DA;margin-top:0.25rem;">{get_provider_key_count(provider)} configured key(s)</div>
+                <div style="font-size:12px;color:#424245;margin-top:0.25rem;">{get_provider_key_count(provider)} configured key(s)</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -454,6 +481,7 @@ def _render_download_tab() -> None:
         with st.form("thumbnail_lookup_form", clear_on_submit=False):
             lookup_value = st.text_input(
                 "YouTube video URL or ID",
+                value=_default_thumbnail_lookup(),
                 key="thumbnails_lookup_value",
                 placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/...",
             )

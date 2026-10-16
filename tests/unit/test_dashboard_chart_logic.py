@@ -6,7 +6,11 @@ from dashboard.views.channel_analysis import (
     _reach_interaction_chart,
 )
 from dashboard.views.outlier_finder import _breakout_scatter
-from dashboard.views.ytuber import _suggested_topic_angles
+from dashboard.views.ytuber import (
+    _generate_competitor_recommendations,
+    _suggested_topic_angles,
+    _tokenize,
+)
 from dashboard.components.visualizations import (
     compact_axis_ticks,
     format_compact_number,
@@ -88,6 +92,38 @@ def test_topic_angles_are_readable_and_ranked_by_daily_reach() -> None:
         "Largest spiderweb",
         "Slowing down",
     ]
+
+
+def test_topic_tokens_remove_common_and_creator_filler_words() -> None:
+    assert _tokenize("What you need after going back to Fortnite videos") == ["fortnite"]
+
+
+def test_competitor_recommendations_fall_back_without_optional_ai(monkeypatch) -> None:
+    monkeypatch.setattr("dashboard.views.ytuber.get_provider_key_count", lambda provider: 0)
+    benchmark = pd.DataFrame(
+        [
+            {
+                "channel_title": "SypherPK",
+                "source": "youtube_api",
+                "total_views": 10_000_000,
+            }
+        ]
+    )
+    trends = pd.DataFrame([{"keyword": "fortnite", "momentum_delta": 3}])
+    gaps = pd.DataFrame([{"keyword": "ranked", "competitor_count": 2}])
+
+    output = _generate_competitor_recommendations(
+        "Ninja",
+        {"total_views": 5_000_000},
+        benchmark,
+        trends,
+        gaps,
+    )
+
+    assert "Evidence-based benchmark summary" in output
+    assert "SypherPK" in output
+    assert "fortnite" in output
+    assert "ranked" in output
 
 
 def test_large_display_numbers_use_compact_units() -> None:

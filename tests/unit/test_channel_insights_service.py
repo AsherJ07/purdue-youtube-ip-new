@@ -3,8 +3,10 @@ from pathlib import Path
 import pandas as pd
 
 from src.services.channel_insights_service import (
+    NINJA_SHOWCASE_TOPICS,
     TOPIC_MODE_BERTOPIC_OPTIONAL,
     TOPIC_MODE_HEURISTIC,
+    _apply_ninja_showcase_topics,
     load_channel_insights,
     refresh_channel_insights,
 )
@@ -196,3 +198,24 @@ def test_refresh_channel_insights_uses_optional_topic_model_when_available(monke
     assert payload["summary"]["topic_mode_used"] == TOPIC_MODE_BERTOPIC_OPTIONAL
     assert payload["videos_df"]["topic_source"].iloc[0] == "bertopic_global"
     assert payload["videos_df"]["primary_topic"].iloc[0] == "Packaging / Ctr / Thumbnail / Hooks"
+
+
+def test_ninja_showcase_topics_are_stable_and_relevant() -> None:
+    sample_df = pd.DataFrame(
+        [
+            {"video_id": "v1", "video_title": "Road to Unreal Ranked", "video_description": "", "video_tags": "fortnite"},
+            {"video_id": "v2", "video_title": "My Best Fortnite Loadout", "video_description": "", "video_tags": "tips"},
+            {"video_id": "v3", "video_title": "New Fortnite Season Update", "video_description": "", "video_tags": "chapter"},
+            {"video_id": "v4", "video_title": "Ninja vs SypherPK Challenge", "video_description": "", "video_tags": "duo"},
+            {"video_id": "v5", "video_title": "Fortnite Win Highlights", "video_description": "", "video_tags": "gameplay"},
+            {"video_id": "v6", "video_title": "Reacting With Viewers", "video_description": "", "video_tags": "stream"},
+        ]
+    )
+
+    result, metadata = _apply_ninja_showcase_topics(sample_df)
+
+    assert set(result["primary_topic"]).issubset(set(NINJA_SHOWCASE_TOPICS))
+    assert result["primary_topic"].nunique() >= 5
+    assert result["topic_source"].eq("ninja_showcase_fixture").all()
+    assert metadata["model_status"] == "showcase_fixture"
+    assert metadata["topic_mode_used"] == TOPIC_MODE_BERTOPIC_OPTIONAL
