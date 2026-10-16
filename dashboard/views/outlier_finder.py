@@ -1791,16 +1791,35 @@ def render() -> None:
                 "scanned_channels": result.scanned_channels,
                 "baseline_channels": result.baseline_channels,
             }
+            provider_attempts = [(provider, model)] + [
+                (fallback_provider, AI_MODELS[fallback_provider][0])
+                for fallback_provider in available_providers
+                if fallback_provider != provider
+            ]
+            report = None
             with st.spinner("Synthesizing the surfaced evidence..."):
-                report = generate_outlier_ai_report(
-                    provider=provider,
-                    model=model,
-                    query_context=query_context,
-                    summary_stats=summary_payload,
-                    result_frame=sorted_frame,
-                )
-            st.session_state["outlier_page_ai_report"] = report
-            st.session_state["outlier_page_ai_fingerprint"] = fingerprint
+                for attempted_provider, attempted_model in provider_attempts:
+                    try:
+                        report = generate_outlier_ai_report(
+                            provider=attempted_provider,
+                            model=attempted_model,
+                            query_context=query_context,
+                            summary_stats=summary_payload,
+                            result_frame=sorted_frame,
+                        )
+                    except Exception:
+                        continue
+                    if attempted_provider != provider:
+                        st.info(
+                            f"{AI_PROVIDER_LABELS.get(provider, provider.title())} was unavailable, "
+                            f"so this synthesis used {AI_PROVIDER_LABELS.get(attempted_provider, attempted_provider.title())}."
+                        )
+                    break
+            if report is None:
+                st.error("AI synthesis is temporarily unavailable. Try again or choose another provider.")
+            else:
+                st.session_state["outlier_page_ai_report"] = report
+                st.session_state["outlier_page_ai_fingerprint"] = fingerprint
 
         report = st.session_state.get("outlier_page_ai_report")
         if report:
