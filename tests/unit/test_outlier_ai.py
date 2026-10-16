@@ -48,3 +48,17 @@ def test_fallback_report_sets_low_confidence_notice() -> None:
     assert report.confidence_notes
     assert report.warnings
     assert report.raw_fallback == "Unstructured answer"
+
+
+def test_prompt_requires_subthemes_beyond_the_search_query() -> None:
+    prompt = outlier_ai._build_prompt(
+        {"niche_query": "science shorts"},
+        {"median_views_per_day": 10_000},
+        [{"video_title": "Egg in Coca Cola Experiment", "views_per_day": 40_475}],
+    )
+
+    assert "category boundary" in prompt
+    assert "exactly three distinct breakout_themes" in prompt
+    assert "Never recommend making more content" in prompt
+    assert "Concept:" in prompt
+    assert "Success check:" in prompt

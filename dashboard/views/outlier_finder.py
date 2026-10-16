@@ -869,7 +869,7 @@ def _format_subscribers(value: Optional[float], hidden: bool) -> str:
 
 def _result_fingerprint(result_frame: pd.DataFrame, query: str) -> str:
     top_ids = ",".join(result_frame["video_id"].head(10).astype(str).tolist()) if not result_frame.empty else ""
-    return f"{query}|{top_ids}|{len(result_frame)}"
+    return f"subtheme-v2|{query}|{top_ids}|{len(result_frame)}"
 
 
 def _style_chart(fig, *, legend_title: Optional[str] = None):
@@ -1269,38 +1269,42 @@ def _render_ai_report(report: OutlierAIReport) -> None:
         unsafe_allow_html=True,
     )
 
-    decision_cards: list[tuple[str, str, str]] = []
     if report.breakout_themes:
-        card = report.breakout_themes[0]
-        decision_cards.append(("What is breaking out", card.body, card.support))
-    packaging_cards = report.title_patterns or report.repeatable_angles
-    if packaging_cards:
-        card = packaging_cards[0]
-        decision_cards.append(("Packaging pattern", card.body, card.support))
-    if report.next_steps:
-        decision_cards.append(("Next experiment", report.next_steps[0], "Measure it against the current cohort baseline."))
-
-    if decision_cards:
-        cols = st.columns(len(decision_cards), gap="medium")
-        for col, (title, body, support) in zip(cols, decision_cards):
+        _render_subsection_label("Breakout subthemes inside this niche")
+        theme_cards = report.breakout_themes[:3]
+        cols = st.columns(len(theme_cards), gap="medium")
+        for col, card in zip(cols, theme_cards):
             with col:
-                _render_ai_card(InsightCard(title=title, body=body, support=support))
+                _render_ai_card(card)
 
-    remaining_packaging_cards = (
-        tuple(report.title_patterns[1:]) + tuple(report.repeatable_angles)
-        if report.title_patterns
-        else tuple(report.repeatable_angles[1:])
-    )
-    supporting_cards = (
-        tuple(report.breakout_themes[1:])
-        + remaining_packaging_cards
-        + tuple(report.notable_anomalies)
-    )
+    strategy_cards: list[InsightCard] = []
+    if report.title_patterns:
+        card = report.title_patterns[0]
+        strategy_cards.append(InsightCard(title="Winning title structure", body=card.body, support=card.support))
+    if report.repeatable_angles:
+        card = report.repeatable_angles[0]
+        strategy_cards.append(InsightCard(title="Repeatable content angle", body=card.body, support=card.support))
+    if strategy_cards:
+        cols = st.columns(len(strategy_cards), gap="medium")
+        for col, card in zip(cols, strategy_cards):
+            with col:
+                _render_ai_card(card)
+
+    if report.next_steps:
+        steps_html = "".join(f"<li>{escape(step)}</li>" for step in report.next_steps[:3])
+        st.markdown(
+            (
+                '<div class="outlier-ai-card">'
+                '<div class="outlier-ai-card-title">Recommended next-video brief</div>'
+                f'<div class="outlier-ai-card-body"><ol class="outlier-bullets">{steps_html}</ol></div>'
+                '</div>'
+            ),
+            unsafe_allow_html=True,
+        )
+
     with st.expander("Supporting AI evidence", expanded=False):
-        for card in supporting_cards:
-            st.markdown(f"**{escape(card.title)}** — {escape(card.body)}  \n{escape(card.support)}")
-        for step in report.next_steps[1:]:
-            st.markdown(f"**Next test** — {escape(step)}")
+        for card in report.notable_anomalies:
+            st.markdown(f"**Anomaly: {escape(card.title)}** — {escape(card.body)}  \n{escape(card.support)}")
         for note in report.confidence_notes:
             st.markdown(f"**Confidence note** — {escape(note)}")
 
@@ -1727,7 +1731,7 @@ def render() -> None:
         (
             '<div class="outlier-ai-section-head">AI evidence synthesis</div>'
             '<p style="color:#5F6368;font-size:14px;line-height:1.55;max-width:780px;margin:0 0 1rem;">'
-            "Turn the measured cohort into one breakout signal, one packaging pattern, and one next experiment."
+            "Find specific subtopics winning inside the niche, then turn one into a concrete video brief."
             "</p>"
         ),
         unsafe_allow_html=True,

@@ -25,7 +25,6 @@ from dashboard.components.visualizations import (
     plotly_bar_chart,
     plotly_heatmap,
     plotly_scatter,
-    plotly_treemap,
     section_header,
     show_plotly_chart,
     styled_dataframe,
@@ -1869,25 +1868,6 @@ def _render_channel_audit(channel_df: pd.DataFrame) -> None:
             unsafe_allow_html=True,
         )
 
-    trend_df = _build_trend_radar_df(channel_df)
-    if not trend_df.empty:
-        st.markdown("**Momentum Radar**")
-        trend_cols = st.columns(2)
-        with trend_cols[0]:
-            styled_dataframe(trend_df.head(10), title=None, precision=1)
-        with trend_cols[1]:
-            rising = trend_df[trend_df["momentum_delta"] > 0].head(12)
-            if not rising.empty:
-                rising_fig = plotly_bar_chart(
-                    rising.sort_values("momentum_delta", ascending=True),
-                    x="keyword",
-                    y="momentum_delta",
-                    title="Rising Topics in the Last 60 Days",
-                    horizontal=True,
-                )
-                show_plotly_chart(rising_fig)
-
-
 def _render_keyword_intel(channel_df: pd.DataFrame) -> List[str]:
     section_header("Keyword Intelligence", icon="🔑")
     intel = _keyword_intel(channel_df)
@@ -1895,27 +1875,12 @@ def _render_keyword_intel(channel_df: pd.DataFrame) -> List[str]:
         st.info("Not enough text data to compute keyword insights.")
         return []
 
-    styled_dataframe(intel, title=None, precision=2)
-
-    top10 = intel.head(10)["keyword"].tolist()
-    st.markdown("**High-opportunity keywords:**")
-    styled_keyword_chips(top10)
-
-    # Treemap and bar chart views
     if "score" in intel.columns:
-        tree_fig = plotly_treemap(
-            intel.head(40),
-            path=["keyword"],
-            values="score",
-            title="Keyword Opportunity Treemap",
-        )
-        show_plotly_chart(tree_fig)
-
         bar_fig = plotly_bar_chart(
-            intel.head(20).sort_values("score", ascending=False),
+            intel.head(15).sort_values("score", ascending=True),
             x="keyword",
             y="score",
-            title="Top Keyword Opportunities",
+            title="Topics with the strongest opportunity signal",
             horizontal=True,
         )
         show_plotly_chart(bar_fig)
@@ -2569,8 +2534,6 @@ def _render_competitor_benchmark(
     bdf = pd.DataFrame(state.get("benchmark_rows", []))
     competitor_trend_df = pd.DataFrame(state.get("trend_rows", []))
     keyword_gap_df = pd.DataFrame(state.get("gap_rows", []))
-    styled_dataframe(bdf, title=None, precision=1)
-
     if not bdf.empty:
         bar_fig = plotly_bar_chart(
             bdf.sort_values("total_views", ascending=True).head(10),
@@ -2580,26 +2543,42 @@ def _render_competitor_benchmark(
             horizontal=True,
         )
         show_plotly_chart(bar_fig)
-        st.caption(
-            "The previous radar mixed counts, views, and percentages on one scale. This direct comparison keeps one unit at a time; use the table above for the other measures."
+        detail_columns = [
+            "channel_title",
+            "videos_1y",
+            "avg_views",
+            "median_engagement",
+            "best_day",
+            "top_topics",
+        ]
+        detail_df = bdf.loc[:, [column for column in detail_columns if column in bdf.columns]].copy()
+        if "median_engagement" in detail_df.columns:
+            detail_df["median_engagement"] = detail_df["median_engagement"] * 100
+        detail_df.rename(
+            columns={
+                "channel_title": "Channel",
+                "videos_1y": "Videos analyzed",
+                "avg_views": "Average views",
+                "median_engagement": "Typical public interaction (%)",
+                "best_day": "Strongest publish day",
+                "top_topics": "Recurring topics",
+            },
+            inplace=True,
         )
+        with st.expander("View complementary competitor details", expanded=False):
+            styled_dataframe(detail_df, title=None, precision=1)
 
     if not competitor_trend_df.empty:
-        st.markdown("**Competitor Trend Radar**")
-        trend_cols = st.columns(2)
-        with trend_cols[0]:
-            styled_dataframe(competitor_trend_df.head(12), title=None, precision=1)
-        with trend_cols[1]:
-            positive = competitor_trend_df[competitor_trend_df["momentum_delta"] > 0].head(12)
-            if not positive.empty:
-                comp_trend_fig = plotly_bar_chart(
-                    positive.sort_values("momentum_delta", ascending=True),
-                    x="keyword",
-                    y="momentum_delta",
-                    title="Rising Competitor Topics",
-                    horizontal=True,
-                )
-                show_plotly_chart(comp_trend_fig)
+        positive = competitor_trend_df[competitor_trend_df["momentum_delta"] > 0].head(12)
+        if not positive.empty:
+            comp_trend_fig = plotly_bar_chart(
+                positive.sort_values("momentum_delta", ascending=True),
+                x="keyword",
+                y="momentum_delta",
+                title="Rising competitor topics",
+                horizontal=True,
+            )
+            show_plotly_chart(comp_trend_fig)
 
     if not keyword_gap_df.empty:
         st.markdown("**Keyword gaps vs competitors**")
@@ -2611,44 +2590,11 @@ def _render_competitor_benchmark(
             horizontal=True,
         )
         show_plotly_chart(gap_fig)
-        styled_keyword_chips(keyword_gap_df["keyword"].head(8).tolist())
 
     insights = state.get("insights", "")
     if insights:
         st.markdown("**Competitive Recommendations**")
         st.markdown(insights)
-
-
-def _render_trend_radar(channel_df: pd.DataFrame) -> None:
-    section_header("Trend Radar", icon="📡")
-    tdf = _build_trend_radar_df(channel_df)
-    if tdf.empty:
-        st.info("Not enough recent data for trend radar.")
-        return
-    styled_dataframe(tdf, title=None, precision=1)
-
-    rising = tdf[tdf["momentum_delta"] > 0].copy()
-    falling = tdf[tdf["momentum_delta"] <= 0].copy()
-
-    if not rising.empty:
-        rising_fig = plotly_bar_chart(
-            rising.sort_values("momentum_delta", ascending=True),
-            x="keyword",
-            y="momentum_delta",
-            title="Rising Keywords",
-            horizontal=True,
-        )
-        show_plotly_chart(rising_fig)
-
-    if not falling.empty:
-        falling_fig = plotly_bar_chart(
-            falling.sort_values("momentum_delta", ascending=True),
-            x="keyword",
-            y="momentum_delta",
-            title="Falling Keywords",
-            horizontal=True,
-        )
-        show_plotly_chart(falling_fig)
 
 
 def _render_content_planner(channel_df: pd.DataFrame) -> None:
@@ -2706,24 +2652,6 @@ def _render_content_planner(channel_df: pd.DataFrame) -> None:
             },
         ]
     )
-
-    day_cols = st.columns(2)
-    with day_cols[0]:
-        fig_day_views = plotly_bar_chart(
-            day_perf,
-            x="publish_day",
-            y="median_daily_views",
-            title="Typical age-normalized reach by weekday",
-        )
-        show_plotly_chart(fig_day_views)
-    with day_cols[1]:
-        fig_day_uploads = plotly_bar_chart(
-            day_perf,
-            x="publish_day",
-            y="videos",
-            title="Sample size by weekday",
-        )
-        show_plotly_chart(fig_day_uploads)
 
     heatmap_source = (
         channel_df.groupby(["publish_day", "publish_hour"], dropna=False)

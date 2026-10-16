@@ -115,7 +115,7 @@ def _build_prompt(
     top_rows: Sequence[Mapping[str, Any]],
 ) -> str:
     return (
-        "You are a YouTube strategist analyzing public outlier-video research.\n"
+        "You are a YouTube strategist analyzing public outlier-video research. The search query defines the category boundary; your job is to discover what is winning inside that category.\n"
         "Return valid JSON only with this schema:\n"
         "{\n"
         '  "executive_headline": "short string",\n'
@@ -131,9 +131,15 @@ def _build_prompt(
         "}\n\n"
         "Rules:\n"
         "- Keep each body under 35 words.\n"
-        "- Return exactly one evidence card in each card array.\n"
-        "- Return exactly three next steps; each must name an action and a success metric.\n"
+        "- Never recommend making more content that merely repeats or paraphrases the niche query.\n"
+        "- Example: for 'science shorts', 'make more science shorts' is invalid; specific patterns such as household chemistry tests, animal-scale mysteries, or optical illusions are valid only when supported by the supplied rows.\n"
+        "- The executive headline must name a specific subtopic, premise, or audience curiosity found inside the niche; do not use the query itself as the conclusion.\n"
+        "- Return exactly three distinct breakout_themes. Each title must be a specific 2-6 word subtopic, not a format label or the broad niche.\n"
+        "- Return exactly one title_pattern, one repeatable_angle, and at most one notable_anomaly.\n"
+        "- The repeatable_angle must propose a concrete premise that is meaningfully narrower than the query.\n"
+        "- Return exactly three next_steps in this order: 'Concept: <specific video premise and working title>', 'Hook: <first 3-5 seconds>', and 'Success check: <metric and threshold grounded in the cohort>'.\n"
         "- Every support field must cite a video title or a metric from the payload.\n"
+        "- Compare multiple rows before calling something a pattern; treat a one-video signal as an anomaly.\n"
         "- Use only evidence available in the payload.\n"
         "- Mention caveats if confidence is limited.\n"
         "- Do not mention hidden internal reasoning.\n\n"
@@ -216,7 +222,7 @@ def generate_outlier_ai_report(
     result_frame: pd.DataFrame,
 ) -> OutlierAIReport:
     provider_name = provider.lower().strip()
-    top_rows = result_frame.head(12)[
+    top_rows = result_frame.head(20)[
         [
             "video_title",
             "channel_title",
