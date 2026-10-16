@@ -185,7 +185,7 @@ def _ninja_showcase_recommendations(topic_metrics: pd.DataFrame) -> Dict[str, An
 
     return {
         "summary": (
-            "Semantic clustering separates Ninja's current Arc Raiders, Fortnite, short-form, and creator-led uploads into six useful themes, then combines "
+            "Semantic clustering separates Ninja's current Arc Raiders, Fortnite, and creator-led uploads into distinct themes, then combines "
             "theme reach and repeated evidence to recommend the next controlled content test."
         ),
         "double_down": [

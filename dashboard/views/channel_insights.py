@@ -823,6 +823,12 @@ def _formats_prompt(payload: Dict[str, Any]) -> str:
 
 
 def _render_summary_kpi_cards(summary: Dict[str, Any], deltas: Dict[str, Any], payload: Dict[str, Any]) -> None:
+    scale_rows = payload.get("recommendations", {}).get("double_down", [])
+    scale_theme = (
+        str(scale_rows[0].get("theme", "")).strip()
+        if scale_rows and isinstance(scale_rows[0], dict)
+        else ""
+    )
     repackage_rows = payload.get("recommendations", {}).get("avoid", [])
     repackage_theme = (
         str(repackage_rows[0].get("theme", "")).strip()
@@ -842,7 +848,7 @@ def _render_summary_kpi_cards(summary: Dict[str, Any], deltas: Dict[str, Any], p
         },
         {
             "label": "Strongest Theme",
-            "value": _best_display_theme(payload, "strongest"),
+            "value": scale_theme or _best_display_theme(payload, "strongest"),
             "delta": None,
         },
         {
