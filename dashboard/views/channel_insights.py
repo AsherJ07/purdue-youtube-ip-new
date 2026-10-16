@@ -1438,9 +1438,10 @@ def _render_history_tab(payload: Dict[str, Any]) -> None:
 def render() -> None:
     _inject_channel_insights_css()
 
-    if "channel_insights_input" not in st.session_state:
+    if not str(st.session_state.get("channel_insights_input", "")).strip():
         st.session_state["channel_insights_input"] = "@Ninja"
-    if "channel_insights_topic_mode" not in st.session_state:
+        st.session_state["channel_insights_topic_mode"] = TOPIC_MODE_BERTOPIC_OPTIONAL
+    elif "channel_insights_topic_mode" not in st.session_state:
         st.session_state["channel_insights_topic_mode"] = TOPIC_MODE_BERTOPIC_OPTIONAL
 
     connected_channels = list_connected_channels()
