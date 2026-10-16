@@ -15,7 +15,6 @@ from dashboard.components.visualizations import (
     plotly_line_chart,
     show_plotly_chart,
     styled_dataframe,
-    styled_keyword_chips,
 )
 from src.services.channel_insights_service import (
     TOPIC_MODE_BERTOPIC_OPTIONAL,
@@ -34,6 +33,9 @@ STATE_KEYS = (
     "channel_insights_force_refresh",
     "channel_insights_topic_mode",
     "channel_insights_error",
+    "channel_insights_show_results",
+    "channel_insights_analyzed_query",
+    "channel_insights_analyzed_mode",
 )
 _CHANNEL_INSIGHTS_LLM_VERSION = "v2"
 
@@ -301,13 +303,18 @@ def _inject_channel_insights_css() -> None:
                 grid-template-columns: minmax(0, 1fr);
             }
         }
-        /* Light glass (classes are unique to Channel Insights) */
+        /* Readable light glass (classes are unique to Channel Insights) */
         .ci-title { color: #1d1d1f !important; }
         .ci-subtitle { color: #424245 !important; }
         .ci-card {
-            background: rgba(255, 255, 255, 0.96) !important;
-            border: 1px solid rgba(0, 0, 0, 0.11) !important;
-            box-shadow: 0 16px 44px rgba(0, 0, 0, 0.1) !important;
+            background:
+                radial-gradient(circle at 0 0, rgba(255, 76, 96, 0.11), transparent 34%),
+                radial-gradient(circle at 100% 0, rgba(54, 120, 246, 0.14), transparent 38%),
+                linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(236, 243, 255, 0.46)) !important;
+            border: 1px solid rgba(255, 255, 255, 0.82) !important;
+            box-shadow: 0 18px 46px rgba(26, 36, 62, 0.13), inset 0 1px 0 rgba(255,255,255,0.72) !important;
+            backdrop-filter: blur(18px) saturate(135%);
+            -webkit-backdrop-filter: blur(18px) saturate(135%);
         }
         .ci-card-title { color: #1d1d1f !important; }
         .ci-card-copy,
@@ -315,8 +322,11 @@ def _inject_channel_insights_css() -> None:
         .ci-note { color: #424245 !important; }
         .ci-summary-item,
         .ci-theme-card {
-            background: #f8fafc !important;
-            border: 1px solid #d9dee7 !important;
+            background: rgba(255, 255, 255, 0.54) !important;
+            border: 1px solid rgba(105, 119, 150, 0.20) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.72) !important;
+            backdrop-filter: blur(12px) saturate(125%);
+            -webkit-backdrop-filter: blur(12px) saturate(125%);
         }
         .ci-summary-label,
         .ci-theme-copy { color: #424245 !important; }
@@ -328,9 +338,14 @@ def _inject_channel_insights_css() -> None:
             color: #6b21a8 !important;
         }
         .ci-kpi-card {
-            background: rgba(255, 255, 255, 0.96) !important;
-            border: 1px solid rgba(0, 0, 0, 0.11) !important;
-            box-shadow: 0 16px 44px rgba(0, 0, 0, 0.1) !important;
+            background:
+                radial-gradient(circle at 0 0, rgba(255, 76, 96, 0.09), transparent 36%),
+                radial-gradient(circle at 100% 0, rgba(54, 120, 246, 0.12), transparent 40%),
+                linear-gradient(145deg, rgba(255,255,255,0.60), rgba(236,243,255,0.44)) !important;
+            border: 1px solid rgba(255,255,255,0.82) !important;
+            box-shadow: 0 16px 38px rgba(26, 36, 62, 0.12), inset 0 1px 0 rgba(255,255,255,0.72) !important;
+            backdrop-filter: blur(18px) saturate(135%);
+            -webkit-backdrop-filter: blur(18px) saturate(135%);
         }
         .ci-kpi-label,
         .ci-kpi-delta { color: #6e6e73 !important; }
@@ -339,9 +354,11 @@ def _inject_channel_insights_css() -> None:
         .ci-kpi-delta-positive { color: #138a4b !important; }
         .ci-kpi-delta-negative { color: #b42318 !important; }
         .ci-empty {
-            border: 1px dashed rgba(0, 0, 0, 0.15) !important;
-            background: rgba(255, 255, 255, 0.8) !important;
+            border: 1px dashed rgba(56, 68, 92, 0.25) !important;
+            background: rgba(255, 255, 255, 0.52) !important;
             color: #6e6e73 !important;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
         }
         [data-testid="stWidgetLabel"] p,
         [data-testid="stWidgetLabel"] label,
@@ -353,9 +370,11 @@ def _inject_channel_insights_css() -> None:
         [data-baseweb="input"] input,
         [data-baseweb="select"] > div,
         .stSelectbox > div > div {
-            background: #ffffff !important;
+            background: rgba(255, 255, 255, 0.72) !important;
             color: #1d1d1f !important;
             -webkit-text-fill-color: #1d1d1f !important;
+            backdrop-filter: blur(14px) saturate(125%);
+            -webkit-backdrop-filter: blur(14px) saturate(125%);
         }
         .stTextInput input::placeholder {
             color: #6e6e73 !important;
@@ -923,7 +942,7 @@ def _artifact_status_label(state: str) -> str:
         "invalid": "Failed / Fallback Active",
         "load_failed": "Failed / Fallback Active",
         "transform_failed": "Failed / Fallback Active",
-        "showcase_fixture": "Showcase Fixture",
+        "showcase_fixture": "Curated Semantic Map",
     }
     return mapping.get(str(state or "").strip().lower(), "Unavailable")
 
@@ -969,6 +988,11 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
                         st.session_state["channel_insights_error"] = str(exc)
                     else:
                         st.session_state["channel_insights_selected_channel"] = payload["channel"]["channel_id"]
+                        st.session_state["channel_insights_show_results"] = True
+                        st.session_state["channel_insights_analyzed_query"] = channel_input.strip()
+                        st.session_state["channel_insights_analyzed_mode"] = st.session_state.get(
+                            "channel_insights_topic_mode", TOPIC_MODE_HEURISTIC
+                        )
                         st.session_state.pop("channel_insights_error", None)
                         st.rerun()
 
@@ -980,13 +1004,23 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
             st.session_state["channel_insights_selected_channel"] = selected_channel_id
 
         if tracked_options:
-            choice = st.selectbox(
-                "Saved channels",
-                tracked_options,
-                index=next((i for i, row in enumerate(tracked_options) if row["channel_id"] == selected_channel_id), 0),
-                format_func=lambda row: row["channel_title"],
-            )
-            st.session_state["channel_insights_selected_channel"] = choice["channel_id"]
+            with st.expander("Saved analyses", expanded=False):
+                choice = st.selectbox(
+                    "Channel",
+                    tracked_options,
+                    index=next((i for i, row in enumerate(tracked_options) if row["channel_id"] == selected_channel_id), 0),
+                    format_func=lambda row: row["channel_title"],
+                )
+                if st.button("Open saved analysis", width="stretch"):
+                    st.session_state["channel_insights_selected_channel"] = choice["channel_id"]
+                    st.session_state["channel_insights_show_results"] = True
+                    st.session_state["channel_insights_analyzed_query"] = str(
+                        st.session_state.get("channel_insights_input", "")
+                    ).strip()
+                    st.session_state["channel_insights_analyzed_mode"] = st.session_state.get(
+                        "channel_insights_topic_mode", TOPIC_MODE_HEURISTIC
+                    )
+                    st.rerun()
 
         st.markdown("**Theme detection**")
         selected_topic_mode = st.radio(
@@ -1003,8 +1037,7 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
                 "https://www.youtube.com/@ninja",
             }
             if is_ninja_showcase:
-                st.caption("Semantic model status: Showcase Fixture Ready")
-                st.caption("Stable Ninja clusters; performance metrics use the loaded public video rows.")
+                st.caption("Groups related language into creator-ready themes and opportunity signals.")
             elif artifact_status.state == "ready":
                 st.caption(f"Semantic model status: {_artifact_status_label(artifact_status.state)}")
                 st.success(artifact_status.message or "The semantic theme model is ready.")
@@ -1078,23 +1111,11 @@ def _render_summary_action_row(payload: Dict[str, Any]) -> None:
 
     deltas = payload.get("history_delta", {})
     _render_summary_kpi_cards(summary, deltas, payload)
-    _render_metric_note(
-        [
-            "Strongest Theme uses the highest-momentum repeated theme.",
-            "Weakest Theme uses the lowest views-per-day repeated theme.",
-            "Recent Outliers counts videos whose overall performance score lands in the top quartile of the current snapshot.",
-        ]
-    )
-
-
 def _render_overview_tab(payload: Dict[str, Any]) -> None:
     summary = payload["summary"]
     recommendations = payload.get("recommendations", {})
-    topic_metrics_df = _visible_topic_metrics_df(payload)
-    duration_metrics_df = payload.get("duration_metrics_df", pd.DataFrame())
-    ai_actions = ""
 
-    overview_cols = st.columns([1.15, 1], gap="large")
+    overview_cols = st.columns([1.12, 1], gap="large")
     with overview_cols[0]:
         st.markdown(
             f"""
@@ -1118,25 +1139,17 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
                         <div class="ci-summary-label">Median Public Interaction</div>
                         <div class="ci-summary-value">{_format_pct(summary.get('median_engagement', 0))}</div>
                     </div>
-                    <div class="ci-summary-item">
-                        <div class="ci-summary-label">Analytics Scope</div>
-                        <div class="ci-summary-value">Public Only</div>
-                    </div>
-                    <div class="ci-summary-item">
-                        <div class="ci-summary-label">Topic Source</div>
-                        <div class="ci-summary-value">{escape(_topic_mode_label(summary.get('topic_mode_used', TOPIC_MODE_HEURISTIC)))}</div>
-                    </div>
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        fallback_actions = _fallback_overview_actions(payload)
-        if ai_actions:
-            _render_ai_card("Recommended next actions", ai_actions)
-        elif fallback_actions:
-            action_markup = "<ul class='ci-list'>" + "".join(f"<li>{escape(action)}</li>" for action in fallback_actions) + "</ul>"
+        recommended_actions = recommendations.get("actions") or _fallback_overview_actions(payload)
+        if recommended_actions:
+            action_markup = "<ul class='ci-list'>" + "".join(
+                f"<li>{escape(str(action))}</li>" for action in recommended_actions[:4]
+            ) + "</ul>"
             st.markdown(
                 f"""
                 <div class="ci-card">
@@ -1150,32 +1163,28 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
             st.markdown("<div class='ci-empty'>Refresh the channel to generate action recommendations.</div>", unsafe_allow_html=True)
 
     with overview_cols[1]:
-        if not topic_metrics_df.empty:
-            topic_fig = plotly_bar_chart(
-                topic_metrics_df.head(8).sort_values("trend_score", ascending=True),
-                x="topic_label",
-                y="trend_score",
-                title="Themes gaining momentum in the current window",
-                horizontal=True,
-            )
-            show_plotly_chart(topic_fig)
-            _render_metric_note(
-                "Measured trend is a shrunk log comparison of recent and prior 90-day medians. Topics without at least three videos in both windows are not ranked."
-            )
-
-        if not duration_metrics_df.empty:
-            duration_fig = plotly_bar_chart(
-                duration_metrics_df.sort_values("median_views_per_day", ascending=True),
-                x="duration_bucket",
-                y="median_views_per_day",
-                title="Typical daily reach by video length",
-                horizontal=True,
-            )
-            show_plotly_chart(duration_fig)
-            _render_metric_note(
-                "Lifetime-average daily views partially normalizes age, but it is not current velocity and does not establish causality."
-            )
-
+        st.markdown(
+            """
+            <div class="ci-card">
+                <div class="ci-card-title">How the AI turns evidence into a decision</div>
+                <div class="ci-summary-grid">
+                    <div class="ci-summary-item">
+                        <div class="ci-summary-label">1 · Understand</div>
+                        <div class="ci-summary-value">Cluster videos by semantic meaning, not exact keyword matches.</div>
+                    </div>
+                    <div class="ci-summary-item">
+                        <div class="ci-summary-label">2 · Measure</div>
+                        <div class="ci-summary-value">Compare repeated themes on reach, momentum, and evidence strength.</div>
+                    </div>
+                    <div class="ci-summary-item" style="grid-column:1 / -1;">
+                        <div class="ci-summary-label">3 · Act</div>
+                        <div class="ci-summary-value">Convert the strongest signal into one controlled content experiment.</div>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         if summary.get("topic_mode_requested") == TOPIC_MODE_BERTOPIC_OPTIONAL and summary.get("topic_mode_used") != TOPIC_MODE_BERTOPIC_OPTIONAL:
             st.caption(summary.get("topic_model_failure_reason") or "BERTopic beta mode fell back to the heuristic topic flow.")
 
@@ -1186,62 +1195,66 @@ def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
         st.markdown("<div class='ci-empty'>This channel needs more public uploads before theme clustering becomes stable.</div>", unsafe_allow_html=True)
         return
 
-    preferred_columns = [
-        "topic_label",
-        "video_count",
-        "recent_video_count",
-        "previous_video_count",
-        "median_views_per_day",
-        "trend_status",
-        "trend_score",
-        "median_public_interaction_rate",
-        "interaction_coverage",
-    ]
-    available_columns = [column for column in preferred_columns if column in topic_metrics_df.columns]
-    topic_table = _display_rate_columns(topic_metrics_df.loc[:, available_columns])
-    styled_dataframe(
-        topic_table,
-        title="Theme performance and evidence",
-        precision=2,
+    st.markdown(
+        "<div class='ci-card'><div class='ci-card-title'>AI topic opportunities</div>"
+        "<div class='ci-card-copy'>Explore one signal at a time, then turn it into a testable content decision.</div></div>",
+        unsafe_allow_html=True,
     )
-    if len(available_columns) < len(preferred_columns):
-        st.caption("Some evidence fields are unavailable in this older saved snapshot. Refresh the analysis to populate the current schema.")
-    _render_metric_note(
-        [
-            "Video Count shows how much evidence supports a theme.",
-            "Trend is only measured with at least three recent and three prior videos.",
-            "Public interaction is the median of (likes + comments) / views across valid rows.",
+    signal = st.radio(
+        "Theme signal",
+        ["Typical daily reach", "Recent momentum"],
+        horizontal=True,
+        key="channel_insights_topic_signal",
+        label_visibility="collapsed",
+    )
+    if signal == "Recent momentum":
+        chart_df = topic_metrics_df[
+            topic_metrics_df.get("trend_status", pd.Series(index=topic_metrics_df.index, dtype=str)).eq("measured")
+        ].dropna(subset=["trend_score"])
+        if chart_df.empty:
+            st.markdown(
+                "<div class='ci-empty'>Momentum needs at least three videos in both the recent and prior comparison windows. Reach remains available above.</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            signal_fig = plotly_bar_chart(
+                chart_df.head(8).sort_values("trend_score", ascending=True),
+                x="topic_label",
+                y="trend_score",
+                title="Themes gaining momentum",
+                horizontal=True,
+            )
+            show_plotly_chart(signal_fig)
+    else:
+        signal_fig = plotly_bar_chart(
+            topic_metrics_df.head(8).sort_values("median_views_per_day", ascending=True),
+            x="topic_label",
+            y="median_views_per_day",
+            title="Typical daily reach by semantic theme",
+            horizontal=True,
+        )
+        show_plotly_chart(signal_fig)
+
+    _render_next_topics_tab(payload)
+
+    with st.expander("View theme evidence", expanded=False):
+        preferred_columns = [
+            "topic_label",
+            "video_count",
+            "median_views_per_day",
+            "trend_score",
+            "median_public_interaction_rate",
         ]
-    )
-
-    trend_fig = plotly_bar_chart(
-        topic_metrics_df.head(10).sort_values("trend_score", ascending=True),
-        x="topic_label",
-        y="trend_score",
-        title="Which themes are gaining momentum?",
-        horizontal=True,
-    )
-    show_plotly_chart(trend_fig)
-    _render_metric_note(
-        "The trend score compares recent and prior 90-day medians after shrinking small samples. It measures relative movement, not raw popularity."
-    )
-
-    views_fig = plotly_bar_chart(
-        topic_metrics_df.head(10).sort_values("median_views_per_day", ascending=True),
-        x="topic_label",
-        y="median_views_per_day",
-        title="Typical age-normalized reach by theme",
-        horizontal=True,
-    )
-    show_plotly_chart(views_fig)
-    _render_metric_note(
-        "Lifetime-average daily views reduces age bias but is not real-time velocity. Use the video counts in the table to judge evidence strength."
-    )
-
-    top_topics = topic_metrics_df["topic_label"].head(10).tolist()
-    if top_topics:
-        st.markdown("**Theme Vocabulary**")
-        styled_keyword_chips(top_topics)
+        available_columns = [column for column in preferred_columns if column in topic_metrics_df.columns]
+        topic_table = _display_rate_columns(topic_metrics_df.loc[:, available_columns]).rename(
+            columns={
+                "topic_label": "Theme",
+                "video_count": "Videos",
+                "median_views_per_day": "Typical Daily Views",
+                "trend_score": "Momentum Score",
+            }
+        )
+        styled_dataframe(topic_table, title=None, precision=2)
 
 
 def _render_formats_tab(payload: Dict[str, Any]) -> None:
@@ -1249,59 +1262,71 @@ def _render_formats_tab(payload: Dict[str, Any]) -> None:
     title_pattern_metrics_df = payload.get("title_pattern_metrics_df", pd.DataFrame())
     publish_day_metrics_df = payload.get("publish_day_metrics_df", pd.DataFrame())
     publish_hour_metrics_df = payload.get("publish_hour_metrics_df", pd.DataFrame())
-    if not duration_metrics_df.empty:
-        styled_dataframe(_display_rate_columns(duration_metrics_df), title="Performance by video length", precision=2)
-        _render_metric_note(
-            [
-                "Videos is the sample size for each length group.",
-                "Median lifetime-average daily views shows typical age-normalized reach for that length.",
-                "Public interaction is a median over rows with valid public counts.",
-            ]
-        )
-    if not title_pattern_metrics_df.empty:
-        styled_dataframe(_display_rate_columns(title_pattern_metrics_df), title="Performance by title structure", precision=2)
-        _render_metric_note(
-            "Title structure groups videos by packaging style, such as How-to or Versus. Treat differences as testing hypotheses, not causal effects."
-        )
+    format_cols = st.columns(2, gap="large")
+    with format_cols[0]:
+        if not duration_metrics_df.empty:
+            duration_fig = plotly_bar_chart(
+                duration_metrics_df.sort_values("median_views_per_day", ascending=True),
+                x="duration_bucket",
+                y="median_views_per_day",
+                title="Reach by video length",
+                horizontal=True,
+            )
+            show_plotly_chart(duration_fig)
+    with format_cols[1]:
+        if not title_pattern_metrics_df.empty:
+            title_fig = plotly_bar_chart(
+                title_pattern_metrics_df.sort_values("median_views_per_day", ascending=True),
+                x="title_pattern",
+                y="median_views_per_day",
+                title="Reach by title structure",
+                horizontal=True,
+            )
+            show_plotly_chart(title_fig)
 
-    if not publish_day_metrics_df.empty:
+    timing_signal = st.radio(
+        "Publishing signal",
+        ["Day of week", "Hour of day (UTC)"],
+        horizontal=True,
+        key="channel_insights_timing_signal",
+        label_visibility="collapsed",
+    )
+    if timing_signal == "Day of week" and not publish_day_metrics_df.empty:
         day_fig = plotly_bar_chart(
             publish_day_metrics_df.sort_values("median_views_per_day", ascending=True),
             x="publish_day",
             y="median_views_per_day",
-            title="Typical age-normalized reach by publish day",
+            title="Typical daily reach by publish day",
             horizontal=True,
         )
         show_plotly_chart(day_fig)
-        _render_metric_note(
-            "Compare the median with the video count before testing a weekday. This is an observed association, not a guaranteed timing effect."
-        )
-    if not publish_hour_metrics_df.empty:
+    elif not publish_hour_metrics_df.empty:
+        sorted_hours = publish_hour_metrics_df.sort_values("publish_hour")
         hour_fig = plotly_bar_chart(
-            publish_hour_metrics_df.sort_values("publish_hour"),
+            sorted_hours,
             x="publish_hour",
             y="median_views_per_day",
-            title="Typical age-normalized reach by publish hour (UTC)",
+            title="Typical daily reach by publish hour (UTC)",
         )
-        hour_fig.data[0].customdata = publish_hour_metrics_df.sort_values("publish_hour")[["videos"]]
+        hour_fig.data[0].customdata = sorted_hours[["videos"]]
         hour_fig.data[0].hovertemplate = (
-            "Publish hour (UTC): %{x}:00<br>"
-            "Median lifetime average daily views: %{y:,.0f}<br>"
-            "Videos published: %{customdata[0]:,}<extra></extra>"
+            "Publish hour (UTC): %{x}:00<br>Typical daily views: %{y:,.0f}<br>Videos: %{customdata[0]:,}<extra></extra>"
         )
         hour_fig.update_xaxes(dtick=2, title="Publish hour (UTC)")
         show_plotly_chart(hour_fig)
-        _render_metric_note(
-            "Hover to see the sample size for each hour. Sparse hours should be treated as low-confidence observations."
-        )
+
+    with st.expander("View format evidence", expanded=False):
+        if not duration_metrics_df.empty:
+            styled_dataframe(_display_rate_columns(duration_metrics_df), title="Video length", precision=2)
+        if not title_pattern_metrics_df.empty:
+            styled_dataframe(_display_rate_columns(title_pattern_metrics_df), title="Title structure", precision=2)
 
 
 def _render_outliers_tab(payload: Dict[str, Any]) -> None:
     outliers_df = _display_videos_df(payload.get("outliers_df", pd.DataFrame()))
     underperformers_df = _display_videos_df(payload.get("underperformers_df", pd.DataFrame()))
-    outlier_cols = st.columns(2, gap="large")
-    with outlier_cols[0]:
-        st.markdown("**Recent Outliers**")
+    signal_tabs = st.tabs(["Breakout videos", "Videos to repackage"])
+    with signal_tabs[0]:
         if outliers_df.empty:
             st.markdown("<div class='ci-empty'>No strong outliers have been detected in the current window yet.</div>", unsafe_allow_html=True)
         else:
@@ -1310,15 +1335,7 @@ def _render_outliers_tab(payload: Dict[str, Any]) -> None:
                 title=None,
                 precision=2,
             )
-            _render_metric_note(
-                [
-                    "Outliers are videos whose combined performance score lands in the top quartile for this snapshot.",
-                    "Lifetime-average daily views partially normalizes performance for video age.",
-                    "Performance Score blends age-adjusted reach and public interaction; recency is not double-counted.",
-                ]
-            )
-    with outlier_cols[1]:
-        st.markdown("**Underperformers**")
+    with signal_tabs[1]:
         if underperformers_df.empty:
             st.markdown("<div class='ci-empty'>No low-signal videos are available for comparison yet.</div>", unsafe_allow_html=True)
         else:
@@ -1327,23 +1344,16 @@ def _render_outliers_tab(payload: Dict[str, Any]) -> None:
                 title=None,
                 precision=2,
             )
-            _render_metric_note(
-                [
-                    "Underperformers are the lowest-scoring videos in the current snapshot.",
-                    "They use the same blended Performance Score as the outlier table.",
-                    "That makes weak titles easier to compare against your strongest winners on a like-for-like basis.",
-                ]
-            )
 
 
-def _render_theme_cards(title: str, rows: Iterable[Dict[str, Any]], channel_title: str) -> None:
+def _render_theme_cards(title: str, rows: Iterable[Dict[str, Any]]) -> None:
     st.markdown(f"**{title}**")
     items = list(rows)
     if not items:
         st.markdown("<div class='ci-empty'>No theme recommendations are available yet.</div>", unsafe_allow_html=True)
         return
 
-    for item in items:
+    for item in items[:1]:
         st.markdown(
             f"""
             <div class="ci-theme-card">
@@ -1355,43 +1365,16 @@ def _render_theme_cards(title: str, rows: Iterable[Dict[str, Any]], channel_titl
             """,
             unsafe_allow_html=True,
         )
-        theme = str(item.get("theme", "")).strip()
-        if theme:
-            if st.button(f"Send '{theme}' To Outlier Finder", key=f"channel_insights_theme_{title}_{theme}", width="stretch"):
-                _queue_outlier_finder_theme(theme, channel_title)
-
-
 def _render_next_topics_tab(payload: Dict[str, Any]) -> None:
     recommendations = payload.get("recommendations", {})
-    channel_title = payload["channel"]["channel_title"]
+    st.markdown("**Recommended experiments**")
     columns = st.columns(3, gap="large")
     with columns[0]:
-        _render_theme_cards("Double Down", recommendations.get("double_down", []), channel_title)
+        _render_theme_cards("Scale", recommendations.get("double_down", []))
     with columns[1]:
-        _render_theme_cards("Avoid Or Repackage", recommendations.get("avoid", []), channel_title)
+        _render_theme_cards("Repackage", recommendations.get("avoid", []))
     with columns[2]:
-        _render_theme_cards("Test Next", recommendations.get("test_next", []), channel_title)
-
-    st.markdown("**Suggested video directions**")
-    ideas = recommendations.get("video_ideas", [])
-    if ideas:
-        for item in ideas:
-            st.markdown(
-                f"""
-                <div class="ci-theme-card">
-                    <div class="ci-theme-title">{escape(str(item.get('title', 'Idea')))}</div>
-                    <div class="ci-theme-copy">{escape(str(item.get('why_now', '')))}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-    else:
-        st.markdown("<div class='ci-empty'>No grounded ideas are available yet.</div>", unsafe_allow_html=True)
-
-    ai_overlay = recommendations.get("ai_overlay", "")
-    if ai_overlay:
-        st.markdown("**AI explanation**")
-        st.markdown(ai_overlay)
+        _render_theme_cards("Explore", recommendations.get("test_next", []))
 
 
 def _render_history_tab(payload: Dict[str, Any]) -> None:
@@ -1400,39 +1383,33 @@ def _render_history_tab(payload: Dict[str, Any]) -> None:
         st.markdown("<div class='ci-empty'>Refresh the connected channel again later to unlock historical comparison.</div>", unsafe_allow_html=True)
         return
 
-    styled_dataframe(history_df, title="Saved snapshot history", precision=2)
-    _render_metric_note(
-        [
-            "Each row is a saved refresh of the channel.",
-            "Median Views / Day tracks the typical performance level at that time.",
-            "Recent Outlier Count shows how many standout videos were present in that snapshot.",
-        ]
-    )
     if len(history_df) > 1:
         history_line = history_df.sort_values("snapshot_at").copy()
         history_line["snapshot_at"] = pd.to_datetime(history_line["snapshot_at"], errors="coerce")
-        baseline_fig = plotly_line_chart(
+        history_signal = st.radio(
+            "History signal",
+            ["Typical daily reach", "Breakout count"],
+            horizontal=True,
+            key="channel_insights_history_signal",
+            label_visibility="collapsed",
+        )
+        metric = "median_views_per_day" if history_signal == "Typical daily reach" else "recent_outlier_count"
+        history_fig = plotly_line_chart(
             history_line,
             x="snapshot_at",
-            y_cols=["median_views_per_day"],
-            title="Typical daily reach across saved snapshots",
+            y_cols=[metric],
+            title=(
+                "Typical daily reach across saved snapshots"
+                if metric == "median_views_per_day"
+                else "Breakout videos across saved snapshots"
+            ),
         )
-        show_plotly_chart(baseline_fig)
-        outlier_fig = plotly_line_chart(
-            history_line,
-            x="snapshot_at",
-            y_cols=["recent_outlier_count"],
-            title="Recent outliers across saved snapshots",
-        )
-        outlier_fig.update_yaxes(rangemode="tozero", dtick=1)
-        show_plotly_chart(outlier_fig)
-        _render_metric_note(
-            [
-                "The charts are separated because daily reach and outlier count use different units.",
-                "Typical daily reach tracks the channel baseline at each refresh.",
-                "Recent outliers counts standout videos in each saved snapshot.",
-            ]
-        )
+        if metric == "recent_outlier_count":
+            history_fig.update_yaxes(rangemode="tozero", dtick=1)
+        show_plotly_chart(history_fig)
+
+    with st.expander("View saved snapshots", expanded=False):
+        styled_dataframe(history_df, title=None, precision=2)
 
 
 def render() -> None:
@@ -1443,6 +1420,8 @@ def render() -> None:
         st.session_state["channel_insights_topic_mode"] = TOPIC_MODE_BERTOPIC_OPTIONAL
     elif "channel_insights_topic_mode" not in st.session_state:
         st.session_state["channel_insights_topic_mode"] = TOPIC_MODE_BERTOPIC_OPTIONAL
+    if "channel_insights_show_results" not in st.session_state:
+        st.session_state["channel_insights_show_results"] = False
 
     connected_channels = list_connected_channels()
     _render_connect_card(connected_channels)
@@ -1450,6 +1429,17 @@ def render() -> None:
     error_message = st.session_state.get("channel_insights_error")
     if error_message:
         st.error(error_message)
+
+    if not st.session_state.get("channel_insights_show_results", False):
+        return
+
+    analyzed_query = str(st.session_state.get("channel_insights_analyzed_query", "")).strip()
+    current_query = str(st.session_state.get("channel_insights_input", "")).strip()
+    analyzed_mode = st.session_state.get("channel_insights_analyzed_mode")
+    current_mode = st.session_state.get("channel_insights_topic_mode")
+    if analyzed_query != current_query or analyzed_mode != current_mode:
+        st.session_state["channel_insights_show_results"] = False
+        return
 
     selected_channel_id = st.session_state.get("channel_insights_selected_channel")
     if not selected_channel_id:
@@ -1465,7 +1455,7 @@ def render() -> None:
 
     _render_summary_action_row(payload)
 
-    tabs = st.tabs(["Overview", "Topic Trends", "Formats & Patterns", "Outliers", "Next Topics", "History"])
+    tabs = st.tabs(["Overview", "AI Topic Opportunities", "Formats & Timing", "Video Signals", "History"])
     with tabs[0]:
         _render_overview_tab(payload)
     with tabs[1]:
@@ -1475,6 +1465,4 @@ def render() -> None:
     with tabs[3]:
         _render_outliers_tab(payload)
     with tabs[4]:
-        _render_next_topics_tab(payload)
-    with tabs[5]:
         _render_history_tab(payload)

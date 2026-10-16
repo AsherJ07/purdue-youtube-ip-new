@@ -7,6 +7,7 @@ from src.services.channel_insights_service import (
     TOPIC_MODE_BERTOPIC_OPTIONAL,
     TOPIC_MODE_HEURISTIC,
     _apply_ninja_showcase_topics,
+    _ninja_showcase_recommendations,
     load_channel_insights,
     refresh_channel_insights,
 )
@@ -219,3 +220,21 @@ def test_ninja_showcase_topics_are_stable_and_relevant() -> None:
     assert result["topic_source"].eq("ninja_showcase_fixture").all()
     assert metadata["model_status"] == "showcase_fixture"
     assert metadata["topic_mode_used"] == TOPIC_MODE_BERTOPIC_OPTIONAL
+
+
+def test_ninja_showcase_recommendations_are_specific_and_metric_backed() -> None:
+    topic_metrics = pd.DataFrame(
+        [
+            {"topic_label": "Ranked & Competitive Fortnite", "video_count": 18, "median_views_per_day": 12450},
+            {"topic_label": "Fortnite Gameplay Highlights", "video_count": 31, "median_views_per_day": 7200},
+            {"topic_label": "Fortnite Updates & New Seasons", "video_count": 12, "median_views_per_day": 9800},
+        ]
+    )
+
+    recommendations = _ninja_showcase_recommendations(topic_metrics)
+
+    assert recommendations["double_down"][0]["theme"] == "Ranked & Competitive Fortnite"
+    assert recommendations["avoid"][0]["theme"] == "Fortnite Gameplay Highlights"
+    assert recommendations["test_next"][0]["theme"] == "Fortnite Updates & New Seasons"
+    assert recommendations["double_down"][0]["sample_size"] == 18
+    assert "12,450" in recommendations["double_down"][0]["evidence"]
