@@ -29,7 +29,7 @@ from src.utils.api_keys import get_provider_key_count, run_with_provider_keys
 
 STATE_KEYS = (
     "channel_insights_selected_channel",
-    "channel_insights_input",
+    "channel_insights_input_v2",
     "channel_insights_force_refresh",
     "channel_insights_topic_mode",
     "channel_insights_error",
@@ -970,7 +970,7 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
         with st.form("channel_insights_connect_form"):
             channel_input = st.text_input(
                 "Channel URL, handle, or channel ID",
-                key="channel_insights_input",
+                key="channel_insights_input_v2",
                 placeholder="https://www.youtube.com/@Ninja or @Ninja",
             )
             connect_clicked = st.form_submit_button("Analyze channel", type="primary", width="stretch")
@@ -1022,7 +1022,7 @@ def _render_connect_card(connected_channels: list[dict[str, Any]]) -> None:
                     st.session_state["channel_insights_selected_channel"] = choice["channel_id"]
                     st.session_state["channel_insights_show_results"] = True
                     st.session_state["channel_insights_analyzed_query"] = str(
-                        st.session_state.get("channel_insights_input", "")
+                        st.session_state.get("channel_insights_input_v2", "")
                     ).strip()
                     st.session_state["channel_insights_analyzed_mode"] = st.session_state.get(
                         "channel_insights_topic_mode", TOPIC_MODE_HEURISTIC
@@ -1422,8 +1422,8 @@ def _render_history_tab(payload: Dict[str, Any]) -> None:
 def render() -> None:
     _inject_channel_insights_css()
 
-    if not str(st.session_state.get("channel_insights_input", "")).strip():
-        st.session_state["channel_insights_input"] = "@Ninja"
+    if not str(st.session_state.get("channel_insights_input_v2", "")).strip():
+        st.session_state["channel_insights_input_v2"] = "@Ninja"
         st.session_state["channel_insights_topic_mode"] = TOPIC_MODE_BERTOPIC_OPTIONAL
     elif "channel_insights_topic_mode" not in st.session_state:
         st.session_state["channel_insights_topic_mode"] = TOPIC_MODE_BERTOPIC_OPTIONAL
@@ -1441,7 +1441,7 @@ def render() -> None:
         return
 
     analyzed_query = str(st.session_state.get("channel_insights_analyzed_query", "")).strip()
-    current_query = str(st.session_state.get("channel_insights_input", "")).strip()
+    current_query = str(st.session_state.get("channel_insights_input_v2", "")).strip()
     analyzed_mode = st.session_state.get("channel_insights_analyzed_mode")
     current_mode = st.session_state.get("channel_insights_topic_mode")
     if analyzed_query != current_query or analyzed_mode != current_mode:
