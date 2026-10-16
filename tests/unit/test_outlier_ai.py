@@ -60,5 +60,9 @@ def test_prompt_requires_subthemes_beyond_the_search_query() -> None:
     assert "category boundary" in prompt
     assert "exactly three distinct breakout_themes" in prompt
     assert "Never recommend making more content" in prompt
+    assert "at least two separate video rows" in prompt
+    assert "Never infer culture" in prompt
+    assert "Ban generic hooks" in prompt
+    assert "supplied cohort median" in prompt
     assert "Concept:" in prompt
     assert "Success check:" in prompt

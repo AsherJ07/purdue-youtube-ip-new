@@ -52,8 +52,8 @@ AI_PROVIDER_LABELS = {
     "openai": "OpenAI / ChatGPT",
 }
 AI_MODELS = {
-    "gemini": ["gemini-2.5-flash-lite", "gemini-2.5-flash"],
-    "openai": ["gpt-4o-mini", "gpt-4.1-mini"],
+    "gemini": ["gemini-2.5-flash", "gemini-2.5-flash-lite"],
+    "openai": ["gpt-4.1-mini", "gpt-4o-mini"],
 }
 SEARCH_STATE_KEYS = (
     "outlier_page_query",
