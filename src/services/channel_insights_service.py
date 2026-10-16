@@ -125,26 +125,61 @@ def _apply_ninja_showcase_topics(channel_df: pd.DataFrame) -> tuple[pd.DataFrame
     """Apply stable, demo-specific topic labels while retaining real channel metrics."""
     df = channel_df.copy()
     labels: List[str] = []
+    topic_weights = {
+        "Ranked & Competitive Fortnite": 0.22,
+        "Fortnite Gameplay Highlights": 0.20,
+        "Tips, Loadouts & Strategy": 0.17,
+        "Collaborations & Creator Challenges": 0.15,
+        "Fortnite Updates & New Seasons": 0.14,
+        "Streaming & Community": 0.12,
+    }
+    base_per_topic = 1 if len(df) >= len(NINJA_SHOWCASE_TOPICS) else 0
+    remaining_rows = max(0, len(df) - (base_per_topic * len(NINJA_SHOWCASE_TOPICS)))
+    quotas = {
+        label: base_per_topic + int(remaining_rows * topic_weights[label])
+        for label in NINJA_SHOWCASE_TOPICS
+    }
+    assigned = sum(quotas.values())
+    for label in NINJA_SHOWCASE_TOPICS:
+        if assigned >= len(df):
+            break
+        quotas[label] += 1
+        assigned += 1
+    topic_counts = {label: 0 for label in NINJA_SHOWCASE_TOPICS}
 
     for position, (_, row) in enumerate(df.iterrows()):
+        title_text = str(row.get("video_title", "")).lower()
         searchable = " ".join(
             [
-                str(row.get("video_title", "")),
+                title_text,
                 str(row.get("video_description", ""))[:240],
                 str(row.get("video_tags", "")).replace("|", " "),
             ]
         ).lower()
-        matched_label = next(
-            (
-                label
-                for label, keywords in _NINJA_TOPIC_KEYWORDS
-                if any(keyword in searchable for keyword in keywords)
-            ),
-            "",
+        candidate_labels = [
+            label
+            for label, keywords in _NINJA_TOPIC_KEYWORDS
+            if any(keyword in title_text for keyword in keywords)
+        ]
+        candidate_labels.extend(
+            label
+            for label, keywords in _NINJA_TOPIC_KEYWORDS
+            if label not in candidate_labels and any(keyword in searchable for keyword in keywords)
         )
-        # Cycling unmatched rows keeps the showcase broad and deterministic while
-        # still allowing obvious title cues to select the most relevant cluster.
-        labels.append(matched_label or NINJA_SHOWCASE_TOPICS[position % len(NINJA_SHOWCASE_TOPICS)])
+        available_candidates = [
+            label for label in candidate_labels if topic_counts[label] < quotas[label]
+        ]
+        if available_candidates:
+            selected_label = available_candidates[0]
+        else:
+            available_topics = [
+                label
+                for label in NINJA_SHOWCASE_TOPICS
+                if topic_counts[label] < quotas[label]
+            ]
+            selected_label = available_topics[position % len(available_topics)]
+        labels.append(selected_label)
+        topic_counts[selected_label] += 1
 
     topic_ids = {label: index for index, label in enumerate(NINJA_SHOWCASE_TOPICS)}
     df["primary_topic"] = labels
@@ -178,7 +213,7 @@ def _ninja_showcase_recommendations(topic_metrics: pd.DataFrame) -> Dict[str, An
         row = rows.get(label.casefold(), {})
         sample_size = int(row.get("video_count", 0) or 0)
         daily_views = float(row.get("median_views_per_day", 0) or 0)
-        confidence = "High" if sample_size >= 10 else "Medium"
+        confidence = "High" if sample_size >= 10 else ("Medium" if sample_size >= 3 else "Low")
         return sample_size, daily_views, confidence
 
     ranked_n, ranked_views, ranked_confidence = evidence("Ranked & Competitive Fortnite")

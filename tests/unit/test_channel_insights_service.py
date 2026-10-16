@@ -222,6 +222,26 @@ def test_ninja_showcase_topics_are_stable_and_relevant() -> None:
     assert metadata["topic_mode_used"] == TOPIC_MODE_BERTOPIC_OPTIONAL
 
 
+def test_ninja_showcase_topics_prevent_one_cluster_from_swallowing_the_channel() -> None:
+    sample_df = pd.DataFrame(
+        [
+            {
+                "video_id": f"v{index}",
+                "video_title": f"Fortnite Season Event {index}",
+                "video_description": "new season event update",
+                "video_tags": "fortnite|season|event",
+            }
+            for index in range(100)
+        ]
+    )
+
+    result, _ = _apply_ninja_showcase_topics(sample_df)
+    topic_share = result["primary_topic"].value_counts(normalize=True)
+
+    assert result["primary_topic"].nunique() == len(NINJA_SHOWCASE_TOPICS)
+    assert topic_share.max() <= 0.22
+
+
 def test_ninja_showcase_recommendations_are_specific_and_metric_backed() -> None:
     topic_metrics = pd.DataFrame(
         [
