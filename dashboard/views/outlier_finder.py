@@ -83,7 +83,7 @@ SEARCH_STATE_KEYS = (
     "outlier_page_ai_model",
     "outlier_page_prefill_note",
 )
-YT_CHART_SCALE = ["#FF0000", "#00D4FF", "#00E676", "#FFB300", "#FF6090", "#7C4DFF"]
+YT_CHART_SCALE = ["#E60012", "#0071E3", "#7A3FF2", "#C05A00", "#00876A", "#B4236A"]
 
 
 def _inject_outlier_css() -> None:

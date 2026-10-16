@@ -634,6 +634,92 @@ section[data-testid="stMain"] > div {
 .metric-delta.positive { color: #0a7f2e; }
 .metric-delta.negative { color: #c40018; }
 
+/* Plotly charts use the same glass surface as the rest of the product.
+   Plot and paper backgrounds stay transparent in Python; this container owns
+   elevation, border, blur, and responsive clipping. */
+[data-testid="stPlotlyChart"] {
+    position: relative;
+    overflow: hidden;
+    margin: 0.45rem 0 1rem;
+    padding: 0.2rem 0.38rem 0.05rem;
+    border: 1px solid rgba(23, 23, 26, 0.10);
+    border-radius: 20px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(248, 249, 252, 0.72));
+    box-shadow:
+        0 18px 52px rgba(26, 30, 40, 0.09),
+        inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(18px) saturate(1.24);
+    -webkit-backdrop-filter: blur(18px) saturate(1.24);
+}
+
+[data-testid="stPlotlyChart"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.30);
+}
+
+[data-testid="stPlotlyChart"] > div,
+[data-testid="stPlotlyChart"] .js-plotly-plot,
+[data-testid="stPlotlyChart"] .plot-container {
+    position: relative;
+    z-index: 1;
+    background: transparent !important;
+}
+
+[data-testid="stPlotlyChart"] .modebar {
+    top: 8px !important;
+    right: 8px !important;
+    padding: 3px 5px !important;
+    border: 1px solid rgba(23, 23, 26, 0.09) !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.90) !important;
+    box-shadow: 0 5px 16px rgba(26, 30, 40, 0.09) !important;
+}
+
+[data-testid="stPlotlyChart"] .modebar-btn path {
+    fill: #6e6e73 !important;
+}
+
+[data-testid="stPlotlyChart"] .modebar-btn:hover path,
+[data-testid="stPlotlyChart"] .modebar-btn.active path {
+    fill: #0071e3 !important;
+}
+
+@media (max-width: 640px) {
+    [data-testid="stPlotlyChart"] {
+        margin-bottom: 0.75rem;
+        padding: 0;
+        border-radius: 16px;
+    }
+
+    [data-testid="stPlotlyChart"] .gtitle {
+        font-size: 14px !important;
+    }
+
+    [data-testid="stPlotlyChart"] .xtitle,
+    [data-testid="stPlotlyChart"] .ytitle {
+        font-size: 10px !important;
+    }
+
+    /* Hover-only export controls obstruct chart titles on touch-width views. */
+    [data-testid="stPlotlyChart"] .modebar {
+        display: none !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-testid="stPlotlyChart"] * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
 .styled-dataframe thead tr th {
     background: linear-gradient(90deg, rgba(230, 0, 18, 0.12), rgba(0, 113, 227, 0.1)) !important;
     color: var(--apple-black) !important;

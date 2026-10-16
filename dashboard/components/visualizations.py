@@ -10,16 +10,25 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 
-# Creator Insights palette aligned to YouTube red + clean blue accents.
+# Creator Insights palette aligned to YouTube red + accessible comparison accents.
+# The first two colors carry the product identity; later colors are reserved for
+# multi-series charts where distinct hues are necessary for comprehension.
 YT_COLORWAY: List[str] = [
-    "#FF0033",
-    "#00A6FF",
-    "#F04438",
-    "#38BDF8",
-    "#FB7185",
-    "#1D4ED8",
-    "#F97316",
+    "#E60012",
+    "#0071E3",
+    "#7A3FF2",
+    "#C05A00",
+    "#00876A",
+    "#B4236A",
+    "#455A64",
 ]
+
+YT_RED = "#E60012"
+YT_BLUE = "#0071E3"
+CHART_INK = "#17171A"
+CHART_MUTED = "#6E6E73"
+CHART_GRID = "rgba(23,23,26,0.075)"
+CHART_BORDER = "rgba(23,23,26,0.10)"
 
 PLOTLY_INTERACTIVE_CONFIG: Dict[str, Any] = {
     "scrollZoom": False,
@@ -30,35 +39,44 @@ PLOTLY_INTERACTIVE_CONFIG: Dict[str, Any] = {
     "modeBarButtonsToRemove": ["lasso2d", "select2d"],
 }
 
-# Light-shell analytics template (high contrast on #f5f5f7 mesh background)
+# Transparent analytics canvas. The glass surface belongs to the Streamlit
+# chart container, not the Plotly SVG, so the app background remains visible
+# and charts feel native to the product instead of pasted from a notebook.
 PLOTLY_DASHBOARD_TEMPLATE: Dict[str, Any] = {
     "layout": {
         "paper_bgcolor": "rgba(0,0,0,0)",
-        "plot_bgcolor": "rgba(255,255,255,0.96)",
+        "plot_bgcolor": "rgba(0,0,0,0)",
         "font": {
-            "color": "#1d1d1f",
-            "family": "Inter, system-ui, sans-serif",
+            "color": CHART_INK,
+            "family": "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+            "size": 12,
         },
         "xaxis": {
-            "gridcolor": "rgba(0,0,0,0.08)",
-            "zerolinecolor": "rgba(0,0,0,0.12)",
-            "linecolor": "rgba(0,0,0,0.2)",
-            "title": {"font": {"color": "#1d1d1f", "size": 13}},
-            "tickfont": {"color": "#424245", "size": 11},
+            "showgrid": False,
+            "zeroline": False,
+            "showline": False,
+            "ticks": "",
+            "title": {"font": {"color": CHART_MUTED, "size": 12}},
+            "tickfont": {"color": CHART_MUTED, "size": 11},
         },
         "yaxis": {
-            "gridcolor": "rgba(0,0,0,0.08)",
-            "zerolinecolor": "rgba(0,0,0,0.12)",
-            "linecolor": "rgba(0,0,0,0.2)",
-            "title": {"font": {"color": "#1d1d1f", "size": 13}},
-            "tickfont": {"color": "#424245", "size": 11},
+            "showgrid": True,
+            "gridcolor": CHART_GRID,
+            "gridwidth": 1,
+            "zeroline": False,
+            "showline": False,
+            "ticks": "",
+            "title": {"font": {"color": CHART_MUTED, "size": 12}},
+            "tickfont": {"color": CHART_MUTED, "size": 11},
         },
         "colorway": YT_COLORWAY,
         "hoverlabel": {
-            "bgcolor": "#ffffff",
-            "font": {"color": "#1d1d1f"},
-            "bordercolor": "rgba(0,0,0,0.12)",
+            "bgcolor": "rgba(255,255,255,0.97)",
+            "font": {"color": CHART_INK, "size": 12},
+            "bordercolor": CHART_BORDER,
+            "namelength": -1,
         },
+        "hovermode": "closest",
     }
 }
 
@@ -150,60 +168,81 @@ def _needs_compact_units(series: pd.Series) -> bool:
 
 
 def apply_dashboard_chart_theme(fig: go.Figure) -> go.Figure:
-    """Apply shared light analytics template for dashboard Plotly figures."""
+    """Apply the shared glass-native analytics system to a Plotly figure."""
     fig.update_layout(**PLOTLY_DASHBOARD_TEMPLATE["layout"])
     fig.update_layout(
-        title_font=dict(
-            size=17,
-            family="Inter, system-ui, sans-serif",
-            color="#1d1d1f",
+        title=dict(
+            x=0.02,
+            xanchor="left",
+            y=0.965,
+            yanchor="top",
+            font=dict(
+                size=17,
+                family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+                color=CHART_INK,
+            ),
         ),
         legend=dict(
-            bgcolor="rgba(255,255,255,0.97)",
-            bordercolor="rgba(0,0,0,0.12)",
-            borderwidth=1,
-            font=dict(color="#1d1d1f", size=12),
-            title=dict(font=dict(color="#1d1d1f", size=12)),
+            orientation="h",
+            x=0.99,
+            xanchor="right",
+            y=0.985,
+            yanchor="top",
+            bgcolor="rgba(0,0,0,0)",
+            borderwidth=0,
+            font=dict(color="#55555B", size=11),
+            title=dict(font=dict(color=CHART_MUTED, size=11)),
+            itemsizing="constant",
         ),
-        margin=dict(l=16, r=16, t=72, b=68),
+        margin=dict(l=22, r=20, t=76, b=56),
+        autosize=True,
+        bargap=0.24,
+        barcornerradius=7,
+        separators=".,",
+        transition=dict(duration=180, easing="cubic-in-out"),
     )
     fig.update_xaxes(
         automargin=True,
-        title_standoff=14,
-        tickfont=dict(color="#111216", size=12),
-        title_font=dict(color="#111216", size=14),
+        title_standoff=12,
+        tickfont=dict(color=CHART_MUTED, size=11),
+        title_font=dict(color=CHART_MUTED, size=12),
+        fixedrange=True,
     )
     fig.update_yaxes(
         automargin=True,
-        title_standoff=14,
-        tickfont=dict(color="#111216", size=12),
-        title_font=dict(color="#111216", size=14),
+        title_standoff=12,
+        tickfont=dict(color=CHART_MUTED, size=11),
+        title_font=dict(color=CHART_MUTED, size=12),
+        fixedrange=True,
     )
-    fig.update_layout(uniformtext_minsize=12, uniformtext_mode="hide")
+    fig.update_layout(uniformtext_minsize=10, uniformtext_mode="hide")
     # Secondary axes (e.g. dual-axis) — same dark ink as primary
     for axis in ("xaxis2", "yaxis2", "xaxis3", "yaxis3"):
         if getattr(fig.layout, axis, None) is not None:
             fig.update_layout(
                 **{
                     axis: dict(
-                        title=dict(font=dict(color="#111216", size=12)),
-                        tickfont=dict(color="#111216", size=11),
-                        gridcolor="rgba(0,0,0,0.08)",
+                        title=dict(font=dict(color=CHART_MUTED, size=12)),
+                        tickfont=dict(color=CHART_MUTED, size=11),
+                        gridcolor=CHART_GRID,
+                        zeroline=False,
+                        showline=False,
+                        fixedrange=True,
                     )
                 }
             )
     if getattr(fig.layout, "polar", None) is not None:
         fig.update_layout(
             polar=dict(
-                bgcolor="rgba(255,255,255,0.96)",
+                bgcolor="rgba(0,0,0,0)",
                 radialaxis=dict(
-                    gridcolor="rgba(0,0,0,0.08)",
-                    linecolor="rgba(0,0,0,0.2)",
-                    tickfont=dict(color="#424245", size=11),
+                    gridcolor=CHART_GRID,
+                    linecolor=CHART_BORDER,
+                    tickfont=dict(color=CHART_MUTED, size=11),
                 ),
                 angularaxis=dict(
-                    linecolor="rgba(0,0,0,0.2)",
-                    tickfont=dict(color="#424245", size=11),
+                    linecolor=CHART_BORDER,
+                    tickfont=dict(color=CHART_MUTED, size=11),
                 ),
             )
         )
@@ -344,7 +383,7 @@ def plotly_line_chart(
 ) -> go.Figure:
     """Create a multi-line Plotly chart with optional secondary y-axis."""
     x_label = _friendly_label(x)
-    line_palette = ["#FF0033", "#00A6FF", "#F04438", "#38BDF8", "#FB7185", "#1D4ED8"]
+    line_palette = YT_COLORWAY
     secondary_y = set(secondary_y or [])
     if secondary_y:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -357,8 +396,9 @@ def plotly_line_chart(
                     y=df[col],
                     name=_friendly_label(col),
                     mode="lines+markers",
-                    line={"shape": "linear", "color": color, "width": 2.2},
-                    marker={"size": 6, "color": color},
+                    line={"shape": "linear", "color": color, "width": 2.8},
+                    marker={"size": 7, "color": "#FFFFFF", "line": {"color": color, "width": 2.2}},
+                    hovertemplate=f"{x_label}: %{{x}}<br>{_friendly_label(col)}: %{{y:~s}}<extra></extra>",
                 ),
                 secondary_y=use_secondary,
             )
@@ -382,8 +422,11 @@ def plotly_line_chart(
                     y=df[col],
                     name=_friendly_label(col),
                     mode="lines+markers",
-                    line={"shape": "linear", "color": color, "width": 2.2},
-                    marker={"size": 6, "color": color},
+                    line={"shape": "linear", "color": color, "width": 2.8},
+                    marker={"size": 7, "color": "#FFFFFF", "line": {"color": color, "width": 2.2}},
+                    fill="tozeroy" if len(y_cols) == 1 else None,
+                    fillcolor="rgba(230,0,18,0.08)" if len(y_cols) == 1 else None,
+                    hovertemplate=f"{x_label}: %{{x}}<br>{_friendly_label(col)}: %{{y:~s}}<extra></extra>",
                 )
             )
         fig.update_xaxes(title_text=x_label)
@@ -403,31 +446,47 @@ def plotly_bar_chart(
     title: str,
     horizontal: bool = False,
 ) -> go.Figure:
-    """Create a bar chart with red → cyan emphasis (Creator Insights charts)."""
-    bar_line = dict(color="rgba(255,255,255,0.12)", width=0.8)
-    _bar_cs = [[0, "rgba(255,0,0,0.35)"], [0.5, "#FF0000"], [1, "#00D4FF"]]
+    """Create a readable bar chart with direct labels and restrained emphasis."""
+    bar_line = dict(color="rgba(255,255,255,0.72)", width=0.8)
     x_label = _friendly_label(x)
     y_label = _friendly_label(y)
     numeric_values = pd.to_numeric(df[y], errors="coerce").fillna(0)
-    compact_values = [_compact_number(v) for v in numeric_values.tolist()]
+    is_percentage = y.lower().endswith(("_pct", "_percent", "_percentage"))
+    if is_percentage:
+        compact_values = [
+            f"{float(value):.2f}".rstrip("0").rstrip(".") + "%"
+            for value in numeric_values.tolist()
+        ]
+    else:
+        compact_values = [_compact_number(v) for v in numeric_values.tolist()]
+    if numeric_values.empty:
+        bar_colors: List[str] = []
+    elif bool((numeric_values < 0).any()):
+        # Direction is also written in the value labels; color is supplemental.
+        bar_colors = [YT_BLUE if value >= 0 else YT_RED for value in numeric_values]
+    else:
+        bar_colors = ["rgba(230,0,18,0.74)"] * len(numeric_values)
+        max_position = int(np.argmax(numeric_values.to_numpy()))
+        bar_colors[max_position] = YT_BLUE
     if horizontal:
         fig = go.Figure(
             go.Bar(
                 x=df[y],
                 y=df[x],
                 orientation="h",
-                marker=dict(color=df[y], colorscale=_bar_cs, line=bar_line),
+                marker=dict(color=bar_colors, line=bar_line),
                 text=compact_values,
                 customdata=compact_values,
                 texttemplate="%{text}",
                 textposition="outside",
-                textfont=dict(size=12, color="#1d1d1f"),
+                textfont=dict(size=11, color=CHART_INK),
                 cliponaxis=False,
                 hovertemplate=f"{x_label}: %{{y}}<br>{y_label}: %{{customdata}}<extra></extra>",
             )
         )
         fig.update_xaxes(title_text=y_label)
-        fig.update_yaxes(title_text=x_label)
+        fig.update_yaxes(title_text=None, showgrid=False)
+        fig.update_xaxes(showgrid=True, gridcolor=CHART_GRID, rangemode="tozero")
         if _needs_compact_units(numeric_values):
             fig.update_xaxes(tickformat="~s")
     else:
@@ -435,21 +494,21 @@ def plotly_bar_chart(
             go.Bar(
                 x=df[x],
                 y=df[y],
-                marker=dict(color=df[y], colorscale=_bar_cs, line=bar_line),
+                marker=dict(color=bar_colors, line=bar_line),
                 text=compact_values,
                 customdata=compact_values,
                 texttemplate="%{text}",
                 textposition="outside",
-                textfont=dict(size=12, color="#1d1d1f"),
+                textfont=dict(size=11, color=CHART_INK),
                 cliponaxis=False,
                 hovertemplate=f"{x_label}: %{{x}}<br>{y_label}: %{{customdata}}<extra></extra>",
             )
         )
         fig.update_xaxes(title_text=x_label)
-        fig.update_yaxes(title_text=y_label)
+        fig.update_yaxes(title_text=y_label, rangemode="tozero")
         if _needs_compact_units(numeric_values):
             fig.update_yaxes(tickformat="~s")
-    fig.update_layout(title=title)
+    fig.update_layout(title=title, showlegend=False)
     apply_dashboard_chart_theme(fig)
     return fig
 
@@ -472,7 +531,7 @@ def plotly_donut_chart(
     fig.update_traces(
         textposition="outside",
         texttemplate="%{label}<br>%{percent}",
-        textfont=dict(size=13, color="#1d1d1f"),
+        textfont=dict(size=12, color=CHART_INK),
         marker=dict(line=dict(color="rgba(255,255,255,0.95)", width=1.2)),
         hovertemplate=f"{_friendly_label(names)}: %{{label}}<br>{_friendly_label(values)}: %{{value:~s}}<extra></extra>",
     )
@@ -495,11 +554,18 @@ def plotly_heatmap(
             z=pivot.values,
             x=pivot.columns,
             y=pivot.index,
-            colorscale="Viridis",
+            colorscale=[
+                [0.0, "rgba(230,0,18,0.06)"],
+                [0.45, "rgba(230,0,18,0.42)"],
+                [1.0, YT_RED],
+            ],
+            hoverongaps=False,
             colorbar=dict(
                 title=_friendly_label(z),
-                tickfont=dict(color="#424245"),
-                title_font=dict(color="#1d1d1f", size=12),
+                thickness=10,
+                outlinewidth=0,
+                tickfont=dict(color=CHART_MUTED),
+                title_font=dict(color=CHART_MUTED, size=11),
             ),
         )
     )
@@ -570,7 +636,12 @@ def plotly_scatter(
     """Create a scatter plot with optional log-scaled X and clearer markers."""
     hover_cols = [c for c in ("channel_title", "video_title") if c in df.columns]
     color_kw: Dict[str, Any] = {}
-    if color and color in df.columns:
+    color_cardinality = int(df[color].nunique(dropna=True)) if color and color in df.columns else 0
+    # A legend with dozens (or hundreds) of recycled colors is not a legend—it
+    # is noise. Preserve the category in hover details and use one product color
+    # when the categorical dimension exceeds a scannable legend.
+    use_categorical_color = bool(color and color in df.columns and color_cardinality <= 8)
+    if use_categorical_color:
         color_kw["color"] = color
         color_kw["color_discrete_sequence"] = YT_COLORWAY
     fig = px.scatter(
@@ -590,19 +661,28 @@ def plotly_scatter(
     )
     fig.update_layout(title=title)
     apply_dashboard_chart_theme(fig)
+    fig.update_layout(showlegend=use_categorical_color)
     if log_x:
         fig.update_xaxes(type="log", title=f"{_friendly_label(x)} (log scale)")
     else:
         fig.update_xaxes(title=_friendly_label(x))
     fig.update_yaxes(title=_friendly_label(y))
+    fig.update_xaxes(showgrid=True, gridcolor=CHART_GRID)
+    fig.update_yaxes(showgrid=True, gridcolor=CHART_GRID)
     if x in df.columns and _needs_compact_units(df[x]):
         fig.update_xaxes(tickformat="~s")
     if y in df.columns and _needs_compact_units(df[y]):
         fig.update_yaxes(tickformat="~s")
+    marker_style: Dict[str, Any] = {
+        "opacity": 0.72,
+        "line": {"width": 1.1, "color": "rgba(255,255,255,0.82)"},
+    }
+    if not use_categorical_color:
+        marker_style["color"] = YT_RED
     if enhanced_markers:
-        fig.update_traces(
-            marker=dict(size=14, opacity=0.9, line=dict(width=1.2, color="rgba(255,255,255,0.25)")),
-        )
+        marker_style["size"] = 14
+        marker_style["opacity"] = 0.88
+    fig.update_traces(marker=marker_style)
     return fig
 
 
@@ -618,12 +698,12 @@ def plotly_treemap(
         path=path,
         values=values,
         color=values,
-        color_continuous_scale=["rgba(255,0,0,0.2)", "#FF0000", "#00D4FF"],
+        color_continuous_scale=["#FDEBED", "#F45B69", YT_RED],
         labels={values: _friendly_label(values)},
     )
     fig.update_layout(title=title)
     fig.update_traces(
-        textfont=dict(size=13, color="#1d1d1f"),
+        textfont=dict(size=12, color=CHART_INK),
         texttemplate="%{label}<br>%{value:~s}",
     )
     apply_dashboard_chart_theme(fig)

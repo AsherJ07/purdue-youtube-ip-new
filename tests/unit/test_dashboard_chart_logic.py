@@ -6,7 +6,11 @@ from dashboard.views.channel_analysis import (
 )
 from dashboard.views.outlier_finder import _breakout_scatter
 from dashboard.views.ytuber import _suggested_topic_angles
-from dashboard.components.visualizations import format_compact_number, plotly_scatter
+from dashboard.components.visualizations import (
+    format_compact_number,
+    plotly_bar_chart,
+    plotly_scatter,
+)
 
 
 def _cohort_frame(dates: list[str]) -> pd.DataFrame:
@@ -108,4 +112,41 @@ def test_dashboard_scatter_uses_browser_safe_svg_renderer() -> None:
     )
 
     assert {trace.type for trace in fig.data} == {"scatter"}
+
+
+def test_high_cardinality_scatter_uses_one_series_without_legend_noise() -> None:
+    frame = pd.DataFrame(
+        {
+            "views": range(1, 13),
+            "public_interaction_pct": [2.5] * 12,
+            "channel_title": [f"Channel {index}" for index in range(12)],
+        }
+    )
+
+    fig = plotly_scatter(
+        frame,
+        x="views",
+        y="public_interaction_pct",
+        size=None,
+        color="channel_title",
+        title="Reach vs public interaction",
+    )
+
+    assert len(fig.data) == 1
+    assert fig.layout.showlegend is False
+    assert fig.layout.plot_bgcolor == "rgba(0,0,0,0)"
+
+
+def test_percentage_bars_include_units_in_direct_labels() -> None:
+    frame = pd.DataFrame({"bucket": ["Low", "High"], "share_pct": [12.5, 87.5]})
+
+    fig = plotly_bar_chart(
+        frame,
+        x="bucket",
+        y="share_pct",
+        title="Distribution",
+    )
+
+    assert list(fig.data[0].text) == ["12.5%", "87.5%"]
+    assert fig.layout.paper_bgcolor == "rgba(0,0,0,0)"
 

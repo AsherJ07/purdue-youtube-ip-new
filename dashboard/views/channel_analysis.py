@@ -453,6 +453,31 @@ def render() -> None:
     median_interaction = float(scatter_df["public_interaction_pct"].median())
     fig_scatter.add_vline(x=median_views, line_dash="dot", line_color="#6E6E73")
     fig_scatter.add_hline(y=median_interaction, line_dash="dot", line_color="#6E6E73")
+    fig_scatter.add_annotation(
+        x=median_views,
+        y=1,
+        xref="x",
+        yref="paper",
+        text=f"Median reach · {format_compact_number(median_views)}",
+        showarrow=False,
+        yshift=10,
+        font={"size": 10, "color": "#6E6E73"},
+        bgcolor="rgba(255,255,255,0.82)",
+        borderpad=3,
+    )
+    fig_scatter.add_annotation(
+        x=1,
+        y=median_interaction,
+        xref="paper",
+        yref="y",
+        text=f"Typical interaction · {median_interaction:.2f}%",
+        showarrow=False,
+        xanchor="right",
+        xshift=-6,
+        font={"size": 10, "color": "#6E6E73"},
+        bgcolor="rgba(255,255,255,0.82)",
+        borderpad=3,
+    )
     fig_scatter.update_layout(height=520, legend_title_text="Channel")
     show_plotly_chart(fig_scatter)
 
