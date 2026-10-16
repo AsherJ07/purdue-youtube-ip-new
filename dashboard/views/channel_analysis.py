@@ -1,6 +1,7 @@
 import os
 from datetime import date, datetime
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -12,7 +13,6 @@ from dashboard.components.visualizations import (
     format_compact_number,
     kpi_row,
     plotly_bar_chart,
-    plotly_scatter,
     section_header,
     show_plotly_chart,
     styled_dataframe,
@@ -211,6 +211,143 @@ def _publication_cohort_chart(summary: pd.DataFrame, grain: str) -> go.Figure:
     fig.update_yaxes(title="Median lifetime average daily views", tickformat="~s", rangemode="tozero")
     apply_dashboard_chart_theme(fig)
     return fig
+
+
+def _reach_interaction_chart(frame: pd.DataFrame) -> tuple[go.Figure, dict[str, object]]:
+    """Show reach/interaction without allowing a dense dataset to collapse into a dot cloud."""
+    valid = frame[["views", "public_interaction_pct"]].copy()
+    valid["views"] = pd.to_numeric(valid["views"], errors="coerce")
+    valid["public_interaction_pct"] = pd.to_numeric(
+        valid["public_interaction_pct"], errors="coerce"
+    )
+    valid = valid.replace([np.inf, -np.inf], np.nan).dropna()
+    valid = valid[(valid["views"] > 0) & (valid["public_interaction_pct"] >= 0)]
+
+    if valid.empty:
+        fig = go.Figure()
+        fig.update_layout(title="Where videos cluster by reach and interaction", height=460)
+        apply_dashboard_chart_theme(fig)
+        return fig, {"mode": "empty", "videos": 0, "overflow": 0, "y_cap": None}
+
+    median_views = float(valid["views"].median())
+    median_interaction = float(valid["public_interaction_pct"].median())
+
+    # Individual dots remain legible for a small filtered selection. Larger selections use
+    # aggregation so overlapping points communicate concentration instead of hiding it.
+    if len(valid) < 250:
+        fig = go.Figure(
+            go.Scatter(
+                x=valid["views"],
+                y=valid["public_interaction_pct"],
+                mode="markers",
+                marker={
+                    "size": 8,
+                    "opacity": 0.68,
+                    "color": "#FF0033",
+                    "line": {"color": "rgba(255,255,255,.8)", "width": 0.7},
+                },
+                hovertemplate="Views: %{x:,.0f}<br>Public interaction: %{y:.2f}%<extra></extra>",
+            )
+        )
+        fig.update_xaxes(type="log", title="Views (log scale)", tickformat="~s")
+        fig.update_yaxes(title="Public interaction", ticksuffix="%", rangemode="tozero")
+        mode = "scatter"
+        overflow = 0
+        y_cap = None
+    else:
+        x_log = np.log10(valid["views"].to_numpy(dtype=float))
+        interaction = valid["public_interaction_pct"].to_numpy(dtype=float)
+        q99 = float(np.nanpercentile(interaction, 99))
+        y_cap = min(100.0, max(5.0, q99))
+        overflow = int(np.sum(interaction > y_cap))
+        y_binned = np.minimum(interaction, y_cap)
+
+        x_min, x_max = float(x_log.min()), float(x_log.max())
+        if np.isclose(x_min, x_max):
+            x_min -= 0.25
+            x_max += 0.25
+        y_max = max(y_cap, 1.0)
+        x_edges = np.linspace(x_min, x_max, 33)
+        y_edges = np.linspace(0.0, y_max, 25)
+        counts, _, _ = np.histogram2d(x_log, y_binned, bins=[x_edges, y_edges])
+        x_centers = (x_edges[:-1] + x_edges[1:]) / 2
+        y_centers = (y_edges[:-1] + y_edges[1:]) / 2
+        visible_counts = np.where(counts.T > 0, counts.T, np.nan)
+
+        fig = go.Figure(
+            go.Heatmap(
+                x=x_centers,
+                y=y_centers,
+                z=visible_counts,
+                customdata=counts.T,
+                colorscale=[
+                    [0.0, "rgba(220,231,246,0.55)"],
+                    [0.28, "#AFCDF2"],
+                    [0.58, "#4D8BD8"],
+                    [0.82, "#7D3C86"],
+                    [1.0, "#FF0033"],
+                ],
+                colorbar={"title": {"text": "Videos"}, "thickness": 12, "len": 0.72},
+                hovertemplate=(
+                    "Reach: %{x:.1f} log₁₀ views<br>"
+                    "Public interaction: %{y:.1f}%<br>"
+                    "Videos in area: %{customdata:,.0f}<extra></extra>"
+                ),
+                hoverongaps=False,
+            )
+        )
+        tick_start = int(np.floor(x_min))
+        tick_end = int(np.ceil(x_max))
+        tick_values = list(range(tick_start, tick_end + 1))
+        fig.update_xaxes(
+            title="Views (log scale)",
+            tickmode="array",
+            tickvals=tick_values,
+            ticktext=[format_compact_number(10**value) for value in tick_values],
+        )
+        fig.update_yaxes(title="Public interaction", ticksuffix="%", rangemode="tozero")
+        median_views = float(np.log10(median_views))
+        mode = "density"
+
+    fig.add_vline(x=median_views, line_dash="dot", line_color="#6E6E73")
+    fig.add_hline(y=median_interaction, line_dash="dot", line_color="#6E6E73")
+    fig.add_annotation(
+        x=median_views,
+        y=1,
+        xref="x",
+        yref="paper",
+        text=f"Median reach · {format_compact_number(float(valid['views'].median()))}",
+        showarrow=False,
+        yshift=10,
+        font={"size": 10, "color": "#6E6E73"},
+        bgcolor="rgba(255,255,255,0.88)",
+        borderpad=3,
+    )
+    fig.add_annotation(
+        x=1,
+        y=median_interaction,
+        xref="paper",
+        yref="y",
+        text=f"Typical · {median_interaction:.2f}%",
+        showarrow=False,
+        xanchor="right",
+        xshift=-6,
+        font={"size": 10, "color": "#6E6E73"},
+        bgcolor="rgba(255,255,255,0.88)",
+        borderpad=3,
+    )
+    fig.update_layout(
+        title="Where videos cluster by reach and interaction",
+        height=500,
+        showlegend=False,
+    )
+    apply_dashboard_chart_theme(fig)
+    return fig, {
+        "mode": mode,
+        "videos": len(valid),
+        "overflow": overflow,
+        "y_cap": y_cap,
+    }
 
 
 def render() -> None:
@@ -437,49 +574,16 @@ def render() -> None:
         styled_dataframe(day_table, precision=2)
 
     section_header("Reach vs public interaction", icon="📉")
-    scatter_df = filtered.copy()
-    fig_scatter = plotly_scatter(
-        scatter_df,
-        x="views",
-        y="public_interaction_pct",
-        size=None,
-        color="channel_title",
-        title="Video reach vs public interaction",
-    )
-    fig_scatter.update_traces(marker={"size": 9, "opacity": 0.65})
-    fig_scatter.update_xaxes(type="log", title="Views (log scale)")
-    fig_scatter.update_yaxes(title="Public Interaction Rate (%)", ticksuffix="%")
-    median_views = float(scatter_df["views"].median())
-    median_interaction = float(scatter_df["public_interaction_pct"].median())
-    fig_scatter.add_vline(x=median_views, line_dash="dot", line_color="#6E6E73")
-    fig_scatter.add_hline(y=median_interaction, line_dash="dot", line_color="#6E6E73")
-    fig_scatter.add_annotation(
-        x=median_views,
-        y=1,
-        xref="x",
-        yref="paper",
-        text=f"Median reach · {format_compact_number(median_views)}",
-        showarrow=False,
-        yshift=10,
-        font={"size": 10, "color": "#6E6E73"},
-        bgcolor="rgba(255,255,255,0.82)",
-        borderpad=3,
-    )
-    fig_scatter.add_annotation(
-        x=1,
-        y=median_interaction,
-        xref="paper",
-        yref="y",
-        text=f"Typical interaction · {median_interaction:.2f}%",
-        showarrow=False,
-        xanchor="right",
-        xshift=-6,
-        font={"size": 10, "color": "#6E6E73"},
-        bgcolor="rgba(255,255,255,0.82)",
-        borderpad=3,
-    )
-    fig_scatter.update_layout(height=520, legend_title_text="Channel")
-    show_plotly_chart(fig_scatter)
+    fig_reach, reach_meta = _reach_interaction_chart(filtered)
+    show_plotly_chart(fig_reach)
+    if reach_meta["mode"] == "density":
+        density_note = "Color shows how many videos occupy each reach-and-interaction area."
+        if reach_meta["overflow"]:
+            density_note += (
+                f" {reach_meta['overflow']:,} extreme values above "
+                f"{reach_meta['y_cap']:.1f}% are grouped into the top band."
+            )
+        st.caption(density_note)
 
     section_header("Public interaction distribution", icon="📊")
     bins = []

@@ -3,6 +3,7 @@ import pandas as pd
 from dashboard.views.channel_analysis import (
     _publication_cohort_chart,
     _publication_cohort_summary,
+    _reach_interaction_chart,
 )
 from dashboard.views.outlier_finder import _breakout_scatter
 from dashboard.views.ytuber import _suggested_topic_angles
@@ -149,4 +150,34 @@ def test_percentage_bars_include_units_in_direct_labels() -> None:
 
     assert list(fig.data[0].text) == ["12.5%", "87.5%"]
     assert fig.layout.paper_bgcolor == "rgba(0,0,0,0)"
+
+
+def test_large_reach_interaction_view_uses_density_without_dropping_videos() -> None:
+    frame = pd.DataFrame(
+        {
+            "views": [10 ** (2 + (index % 50) / 10) for index in range(600)],
+            "public_interaction_pct": [1 + (index % 40) / 10 for index in range(599)]
+            + [80.0],
+        }
+    )
+
+    fig, metadata = _reach_interaction_chart(frame)
+
+    assert [trace.type for trace in fig.data] == ["heatmap"]
+    assert int(fig.data[0].customdata.sum()) == 600
+    assert metadata["mode"] == "density"
+    assert metadata["overflow"] == 1
+    first_tick = fig.layout.xaxis.ticktext[0]
+    assert first_tick.endswith(("K", "M", "B")) or first_tick.isdigit()
+
+
+def test_small_reach_interaction_view_keeps_individual_points() -> None:
+    frame = pd.DataFrame(
+        {"views": [1_000, 10_000], "public_interaction_pct": [2.0, 4.0]}
+    )
+
+    fig, metadata = _reach_interaction_chart(frame)
+
+    assert [trace.type for trace in fig.data] == ["scatter"]
+    assert metadata["mode"] == "scatter"
 
