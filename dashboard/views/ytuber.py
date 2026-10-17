@@ -25,6 +25,7 @@ from dashboard.components.visualizations import (
     plotly_bar_chart,
     plotly_heatmap,
     plotly_scatter,
+    plotly_treemap,
     section_header,
     show_plotly_chart,
     styled_dataframe,
@@ -765,16 +766,6 @@ def _render_connection_cards(provider_counts: Optional[Dict[str, int]] = None) -
             )
 
     return provider_counts
-
-
-def _render_workspace_details(workspace_meta: Dict[str, Any]) -> None:
-    """Keep implementation metadata available without competing with the workflow."""
-    with st.expander("Workspace details", expanded=False):
-        st.markdown(
-            f"**Source:** {escape(str(workspace_meta.get('source_label', 'Unavailable')))}  \n"
-            f"**Videos analyzed:** {int(workspace_meta.get('video_count', 0) or 0):,}  \n"
-            f"**Channel ID:** `{escape(str(workspace_meta.get('channel_id', 'Unavailable')))}`"
-        )
 
 
 def _catalog_map(items: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
@@ -1876,14 +1867,13 @@ def _render_keyword_intel(channel_df: pd.DataFrame) -> List[str]:
         return []
 
     if "score" in intel.columns:
-        bar_fig = plotly_bar_chart(
-            intel.head(15).sort_values("score", ascending=True),
-            x="keyword",
-            y="score",
-            title="Topics with the strongest opportunity signal",
-            horizontal=True,
+        tree_fig = plotly_treemap(
+            intel.head(24),
+            path=["keyword"],
+            values="score",
+            title="Topic opportunity map",
         )
-        show_plotly_chart(bar_fig)
+        show_plotly_chart(tree_fig)
     return intel["keyword"].tolist()
 
 
@@ -3338,7 +3328,6 @@ def render() -> None:
     channel_df = st.session_state["ytuber_channel_df"]
     channel_title = st.session_state.get("ytuber_channel_title", "")
     channel_id = st.session_state.get("ytuber_channel_id", "")
-    source = st.session_state.get("ytuber_source", "")
 
     if channel_df.empty:
         st.warning("No videos available for this channel in the last year.")
@@ -3388,11 +3377,3 @@ def render() -> None:
         _render_competitor_benchmark(channel_df, channel_title, channel_id)
     elif active_module == "Content Planner":
         _render_content_planner(channel_df)
-
-    _render_workspace_details(
-        {
-            "source_label": source.replace("_", " ").title() if source else "Unavailable",
-            "channel_id": channel_id,
-            "video_count": len(channel_df),
-        }
-    )
