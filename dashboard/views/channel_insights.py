@@ -1106,7 +1106,12 @@ def _render_summary_action_row(payload: Dict[str, Any]) -> None:
     with action_cols[2]:
         st.link_button("Open channel", channel["canonical_url"], width="stretch")
 
-    with st.expander("Theme model details", expanded=False):
+    details_label = (
+        "How BERTopic works"
+        if topic_mode_requested == TOPIC_MODE_BERTOPIC_OPTIONAL
+        else "How theme detection works"
+    )
+    with st.expander(details_label, expanded=False):
         semantic_status = (
             summary.get("topic_model_status", "")
             if summary.get("topic_model_status") == "showcase_fixture"
@@ -1118,6 +1123,18 @@ def _render_summary_action_row(payload: Dict[str, Any]) -> None:
             f"**Semantic model status:** {_artifact_status_label(semantic_status)}  \n"
             f"**Bundle version:** {escape(str(summary.get('topic_model_bundle_version', '') or 'Not loaded'))}"
         )
+        if topic_mode_requested == TOPIC_MODE_BERTOPIC_OPTIONAL:
+            st.markdown(
+                "**What happens:** cleaned titles, descriptions, and tags are grouped by semantic similarity. "
+                "Each theme is then compared on daily reach, recent momentum, and the number of supporting videos.\n\n"
+                "**Quality guardrail:** sparse text, unusable model output, or an unavailable model bundle triggers "
+                "the transparent heuristic fallback instead of forcing a low-confidence theme."
+            )
+        else:
+            st.markdown(
+                "**What happens:** normalized title, description, and tag tokens are filtered for stop words, "
+                "then grouped into transparent keyword themes and ranked using the same performance evidence."
+            )
         st.caption(topic_model_message or "Fast keyword themes remain the fallback when the semantic model is unavailable.")
     if topic_mode_requested == TOPIC_MODE_BERTOPIC_OPTIONAL and topic_mode_used != TOPIC_MODE_BERTOPIC_OPTIONAL:
         st.warning(topic_model_failure_reason or "BERTopic beta mode could not run for this snapshot, so the page fell back to heuristic topics.")
@@ -1127,6 +1144,7 @@ def _render_summary_action_row(payload: Dict[str, Any]) -> None:
 def _render_overview_tab(payload: Dict[str, Any]) -> None:
     summary = payload["summary"]
     recommendations = payload.get("recommendations", {})
+    recommended_actions = recommendations.get("actions") or _fallback_overview_actions(payload)
 
     overview_cols = st.columns([1.12, 1], gap="large")
     with overview_cols[0]:
@@ -1158,7 +1176,7 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
             unsafe_allow_html=True,
         )
 
-        recommended_actions = recommendations.get("actions") or _fallback_overview_actions(payload)
+    with overview_cols[1]:
         if recommended_actions:
             action_markup = "<ul class='ci-list'>" + "".join(
                 f"<li>{escape(str(action))}</li>" for action in recommended_actions[:4]
@@ -1174,32 +1192,6 @@ def _render_overview_tab(payload: Dict[str, Any]) -> None:
             )
         else:
             st.markdown("<div class='ci-empty'>Refresh the channel to generate action recommendations.</div>", unsafe_allow_html=True)
-
-    with overview_cols[1]:
-        st.markdown(
-            """
-            <div class="ci-card">
-                <div class="ci-card-title">How the AI turns evidence into a decision</div>
-                <div class="ci-summary-grid">
-                    <div class="ci-summary-item">
-                        <div class="ci-summary-label">1 · Understand</div>
-                        <div class="ci-summary-value">Cluster videos by semantic meaning, not exact keyword matches.</div>
-                    </div>
-                    <div class="ci-summary-item">
-                        <div class="ci-summary-label">2 · Measure</div>
-                        <div class="ci-summary-value">Compare repeated themes on reach, momentum, and evidence strength.</div>
-                    </div>
-                    <div class="ci-summary-item" style="grid-column:1 / -1;">
-                        <div class="ci-summary-label">3 · Act</div>
-                        <div class="ci-summary-value">Convert the strongest signal into one controlled content experiment.</div>
-                    </div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        if summary.get("topic_mode_requested") == TOPIC_MODE_BERTOPIC_OPTIONAL and summary.get("topic_mode_used") != TOPIC_MODE_BERTOPIC_OPTIONAL:
-            st.caption(summary.get("topic_model_failure_reason") or "BERTopic beta mode fell back to the heuristic topic flow.")
 
 
 def _render_topic_trends_tab(payload: Dict[str, Any]) -> None:
